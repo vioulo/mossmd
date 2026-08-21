@@ -1,11 +1,13 @@
 # MossMD
 
-**基于 CodeMirror 6 的 Obsidian 风格 Markdown 编辑器，支持自定义块语法扩展。**
-
 [![npm version](https://img.shields.io/npm/v/mossmd?color=7c3aed&labelColor=2d2d2d)](https://www.npmjs.com/package/mossmd)
 [![license](https://img.shields.io/npm/l/mossmd?color=7c3aed&labelColor=2d2d2d)](./LICENSE)
 
-MossMD 是一个边输入边渲染的 Markdown 编辑器。标题、加粗、表格、图片、任务列表、Wiki 链接都会直接呈现，但底层始终只保留原始 Markdown。你看到的文档，就是实际保存的文档，没有分栏预览，也没有额外的预览副本。
+MossMD （苔藓 markdown） 是一个基于 CodeMirror 6 的 Obsidian live-view 风格 Markdown 编辑器，支持自定义块语法扩展。
+
+起初是想在自己的博客系统中集成一款 markdown 编辑器，使用过 milkdown 等, 但是与 obsidian 在书写体验上还是有差距，且或多或少存在不顺畅的点，于是想自己构建一款 live-view 风格的编辑器。
+
+ChatGPT 推荐了 [atomic-editor](https://github.com/kenforthewin/atomic-editor?utm_source=chatgpt.com)， 当前项目可以看作是它的 fork 版本，不过后续会在 AI 协作下添加了更多自定义功能，贴近 obsidian 的使用体验，构造一些自己需要的功能点。
 
 ## 特性
 

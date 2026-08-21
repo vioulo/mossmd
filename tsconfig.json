@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "mossmd": ["./src/index.ts"],
+      "mossmd/code-languages": ["./src/core/code-languages.ts"],
+      "mossmd/styles.css": ["./src/styles/inline-preview.css"],
+      "mossmd/editor.css": ["./src/styles/inline-preview.css"],
+      "mossmd/content.css": ["./src/styles/content.css"],
+      "mossmd/tokens.css": ["./src/styles/tokens.css"],
+      "mossmd/collab": ["./src/collab/index.ts"],
+      "mossmd/syntax": ["./src/syntax/index.ts"],
+      "mossmd/syntax/callout": ["./src/syntax/callout/index.ts"],
+      "mossmd/theme": ["./src/theme/index.ts"],
+      "mossmd/plugins/image-blocks": ["./src/plugins/image-blocks.ts"],
+      "mossmd/plugins/table-widget": ["./src/plugins/table-widget.ts"],
+      "mossmd/plugins/wiki-links": ["./src/plugins/wiki-links.ts"]
+    },
+    "types": ["node"]
+  },
+  "include": [
+    "src",
+    "demo",
+    "tests",
+    "playwright.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
+}

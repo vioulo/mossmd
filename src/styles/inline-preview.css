@@ -1,0 +1,874 @@
+/*
+ * @mossmd — inline live-preview styles.
+ *
+ * Every rule below sets font-size / weight / decoration purely by CSS
+ * class, and does NOT depend on cursor state. Line heights therefore
+ * stay constant whether the line is "active" (syntax tokens visible)
+ * or "inactive" (tokens hidden by the inline-preview extension's
+ * replace-decorations) — that's what eliminates the layout-shift
+ * problem from widget-replacement approaches.
+ *
+ * Vertical-rhythm rules use `padding` on .cm-line, not `margin`. CM6
+ * measures each line's bounding-box height for virtualization;
+ * padding is inside the box (measured), margin is outside (not
+ * measured), so only padding yields the reader's spacing without
+ * confusing CM6.
+ *
+ * Theming contract: every color / font / size token below reads from
+ * a `--moss-*` custom property with an inline fallback. The
+ * defaults target a dark background; override the prefixed vars on
+ * any ancestor of the editor to theme it for your app.
+ */
+
+@import './tokens.css';
+
+/* Root container — fills its parent so the CM6 scroller can take over
+ * scrolling behavior. Previously relied on Tailwind `h-full w-full`
+ * applied in the React layer, which only worked for consumers who had
+ * Tailwind configured. Baking the sizing into the package means
+ * dropping the editor into any height-bounded parent just works. */
+.moss-cm-editor {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+/* Content container — constrain to a comfortable reading width. This
+ * is where the prose feel mostly comes from: line length in the
+ * 60–75ch range is what lets the eye sweep naturally. The full editor
+ * frame can still be wide (for search UI, sidebars, etc.) — only the
+ * text column is narrowed. */
+.moss-cm-editor .cm-content {
+  max-width: var(--moss-measure, 70ch);
+  margin-inline: auto;
+  padding-inline: 0.5rem;
+  font-family: var(--moss-font, system-ui, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: var(--moss-body-size, 1.0625rem);
+  line-height: var(--moss-body-leading, 1.7);
+  color: var(--moss-fg, #dcddde);
+  text-wrap: pretty;
+}
+
+/* Heading lines. Padding-top (not margin-top) creates the rhythm so
+ * CM6's line-height measurement stays correct.
+ *
+ * These values are intentionally small (≤ 0.2em). Prior values
+ * (0.4em–0.7em) produced a tall visual strip above the heading's
+ * text that belongs to the heading's hit-box but looks identical to
+ * the empty separator line above it. Users would click the visual
+ * "blank space above the heading" and land on the heading by
+ * surprise. The empty markdown line before a heading (which almost
+ * every real doc has) supplies the rest of the rhythm naturally. */
+.cm-line.cm-moss-h1 {
+  font-size: 1.35em;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  padding-top: 0.15em;
+  padding-bottom: 0.1em;
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-line.cm-moss-h2 {
+  font-size: 1.2em;
+  font-weight: 700;
+  line-height: 1.35;
+  padding-top: 0.15em;
+  padding-bottom: 0.1em;
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-line.cm-moss-h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  line-height: 1.4;
+  padding-top: 0.12em;
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-line.cm-moss-h4 {
+  font-size: 1em;
+  font-weight: 600;
+  padding-top: 0.1em;
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-line.cm-moss-h5 {
+  font-size: 0.95em;
+  font-weight: 600;
+  padding-top: 0.08em;
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-line.cm-moss-h6 {
+  font-size: 0.9em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding-top: 0.08em;
+  color: var(--moss-fg-muted, #888);
+}
+
+/* Blockquote lines — each line in the quote gets a left rail. Putting
+ * the rail on every line means the visual continues for multi-line
+ * quotes even though each line is an independent DOM element. */
+.cm-line.cm-moss-blockquote {
+  padding-left: 1rem;
+  border-left: 3px solid var(--moss-accent-soft, color-mix(in srgb, #7c3aed 72%, white 28%));
+  color: var(--moss-fg-muted, #888);
+}
+
+.cm-line.cm-moss-callout {
+  --moss-callout-accent: var(--moss-accent-bright, #a78bfa);
+  --moss-callout-bg: color-mix(in srgb, var(--moss-callout-accent) 10%, transparent 90%);
+  --moss-callout-border: color-mix(in srgb, var(--moss-callout-accent) 72%, var(--moss-border, #3d3d3d) 28%);
+  background: var(--moss-callout-bg);
+  border-left-color: var(--moss-callout-border);
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-line.cm-moss-callout-first {
+  border-top-right-radius: var(--moss-radius, 6px);
+}
+
+.cm-line.cm-moss-callout-last {
+  border-bottom-right-radius: var(--moss-radius, 6px);
+}
+
+.cm-line.cm-moss-callout-note,
+.cm-moss-callout-label-note {
+  --moss-callout-accent: #82aaff;
+}
+
+.cm-line.cm-moss-callout-info,
+.cm-line.cm-moss-callout-todo,
+.cm-moss-callout-label-info,
+.cm-moss-callout-label-todo {
+  --moss-callout-accent: #89ddff;
+}
+
+.cm-line.cm-moss-callout-tip,
+.cm-line.cm-moss-callout-success,
+.cm-moss-callout-label-tip,
+.cm-moss-callout-label-success {
+  --moss-callout-accent: #c3e88d;
+}
+
+.cm-line.cm-moss-callout-warning,
+.cm-moss-callout-label-warning {
+  --moss-callout-accent: #ffcb6b;
+}
+
+.cm-line.cm-moss-callout-important,
+.cm-moss-callout-label-important {
+  --moss-callout-accent: #c792ea;
+}
+
+.cm-line.cm-moss-callout-danger,
+.cm-line.cm-moss-callout-failure,
+.cm-line.cm-moss-callout-bug,
+.cm-line.cm-moss-callout-caution,
+.cm-moss-callout-label-danger,
+.cm-moss-callout-label-failure,
+.cm-moss-callout-label-bug,
+.cm-moss-callout-label-caution {
+  --moss-callout-accent: #f07178;
+}
+
+.cm-line.cm-moss-callout-question,
+.cm-line.cm-moss-callout-example,
+.cm-line.cm-moss-callout-abstract,
+.cm-moss-callout-label-question,
+.cm-moss-callout-label-example,
+.cm-moss-callout-label-abstract {
+  --moss-callout-accent: #c792ea;
+}
+
+.cm-line.cm-moss-callout-quote,
+.cm-moss-callout-label-quote {
+  --moss-callout-accent: var(--moss-fg-muted, #888);
+}
+
+.cm-moss-callout-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35em;
+  margin-right: 0.45em;
+  color: var(--moss-callout-accent, var(--moss-accent-bright, #a78bfa));
+  font-size: 0.78em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.cm-moss-callout-title {
+  font-weight: 650;
+  color: var(--moss-fg, #dcddde);
+}
+
+/* Fenced-code lines — subtle backdrop plus a left rail so the block
+ * reads as a contained unit. The rail is an *inset box-shadow*, not a
+ * border, so it adds no width and never perturbs the line-box geometry
+ * CM6 measures for virtualization (a real border would shift the
+ * padding math between active/inactive states). */
+.cm-line.cm-moss-fenced-code {
+  font-family: var(--moss-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.92em;
+  background: var(--moss-code-bg, color-mix(in srgb, #2d2d2d 88%, black 12%));
+  box-shadow: inset 2px 0 0
+    var(--moss-code-rail, color-mix(in srgb, var(--moss-accent, #7c3aed) 45%, var(--moss-border, #3d3d3d) 55%));
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+/* `drawSelection()` paints behind content, where the opaque code backdrop
+ * would cover it. A selection-only inline decoration mirrors the same token
+ * above the block background while leaving syntax-highlighted text on top. */
+.cm-moss-fenced-selection {
+  background-color: var(
+    --moss-selection-bg,
+    color-mix(in srgb, #7c3aed 28%, #1e1e1e 72%)
+  );
+}
+
+/* Inline content marks — applied on the text inside **…**, *…*, `…`,
+ * ~~…~~, [text](url). Styling only; no height changes. */
+.cm-moss-strong {
+  font-weight: 700;
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-moss-em {
+  font-style: italic;
+}
+
+.cm-moss-inline-code {
+  font-family: var(--moss-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.88em;
+  color: var(--moss-fg, #dcddde);
+  background: var(--moss-code-bg, color-mix(in srgb, #2d2d2d 88%, black 12%));
+  border-radius: 0.35rem;
+  padding: 0.08em 0.35em;
+  word-break: break-word;
+}
+
+.cm-moss-strike {
+  text-decoration: line-through;
+  color: var(--moss-fg-muted, #888);
+}
+
+.cm-moss-highlight {
+  background: color-mix(in srgb, var(--moss-accent-bright, #a78bfa) 20%, transparent 80%);
+  border-radius: 0.2em;
+  color: var(--moss-fg, #dcddde);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Delimiter characters for emphasis marks we supplemented manually
+ * (see `supplementMidTypingEmphasis` in inline-preview.ts). Each
+ * class mirrors what an `EmphasisMark` token would pick up through
+ * syntax highlighting when lezer does parse the pattern: faint
+ * color from `processingInstruction`, plus the parent scope's
+ * weight / style / decoration so the delimiter glyph keeps the
+ * same metrics whether lezer recognized the emphasis or not.
+ * Without the matching weight / style, `**` would visibly change
+ * width as the user types through a trailing space. */
+.cm-moss-strong-mark {
+  color: var(--moss-fg-faint, #666);
+  font-weight: 700;
+}
+
+.cm-moss-em-mark {
+  color: var(--moss-fg-faint, #666);
+  font-style: italic;
+}
+
+.cm-moss-strike-mark {
+  color: var(--moss-fg-faint, #666);
+  text-decoration: line-through;
+}
+
+.cm-moss-highlight-mark {
+  color: var(--moss-fg-faint, #666);
+  background: transparent;
+}
+
+.cm-moss-link {
+  color: var(--moss-link, #818cf8);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+  /* No pointer cursor on the link text — the text is editable like
+   * any other content. The pointer cursor is scoped to the trailing
+   * icon below, which is the actual open-in-new-tab affordance. */
+}
+
+.cm-moss-link:hover {
+  color: var(--moss-link-hover, #a5b4fc);
+}
+
+/* External-link icon. In prose it's a `::after` pseudo-element; inside
+ * table cells it's a real `.cm-moss-link-icon` element (a pseudo can't
+ * receive a click, so the in-cell icon wouldn't open the link). Both
+ * share the masked-SVG visual so the color tracks the link color via
+ * `background-color`. */
+.cm-moss-link::after,
+.cm-moss-link-icon {
+  display: inline-block;
+  width: 0.78em;
+  height: 0.78em;
+  margin-left: 0.32em;
+  vertical-align: -0.02em;
+  cursor: pointer;
+  background-color: color-mix(in srgb, var(--moss-link, #818cf8) 82%, white 18%);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cg%3E%3Cpath d='M10.0002 5H8.2002C7.08009 5 6.51962 5 6.0918 5.21799C5.71547 5.40973 5.40973 5.71547 5.21799 6.0918C5 6.51962 5 7.08009 5 8.2002V15.8002C5 16.9203 5 17.4801 5.21799 17.9079C5.40973 18.2842 5.71547 18.5905 6.0918 18.7822C6.5192 19 7.07899 19 8.19691 19H15.8031C16.921 19 17.48 19 17.9074 18.7822C18.2837 18.5905 18.5905 18.2839 18.7822 17.9076C19 17.4802 19 16.921 19 15.8031V14M20 9V4M20 4H15M20 4L13 11' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cg%3E%3Cpath d='M10.0002 5H8.2002C7.08009 5 6.51962 5 6.0918 5.21799C5.71547 5.40973 5.40973 5.71547 5.21799 6.0918C5 6.51962 5 7.08009 5 8.2002V15.8002C5 16.9203 5 17.4801 5.21799 17.9079C5.40973 18.2842 5.71547 18.5905 6.0918 18.7822C6.5192 19 7.07899 19 8.19691 19H15.8031C16.921 19 17.48 19 17.9074 18.7822C18.2837 18.5905 18.5905 18.2839 18.7822 17.9076C19 17.4802 19 16.921 19 15.8031V14M20 9V4M20 4H15M20 4L13 11' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  opacity: 0.9;
+}
+
+.cm-moss-link::after {
+  content: "";
+}
+
+/* The real in-cell icon must be clickable but never selectable / part
+ * of caret navigation. */
+.cm-moss-link-icon {
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* In cells the icon is a real element — suppress the pseudo so the icon
+ * doesn't render twice. */
+.cm-moss-table-cell-source .cm-moss-link::after {
+  content: none;
+}
+
+.cm-moss-link:hover::after,
+.cm-moss-link-icon:hover {
+  background-color: color-mix(in srgb, var(--moss-link-hover, #a5b4fc) 84%, white 16%);
+  opacity: 1;
+}
+
+.cm-moss-wiki-link {
+  color: var(--moss-link, #818cf8);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+.cm-moss-wiki-link:hover {
+  color: var(--moss-link-hover, #a5b4fc);
+}
+
+.cm-moss-wiki-link-missing,
+.cm-moss-wiki-link-unresolved {
+  color: var(--moss-fg-muted, #888);
+  text-decoration-style: dotted;
+}
+
+.cm-moss-wiki-link-loading {
+  color: var(--moss-fg-muted, #888);
+}
+
+.cm-moss-wiki-link-hidden-syntax {
+  color: transparent;
+  font-size: 0;
+  letter-spacing: 0;
+  user-select: none;
+}
+
+/* Horizontal rule — on inactive lines, the raw `***` / `---` /
+ * `___` characters are hidden by Decoration.replace, and a visual
+ * rule is drawn through the center of the line via a pseudo-element.
+ * The line keeps its natural line-height so height stays stable
+ * between active and inactive states (active shows the raw chars). */
+.cm-line.cm-moss-hr {
+  position: relative;
+}
+
+.cm-line.cm-moss-hr::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid var(--moss-border, #3d3d3d);
+  pointer-events: none;
+}
+
+/* Image block widget — rendered below the source line containing
+ * the `![alt](url)` markdown. Natural image size up to the editor's
+ * content width (`max-width: 100%` of .cm-content, which is the
+ * reading-width column). Smaller images render at their own size,
+ * left-aligned. Aspect ratio preserved by `height: auto`. */
+.cm-moss-image {
+  padding: 0.35em 0;
+}
+
+.cm-moss-image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.4em;
+}
+
+/* Bullet widget — replaces the raw `-` / `*` marker on bullet-list
+ * items. Matches the visual weight of a real list marker while
+ * staying in the muted-secondary color so the item text dominates. */
+/* Shared marker alcove — forces bullet, task checkbox, and
+ * ordered-list number into the same fixed horizontal width so the
+ * inline-preview line padding / text-indent math is stable across
+ * list kinds. Width here must match LIST_ALCOVE_EM in
+ * inline-preview.ts. Without the fixed width, wrapped-line
+ * indent lands in different places for each kind because the raw
+ * marker widths differ per font. */
+.cm-moss-list-marker {
+  display: inline-block;
+  width: 0.9em;
+  margin-right: 0.3em;
+  text-align: right;
+}
+
+/* Bullet-only visual styling on top of the shared alcove. */
+.cm-moss-bullet {
+  color: var(--moss-fg-muted, #888);
+  font-weight: 700;
+}
+
+/* GFM task-list checkbox widget — replaces `[ ]` / `[x]` in a task
+ * item. Styled as a small custom square rather than the platform's
+ * native checkbox so it reads closer to Obsidian across browsers.
+ * Width+margin still total 1.2em to match ALCOVE_EM in
+ * inline-preview.ts. The trailing space after `[ ]` in the source is
+ * swallowed by the replace decoration. */
+.cm-moss-task-checkbox {
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0 0.31em 0 -0.16em;
+  font-size: inherit;
+  vertical-align: 0.1em;
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  border: 1.5px solid var(--moss-fg-muted, #888);
+  border-radius: 0.22em;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  display: inline-grid;
+  place-content: center;
+  transform: translateY(-0.04em);
+}
+
+.cm-moss-task-checkbox::after {
+  content: "";
+  width: 0.26em;
+  height: 0.5em;
+  border-right: 0.12em solid #ffffff;
+  border-bottom: 0.12em solid #ffffff;
+  transform: rotate(45deg) translate(-0.03em, -0.04em);
+  opacity: 0;
+}
+
+.cm-moss-task-checkbox:checked {
+  background: var(--moss-accent, #7c3aed);
+  border-color: var(--moss-accent, #7c3aed);
+}
+
+.cm-moss-task-checkbox:checked::after {
+  opacity: 1;
+}
+
+.cm-moss-task-checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--moss-accent, #7c3aed) 28%, transparent 72%);
+}
+
+/* Forced-colors mode removes box shadows, so retain a visible keyboard
+ * focus indicator using system colors instead. */
+@media (forced-colors: active) {
+  .cm-moss-task-checkbox:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+}
+
+/* Whole-line strike for completed task items. */
+.cm-line.cm-moss-task-done {
+  color: var(--moss-fg-faint, #666);
+  text-decoration: line-through;
+}
+
+/* WYSIWYG table block widget — emitted by `tables()` in
+ * table-widget.ts. The Table node's source range is fully replaced
+ * by this rendered `<table>`; users interact with cells directly
+ * via `contenteditable`, with Tab / Shift-Tab moving focus between
+ * cells and Tab past the last cell appending a new row.
+ *
+ * Horizontal scroll on the wrapper so wide tables (common in
+ * RSS-ingested content) don't squish their cells to unreadable
+ * widths on narrow viewports. The inner `<table>` uses
+ * `width: max-content` + `min-width: 100%` so it fills the reading
+ * column when narrow and grows past it (triggering the scrollbar)
+ * when content needs more room. `overscroll-behavior-x: contain`
+ * keeps a horizontal flick from bubbling up and scrolling the
+ * whole editor sideways. */
+/* Table wrapper — horizontal scroll contained here so wide
+ * tables don't push the editor's content box wider than the
+ * viewport. Paired with `.cm-content { min-width: 0 }` in the
+ * theme, which is what actually keeps the content box pinned to
+ * parent width (CM6's base theme sets `min-width: max-content`,
+ * which otherwise lets a wide child expand the whole scroller).
+ * Without that pairing no amount of table-level overflow
+ * constraints would hold — the symptom was the editor briefly
+ * going wider than the viewport on mobile when a wide table
+ * entered the rendered viewport. */
+.cm-moss-table {
+  /* Use padding, not margin, for vertical rhythm around the table.
+   * CM6's heightmap measures block-widget heights via
+   * `getBoundingClientRect`, which EXCLUDES margin but INCLUDES
+   * padding. A `margin: 0.5em 0` here meant the heightmap allocated
+   * less height than the DOM layout flow actually consumed — 1em
+   * (~17px) less on typical font sizes. That drift shifted every
+   * line below the table in CM6's heightmap vs the DOM, so clicks
+   * at a visual Y were routed to the doc line BELOW the one
+   * visually targeted. User-visible symptom: clicking an empty
+   * line above a heading placed the caret on the heading; clicking
+   * text in a task item with the caret on the empty line below
+   * left the caret in place (because the "wrong" line was the same
+   * as the current caret). Padding keeps the bbox honest so CM6's
+   * heightmap matches the DOM. */
+  padding: 0.5em 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cm-moss-table table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  font-family: var(--moss-font, system-ui, sans-serif);
+}
+
+.cm-moss-table th,
+.cm-moss-table td {
+  border: 1px solid var(--moss-border, #3d3d3d);
+  padding: 0.35em 0.6em;
+  text-align: left;
+  vertical-align: top;
+  min-width: 2em;
+  min-height: 1.5em;
+}
+
+.cm-moss-table th {
+  font-weight: 700;
+  background: var(--moss-code-bg, color-mix(in srgb, #2d2d2d 88%, black 12%));
+}
+
+/* Cells aren't contenteditable themselves; the inner source element
+ * is. Outline the whole cell when focus lands inside so the edit
+ * target reads as "the cell" even though the DOM is split. */
+.cm-moss-table th:focus-within,
+.cm-moss-table td:focus-within {
+  outline: 2px solid var(--moss-accent, #7c3aed);
+  outline-offset: -2px;
+}
+
+/* The editable source inside a cell — always shows the raw markdown
+ * the user types, whether or not the cell also has a rendered image
+ * preview below. Blank outline because the cell's :focus-within
+ * ring is what signals the active edit target. */
+.cm-moss-table-cell-source {
+  outline: none;
+  min-height: 1.2em;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Inline-mark delimiters (`**`, `__`, `*`, `_`, `~~`, `[`, `]`, `(`, `)`,
+ * URLs) inside table cells. Hidden by default so the reader sees only
+ * the rendered content — bold text without `**`, link text without
+ * brackets or URL. The delimiters remain in the DOM (so textContent
+ * round-trips to the raw markdown on input) but take zero space and
+ * the caret can't navigate into them.
+ *
+ * When the caret enters a mark wrap, JS adds `active` and the
+ * descendant delimiters reveal — so the user can actually edit them.
+ * Nested marks (bold-containing-italic) all reveal together when any
+ * of them contains the caret, because the JS walks ancestors. */
+.cm-moss-table-cell-source .cm-moss-mark {
+  display: none;
+}
+
+.cm-moss-table-cell-source .cm-moss-strong-wrap.active > .cm-moss-mark,
+.cm-moss-table-cell-source .cm-moss-em-wrap.active > .cm-moss-mark,
+.cm-moss-table-cell-source .cm-moss-strike-wrap.active > .cm-moss-mark,
+.cm-moss-table-cell-source .cm-moss-highlight-wrap.active > .cm-moss-mark,
+.cm-moss-table-cell-source .cm-moss-link-wrap.active > .cm-moss-mark {
+  display: inline;
+  color: var(--moss-fg-faint, #666);
+  font-weight: normal;
+  font-style: normal;
+  text-decoration: none;
+}
+
+/* Link URL: monospace hint + size cut so a long URL doesn't dominate
+ * the cell's width once its wrap becomes active. */
+.cm-moss-table-cell-source .cm-moss-link-wrap.active > .cm-moss-link-url {
+  font-family: var(--moss-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.88em;
+}
+
+.cm-moss-table-cell-source .cm-moss-highlight {
+  background: color-mix(in srgb, var(--moss-accent-bright, #a78bfa) 20%, transparent 80%);
+  border-radius: 0.18em;
+  color: var(--moss-fg, #dcddde);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Rendered image preview strip below the source text. Mirrors how
+ * block-level images render outside a table: the `![alt](url)`
+ * markdown is the source of truth, but the user sees the image in
+ * the resting state — the raw markdown only appears when the cell
+ * is focused for editing (see :focus-within rule below). */
+.cm-moss-table-cell-preview {
+  margin-top: 0.35em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  user-select: none;
+}
+
+/* Mirror the block-image invariant from outside tables: on an
+ * inactive cell, the raw `![alt](url)` markdown hides and only the
+ * rendered image shows. Focus the cell (click or Tab) to bring the
+ * source back so it can be edited.
+ *
+ * We visually hide the source without `display: none` so it stays in
+ * the DOM and remains focusable — Tab nav calls `source.focus()`
+ * explicitly and would silently fail on a display:none element. The
+ * position:absolute + zero-size pattern keeps the element interactive
+ * while taking no visible space. */
+.cm-moss-table th[data-has-image]:not(:focus-within) .cm-moss-table-cell-source,
+.cm-moss-table td[data-has-image]:not(:focus-within) .cm-moss-table-cell-source {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Inline images inside table cells. Capped so a tall image doesn't
+ * balloon a single row into half the viewport. Users who want larger
+ * in-cell images can do without for now — we'd need Obsidian's
+ * `[[file|width]]` alias syntax to make it controllable. */
+.cm-moss-table-cell-image {
+  display: block;
+  max-width: 14em;
+  max-height: 5em;
+  border-radius: 0.2em;
+  cursor: pointer;
+}
+
+/* Table context menu — right-click a cell to insert / delete rows
+ * and columns. Mounted on document.body so positioning isn't
+ * affected by CM6's overflow scroll. */
+.cm-moss-table-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 170px;
+  padding: 0.25rem 0;
+  background: var(--moss-bg-panel, #252525);
+  border: 1px solid var(--moss-border, #3d3d3d);
+  border-radius: var(--moss-radius, 6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  font-family: var(--moss-font, system-ui, sans-serif);
+  font-size: 0.82rem;
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-moss-table-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.35rem 0.75rem;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cm-moss-table-menu-item:hover {
+  background: var(--moss-bg-surface, #2d2d2d);
+}
+
+.cm-moss-table-menu-sep {
+  height: 1px;
+  margin: 0.25rem 0;
+  background: var(--moss-border, #3d3d3d);
+}
+
+/* Find-in-document panel — single compact row of input + match
+ * counter + prev / next / close icon buttons. Rendered at the top
+ * of the editor by the `search()` extension; DOM built in the
+ * editor component (`defaultSearchPanel`). Styled to match the
+ * rest of the app's control surface: card-toned background,
+ * rounded inputs with an accent focus ring, muted-secondary for
+ * secondary text. */
+.moss-search-panel {
+  padding: 0.5rem 0.6rem;
+  background: var(--moss-bg-panel, #252525);
+  border-bottom: 1px solid var(--moss-border, #3d3d3d);
+  font-family: var(--moss-font, system-ui, sans-serif);
+  color: var(--moss-fg, #dcddde);
+}
+
+.moss-search-panel form {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cm-moss-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.4rem 0.65rem;
+  background: var(--moss-bg-surface, #2d2d2d);
+  border: 1px solid var(--moss-border, #3d3d3d);
+  border-radius: var(--moss-radius, 6px);
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.cm-moss-search-input:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--moss-accent, #7c3aed);
+}
+
+.cm-moss-search-input::placeholder {
+  color: var(--moss-fg-muted, #888);
+}
+
+.cm-moss-search-count {
+  flex: 0 0 auto;
+  color: var(--moss-fg-muted, #888);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  min-width: 0;
+  user-select: none;
+}
+
+.cm-moss-search-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--moss-radius, 6px);
+  color: var(--moss-fg-muted, #888);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.cm-moss-search-btn:hover {
+  background: var(--moss-bg-surface, #2d2d2d);
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-moss-search-btn:focus-visible {
+  outline: none;
+  border-color: var(--moss-accent, #7c3aed);
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-moss-search-btn svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Highlight matches in the document. Active match gets a stronger
+ * fill; other matches share the same tone in a lighter shade. The
+ * background-color custom properties are pre-mixed in src/index.css
+ * to alpha-blend cleanly over whatever theme backdrop is active. */
+.cm-searchMatch {
+  background: var(--moss-search-bg, rgba(124, 58, 237, 0.28));
+  border-radius: 2px;
+}
+
+.cm-searchMatch-selected {
+  background: var(--moss-search-bg-active, rgba(124, 58, 237, 0.6));
+}
+
+/* Initial reveal highlight — paired with the `initialRevealText` prop
+ * and the `revealText()` imperative method on the editor handle.
+ * Starts at a stronger accent-tinted background, settles to a softer
+ * one, then fades to transparent over ~3.2s so the reader's eye
+ * catches the match on arrival without the highlight lingering.
+ *
+ * Two tokens so consumers can theme either the peak or the settled
+ * state independently of the main search-match colors. */
+.cm-initialRevealMatch {
+  background: var(
+    --moss-initial-reveal-bg,
+    color-mix(in srgb, var(--moss-accent-soft, #a78bfa) 28%, transparent 72%)
+  );
+  border-radius: 0.2rem;
+  animation: moss-initial-reveal-fade 3.2s ease-out forwards;
+}
+
+@keyframes moss-initial-reveal-fade {
+  0% {
+    background: var(
+      --moss-initial-reveal-bg-strong,
+      color-mix(in srgb, var(--moss-accent-soft, #a78bfa) 42%, transparent 58%)
+    );
+  }
+  65% {
+    background: var(
+      --moss-initial-reveal-bg,
+      color-mix(in srgb, var(--moss-accent-soft, #a78bfa) 28%, transparent 72%)
+    );
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+/* Read-only ("reading") mode. The `cm-moss-readonly` class is set on
+ * the editor wrapper by `readOnlyExtension` (src/read-only.ts). In this
+ * mode nothing reveals its source and the whole document is a reading
+ * surface, so interactive affordances change accordingly. */
+
+/* The entire link is the open target now (not just the trailing icon),
+ * so the text gets the pointer cursor too — for both inline links and
+ * links rendered inside table cells. */
+.cm-moss-readonly .cm-moss-link,
+.cm-moss-readonly .cm-moss-wiki-link,
+.cm-moss-readonly .cm-moss-link-wrap {
+  cursor: pointer;
+}
+
+/* Table cells are inert: no caret, no text cursor. */
+.cm-moss-readonly .cm-moss-table-cell-source {
+  cursor: default;
+}

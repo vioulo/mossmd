@@ -1,0 +1,242 @@
+@import './tokens.css';
+
+/*
+ * Content surface styles for rendered markdown outside CodeMirror.
+ * Scope the markup under `.moss-markdown` so blog pages can opt in
+ * without leaking editor typography across the app.
+ */
+
+.moss-markdown {
+  max-width: var(--moss-measure, 70ch);
+  margin-inline: auto;
+  padding-inline: 0.5rem;
+  font-family: var(--moss-font, system-ui, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: var(--moss-body-size, 1rem);
+  line-height: var(--moss-body-leading, 1.7);
+  color: var(--moss-fg, #dcddde);
+  text-wrap: pretty;
+}
+
+.moss-markdown :where(p, ul, ol, blockquote, pre, table, figure, hr) {
+  margin-block: 1em;
+}
+
+.moss-markdown :where(h1, h2, h3, h4, h5, h6) {
+  margin: 1.4em 0 0.6em;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--moss-fg, #dcddde);
+}
+
+.moss-markdown h1 {
+  font-size: 1.6em;
+}
+
+.moss-markdown h2 {
+  font-size: 1.35em;
+}
+
+.moss-markdown h3 {
+  font-size: 1.2em;
+}
+
+.moss-markdown h4 {
+  font-size: 1.08em;
+}
+
+.moss-markdown h5 {
+  font-size: 1em;
+}
+
+.moss-markdown h6 {
+  font-size: 0.92em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--moss-fg-muted, #888888);
+}
+
+.moss-markdown blockquote,
+.moss-markdown .moss-callout {
+  margin-inline: 0;
+  padding: 0.85em 1rem;
+  border-left: 3px solid var(--moss-accent-soft, #a78bfa);
+  border-radius: 0 var(--moss-radius, 6px) var(--moss-radius, 6px) 0;
+  background: color-mix(in srgb, var(--moss-accent-soft, #a78bfa) 10%, transparent 90%);
+  color: var(--moss-fg-muted, #888888);
+}
+
+.moss-markdown .moss-callout {
+  --moss-callout-accent: var(--moss-accent-bright, #a78bfa);
+  --moss-callout-bg: color-mix(in srgb, var(--moss-callout-accent) 10%, transparent 90%);
+  --moss-callout-border: color-mix(
+    in srgb,
+    var(--moss-callout-accent) 72%,
+    var(--moss-border, #3d3d3d) 28%
+  );
+  color: var(--moss-fg, #dcddde);
+  background: var(--moss-callout-bg);
+  border-left-color: var(--moss-callout-border);
+}
+
+.moss-markdown .moss-callout-title {
+  font-weight: 650;
+  color: var(--moss-fg, #dcddde);
+}
+
+.moss-markdown .moss-callout-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35em;
+  margin-right: 0.45em;
+  color: var(--moss-callout-accent, var(--moss-accent-bright, #a78bfa));
+  font-size: 0.78em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.moss-markdown .moss-callout-note,
+.moss-markdown .moss-callout-label-note {
+  --moss-callout-accent: #82aaff;
+}
+
+.moss-markdown .moss-callout-info,
+.moss-markdown .moss-callout-todo,
+.moss-markdown .moss-callout-label-info,
+.moss-markdown .moss-callout-label-todo {
+  --moss-callout-accent: #89ddff;
+}
+
+.moss-markdown .moss-callout-tip,
+.moss-markdown .moss-callout-success,
+.moss-markdown .moss-callout-label-tip,
+.moss-markdown .moss-callout-label-success {
+  --moss-callout-accent: #c3e88d;
+}
+
+.moss-markdown .moss-callout-warning,
+.moss-markdown .moss-callout-label-warning {
+  --moss-callout-accent: #ffcb6b;
+}
+
+.moss-markdown .moss-callout-important,
+.moss-markdown .moss-callout-label-important {
+  --moss-callout-accent: #c792ea;
+}
+
+.moss-markdown .moss-callout-danger,
+.moss-markdown .moss-callout-failure,
+.moss-markdown .moss-callout-bug,
+.moss-markdown .moss-callout-caution,
+.moss-markdown .moss-callout-label-danger,
+.moss-markdown .moss-callout-label-failure,
+.moss-markdown .moss-callout-label-bug,
+.moss-markdown .moss-callout-label-caution {
+  --moss-callout-accent: #f07178;
+}
+
+.moss-markdown .moss-callout-question,
+.moss-markdown .moss-callout-example,
+.moss-markdown .moss-callout-abstract,
+.moss-markdown .moss-callout-label-question,
+.moss-markdown .moss-callout-label-example,
+.moss-markdown .moss-callout-label-abstract {
+  --moss-callout-accent: #c792ea;
+}
+
+.moss-markdown .moss-callout-quote,
+.moss-markdown .moss-callout-label-quote {
+  --moss-callout-accent: var(--moss-fg-muted, #888888);
+}
+
+.moss-markdown :where(a) {
+  color: var(--moss-link, #818cf8);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+.moss-markdown :where(a:hover) {
+  color: var(--moss-link-hover, #a5b4fc);
+}
+
+.moss-markdown :where(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--moss-radius, 6px);
+}
+
+.moss-markdown :where(code):not(pre code) {
+  padding: 0.08em 0.35em;
+  border-radius: 0.35rem;
+  background: var(--moss-code-bg, #2d2d2d);
+  color: var(--moss-fg, #dcddde);
+  font-family: var(--moss-font-mono, ui-monospace, monospace);
+  font-size: 0.92em;
+}
+
+.moss-markdown pre {
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid var(--moss-border, #3d3d3d);
+  border-radius: var(--moss-radius, 6px);
+  background: var(--moss-code-bg, #2d2d2d);
+  color: var(--moss-fg, #dcddde);
+}
+
+.moss-markdown pre code {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+
+.moss-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.moss-markdown th,
+.moss-markdown td {
+  border: 1px solid var(--moss-border, #3d3d3d);
+  padding: 0.55rem 0.75rem;
+  vertical-align: top;
+}
+
+.moss-markdown th {
+  background: var(--moss-bg-panel, #252525);
+}
+
+.moss-markdown hr {
+  border: 0;
+  border-top: 1px solid var(--moss-border, #3d3d3d);
+}
+
+.moss-markdown ul,
+.moss-markdown ol {
+  padding-inline-start: 1.5em;
+}
+
+.moss-markdown li + li {
+  margin-top: 0.35em;
+}
+
+.moss-markdown kbd {
+  padding: 0.1em 0.45em;
+  border: 1px solid var(--moss-border, #3d3d3d);
+  border-bottom-width: 2px;
+  border-radius: 0.35rem;
+  background: var(--moss-bg-surface, #2d2d2d);
+  color: var(--moss-fg, #dcddde);
+  font-family: var(--moss-font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+}
+
+.moss-markdown mark {
+  padding: 0 0.15em;
+  border-radius: 0.2em;
+  background: color-mix(in srgb, var(--moss-accent-bright, #a78bfa) 20%, transparent 80%);
+  color: var(--moss-fg, #dcddde);
+}

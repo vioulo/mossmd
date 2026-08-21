@@ -1,0 +1,27 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--moss-bg, #1e1e1e);
+  color: var(--moss-fg, #dcddde);
+  font-family: var(--moss-font, system-ui, sans-serif);
+}
+
+.harness-shell {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.harness-editor {
+  flex: 1;
+  min-height: 0;
+}

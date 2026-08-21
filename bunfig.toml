@@ -1,0 +1,6 @@
+[install]
+registry = "https://registry.npmjs.org/"
+
+[test]
+preload = ["./src/__tests__/setup.ts"]
+environment = "happy-dom"

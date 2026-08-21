@@ -1,0 +1,112 @@
+/*
+ * Shared MossMD theme tokens.
+ *
+ * These variables are the contract between the editor surface and any
+ * rendered markdown surface outside CodeMirror. Consumers can override
+ * them on any ancestor element, or switch the palette by setting
+ * `data-theme="light"` on an ancestor.
+ */
+
+:root {
+  --moss-font: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --moss-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --moss-body-size: 1rem;
+  --moss-body-leading: 1.7;
+  --moss-measure: 70ch;
+  --moss-radius: 6px;
+
+  --moss-fg: #dcddde;
+  --moss-fg-muted: #888888;
+  --moss-fg-faint: #666666;
+  --moss-bg: #1e1e1e;
+  --moss-bg-panel: #252525;
+  --moss-bg-surface: #2d2d2d;
+  --moss-border: #3d3d3d;
+  --moss-accent: #7c3aed;
+  --moss-accent-bright: #a78bfa;
+  --moss-accent-soft: color-mix(
+    in srgb,
+    var(--moss-accent-bright) 72%,
+    white 28%
+  );
+  --moss-link: #818cf8;
+  --moss-link-hover: #a5b4fc;
+  --moss-code-bg: color-mix(
+    in srgb,
+    var(--moss-bg-surface) 88%,
+    black 12%
+  );
+  --moss-code-rail: color-mix(
+    in srgb,
+    var(--moss-accent) 45%,
+    var(--moss-border) 55%
+  );
+  --moss-selection-bg: color-mix(
+    in srgb,
+    var(--moss-accent) 28%,
+    var(--moss-bg) 72%
+  );
+  --moss-search-bg: color-mix(in srgb, var(--moss-accent) 26%, transparent 74%);
+  --moss-search-bg-active: color-mix(
+    in srgb,
+    var(--moss-accent) 60%,
+    transparent 40%
+  );
+  --moss-initial-reveal-bg: color-mix(
+    in srgb,
+    var(--moss-accent-soft) 28%,
+    transparent 72%
+  );
+  --moss-initial-reveal-bg-strong: color-mix(
+    in srgb,
+    var(--moss-accent-soft) 42%,
+    transparent 58%
+  );
+  --moss-hl-keyword: #c792ea;
+  --moss-hl-string: #c3e88d;
+  --moss-hl-number: #f78c6c;
+  --moss-hl-comment: #6a7a82;
+  --moss-hl-type: #ffcb6b;
+  --moss-hl-function: #82aaff;
+  --moss-hl-property: #82aaff;
+  --moss-hl-regexp: #f07178;
+  --moss-hl-escape: #89ddff;
+  --moss-hl-tag: #f07178;
+  --moss-hl-variable: #eeffff;
+  --moss-hl-operator: #89ddff;
+  --moss-hl-invalid: #ff5370;
+}
+
+[data-theme="light"] {
+  --moss-fg: #24292f;
+  --moss-fg-muted: #57606a;
+  --moss-fg-faint: #8c959f;
+  --moss-bg: #ffffff;
+  --moss-bg-panel: #f6f8fa;
+  --moss-bg-surface: #eaeef2;
+  --moss-border: #d0d7de;
+  --moss-accent: #6639ba;
+  --moss-accent-bright: #8250df;
+  --moss-accent-soft: #c4b5fd;
+  --moss-link: #6d28d9;
+  --moss-link-hover: #7c3aed;
+  --moss-code-bg: #f3f1fb;
+  --moss-selection-bg: color-mix(in srgb, #8250df 18%, transparent 82%);
+  --moss-search-bg: rgba(251, 189, 8, 0.35);
+  --moss-search-bg-active: rgba(251, 189, 8, 0.6);
+  --moss-initial-reveal-bg: color-mix(in srgb, #8250df 16%, transparent 84%);
+  --moss-initial-reveal-bg-strong: color-mix(in srgb, #8250df 30%, transparent 70%);
+  --moss-hl-keyword: #cf222e;
+  --moss-hl-string: #0a3069;
+  --moss-hl-number: #0550ae;
+  --moss-hl-comment: #6e7781;
+  --moss-hl-type: #953800;
+  --moss-hl-function: #8250df;
+  --moss-hl-property: #0550ae;
+  --moss-hl-regexp: #116329;
+  --moss-hl-escape: #0550ae;
+  --moss-hl-tag: #116329;
+  --moss-hl-variable: #24292f;
+  --moss-hl-operator: #cf222e;
+  --moss-hl-invalid: #82071e;
+}

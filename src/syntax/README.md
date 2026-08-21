@@ -1,23 +1,19 @@
 # Moss 自定义语法
 
-`syntax/` 只负责 Markdown/Lezer 扩展的注册协议。完整的用户功能放在
-`features/<name>/` 中；一个 feature 可以同时提供 Markdown 语法扩展和
-CodeMirror 装饰、widget、命令等编辑器行为。
-
-自定义块应打包成小型模块，导出 `MossCustomSyntax` 对象：
+`mossmd/syntax` 提供的是自定义语法注册协议，不是具体功能实现。完整功能放在 `src/features/<name>/`，这里负责把语法模块描述成 `MossCustomSyntax`，再交给编辑器注册。
 
 ```ts
 import { defineMossSyntax } from 'mossmd/syntax';
 
 export const calloutSyntax = defineMossSyntax({
   name: 'callout',
-  description: '> [!NOTE] 风格 callout 块',
+  description: 'Callout 块',
   markdown: calloutMarkdown,
   extensions: calloutDecorations(),
 });
 ```
 
-然后传给 React 编辑器：
+然后传给编辑器：
 
 ```tsx
 <MossEditor
@@ -26,17 +22,17 @@ export const calloutSyntax = defineMossSyntax({
 />
 ```
 
-`markdown` 字段被转发进 `@codemirror/lang-markdown` 的 `markdown({ extensions })` 选项。用于 Lezer Markdown 扩展，如 `defineNodes`、`parseInline`、`parseBlock` 或 `wrap`。
+`markdown` 会转发给 `@codemirror/lang-markdown` 的 `markdown({ extensions })`，适合放 Lezer Markdown 扩展，比如 `defineNodes`、`parseInline`、`parseBlock`、`wrap` 等。
 
-`extensions` 字段追加到编辑器的 CM6 扩展集合之后（内置的实时预览、图片、表格、wiki-link 和只读扩展之后）。用于 widget、装饰、命令、facet、悬停面板或自动补全源。
+`extensions` 会追加到编辑器扩展集合之后，适合放装饰、widget、命令、facet、悬停面板、自动补全源等普通 CM6 扩展。
 
-推荐的 feature 模块布局：
+推荐的模块结构：
 
 ```text
 src/features/<name>/
-  index.ts       公共 `MossCustomSyntax` 导出
-  markdown.ts    Lezer Markdown 扩展
-  decoration.ts  CM6 StateField/ViewPlugin 装饰层
+  index.ts
+  markdown.ts
+  decoration.ts
 ```
 
-如果未来的块需要生成的 `.lezer` 解析器，请在块落地时添加该模块的生成脚本。当前核心包不运行语法构建步骤，因为还没有签入任何生成的语法。
+如果以后真的需要生成 `.lezer` 解析器，再给对应模块加生成脚本。当前仓库还没有签入任何生成语法，所以核心包里也没有语法构建步骤。

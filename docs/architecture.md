@@ -1,208 +1,176 @@
 # 架构
 
-本文档涵盖 `mossmd` 的设计理念与实现细节。它不是每个函数的清单 —— 而是在改动任何东西之前值得记住的一套决策，因为表面积很小，但每一块都是承重墙。
+本文档记录 MossMD 当前实现的关键边界。它不是 API 清单，而是改代码前需要先确认的架构约束。
 
 ## 为什么选 CodeMirror 6
 
-大多数所见即所得 markdown 编辑器都构建在 ProseMirror 之上（Milkdown、Tiptap 等）。它们能提供精致的编辑表面，但无法虚拟化 —— ProseMirror 的状态模型要求整棵文档树都驻留内存并作为 DOM 挂载。对长文档而言这不可接受：打开时间随体积线性增长、滚动在布局变动下抖动、内存压力加剧、iOS 的惯性滚动会在大高度变化时卡顿。
+MossMD 要处理较长 Markdown 文档，并且要在编辑时保持滚动稳定。CodeMirror 6 原生支持虚拟化和增量解析，适合在纯文本缓冲上叠加装饰层。
 
-CodeMirror 6 原生支持虚拟化。它只渲染视口、解析器（`@lezer/markdown`）是增量的，整个系统围绕可干净组合的装饰构建。代价是 CM6 本质上是一个文本编辑器 —— CM6 里的"所见即所得"意味着在原始文本缓冲上精心编排装饰层，而不是像 ProseMirror 那样的富内容模型。
+与 ProseMirror 类富文本模型不同，MossMD 不维护第二份结构化文档。CodeMirror 的 `state.doc` 是唯一内容来源，预览、图片、表格、Wiki 链接、Callout 都只是编辑器视图层。
 
-## 核心不变量 1：原始 markdown 是唯一数据源
+## 核心不变量
 
-**`state.doc` 中的文档文本永远是纯 markdown。** 每个装饰只读。这是整个设计遵循的唯一规则，值得说两遍：
+### 原始 Markdown 是唯一数据源
 
-- 屏幕所见可能与原始文本不同（隐藏的语法令牌、渲染后的列表符号、复选框 widget、渲染的图片、所见即所得表格等）。
-- 你复制的内容、保存的内容、其他编辑器能解析的内容，永远是底层 markdown。
+`state.doc` 永远保存纯 Markdown。所有装饰、Widget、CSS 类都不能成为数据来源。
 
-这个不变量是跨块选区"开箱即用"的原因 —— 浏览器选区映射到文档位置，复制时从这些位置读取原始 markdown。它也是协作编辑和 diff 可以在不重想视图层的情况下直接叠加上去的原因。还是用户所见与实际持久化内容一致的原因。
+这个约束带来几个结果：
 
-## 核心不变量 2：无布局漂移
+- 保存、复制、协作同步都直接读取原文。
+- 视觉层可以随时重建，不需要参与持久化。
+- 和其它 Markdown 工具往返时不会引入隐藏状态。
 
-早期迭代曾短暂发布过一种"块"预览模式：把每个块替换成渲染后的 HTML widget。光标在块间移动时，被点击的块展开成原始文本、离开的块重新折叠，每次都引起高度变化。实测大约每 10 次光标移动触发 0.1 个 CLS；实际上给用户的感觉是 UI 在光标下震动。
+### 无布局漂移
 
-当前模式（"行内实时预览"）通过让行高**只依赖 CSS 类**来避免布局漂移，而不是依赖语法令牌是否可见。`.cm-moss-h1` 样式的标题行，无论 `# ` 前缀当前是隐藏还是显示，都是约 1.35em 高。激活/非激活状态通过 `Decoration.replace({})` 切换令牌可见性 —— 它从文档流中移除字符，但不改变所在行的高度。
+实时预览只隐藏语法令牌，不改变行高。标题、引用、列表等行高通过 `.cm-moss-*` CSS 类决定。点击进入一行时，即使源码令牌重新显露，行高也保持稳定。
 
-同样的 10 次光标移动测试在行内模式下测得的 CLS 约为 0.003 —— 几乎全部来自光标本身的重绘。结构完全不动。
+### 鼠标冻结
 
-## 文件布局
+点击标题或链接时，如果装饰立即重建，源码前缀可能在鼠标下方突然显露，导致光标位置漂移。`inline-preview.ts` 在 `pointerdown` 后短暂冻结装饰重建，并在 `pointerup` 后延迟释放。
 
-```
+### 窄失效
+
+图片和表格等 StateField 会先判断事务是否真的影响对应结构。普通段落编辑只映射已有装饰，不做全文扫描。解析树尚未覆盖全文时，`tree-progress.ts` 会在后台解析推进后广播 `treeGrowthEffect`，让相关模块补建装饰。
+
+## 当前文件布局
+
+```text
 src/
-  index.ts               公共 API（MossEditor + 类型）
-  editor.tsx             React shell + 命令式 handle
-  inline-preview.ts      主装饰引擎（ViewPlugin）
-  highlight.ts           ==highlight== markdown 解析扩展
-  theme/index.ts         主题 + 语法高亮
+  index.ts
+  editor.tsx
+  inline-preview.ts
+  highlight.ts
   core/
-    code-languages.ts    精选围栏代码语法注册表
-    edit-helpers.ts      括号 / 强调自动配对
-    read-only.ts         共享阅读模式 facet + CM6 扩展
-    tree-progress.ts     解析进度跟踪
+    code-languages.ts
+    edit-helpers.ts
+    read-only.ts
+    tree-progress.ts
   features/
-    index.ts              用户功能聚合入口
-    image/index.ts        块图片 widget（StateField）
-    table/index.ts        所见即所得表格（StateField）
-    wiki-links/index.ts   wiki 链接 + 自动补全
-    callout/index.ts      Callout 语法适配与视图扩展
-  collab/                协作接口
-  syntax/                自定义块语法（Lezer 语法）
+    index.ts
+    image/index.ts
+    table/index.ts
+    wiki-links/index.ts
+    callout/index.ts
+  syntax/
+    index.ts
+  collab/
+    index.ts
+  theme/
+    index.ts
   styles/
-    tokens.css                共享编辑器/内容主题契约
-    inline-preview.css        CodeMirror/编辑器表面样式
-    content.css               渲染后 markdown 表面样式
+    tokens.css
+    inline-preview.css
+    content.css
 ```
 
-`syntax/` 是通用的语法注册协议；`features/` 按用户功能聚合实现。一个
-feature 可以使用既有 Markdown 节点，也可以同时提供新的 Lezer 语法和
-CodeMirror 视图扩展。比如图片和表格复用现有 Markdown 语法，Callout
-复用 blockquote 语法但提供自己的装饰行为。
-
-每个 CodeMirror 模块都是**对等依赖**，这样消费方的打包器只解析一份副本。同一个 bundle 里出现两份 `@codemirror/state` 会静默破坏状态字段的身份检查；对等依赖正是用来阻止这种情况的。
+`core` 放基础机制，`features` 按用户功能聚合，`syntax` 只保留注册协议。图片和表格复用 Markdown 原生节点；Callout 复用 blockquote 结构并提供自己的装饰；未来 Mermaid 或 Kanban 如果需要新语法，也应作为 feature 落地。
 
 ## `MossEditor`
 
-单个 `EditorView` 的 React 包装。卸载时销毁视图；文档身份（`documentId ?? markdownSource`）作为视图的 key，避免光标/撤销状态从一个文档泄漏到下一个。
+`editor.tsx` 是 React 包装层，负责创建和销毁 `EditorView`，并把内置扩展装配到同一个 `EditorState` 中。
 
-组件通过 `editorHandleRef` 暴露命令式 handle：`focus`、`undo`、`redo`、`openSearch(query?)`、`closeSearch`、`isSearchOpen`、`getMarkdown`、`getContentDOM`、`setReadOnly(readOnly)`、`setCollabAdapter(adapter)`。
+文档身份使用 `documentId ?? markdownSource`。身份改变时重建编辑器，避免上一份文档的光标、撤销栈和搜索状态泄漏。
 
-值得注意的 props：
+主要职责：
 
-- `markdownSource` —— 初始内容；挂载后编辑器拥有文档。
-- `onMarkdownChange` —— 每次文档变更都会触发，包括内部变更（复选框切换、紧凑列表续行）。
-- `initialSearchText` —— 预填打开搜索面板，适合把用户落到某个搜索命中处。
-- `readOnly` —— 切换基于 Compartment 的阅读模式而不重挂载，保留滚动与搜索状态，同时禁用文本与表格编辑。
-- `onLinkClick` —— 编辑时点击外链图标、或阅读模式中点击渲染后的链接时调用。默认 `window.open`；可为特定平台 shell（Tauri、Capacitor、Electron）覆盖。
-- `codeLanguages` —— 围栏代码块的语法；默认 `[]`。用法见 README。
-- `collabAdapter` —— 可选的协作适配器（yjs 等）。
-- `extensions` —— 追加到内置集合之上的额外 CM6 扩展。
+- 装配 Markdown 语言、主题、输入辅助、搜索、图片、表格、实时预览、阅读模式和自定义语法。
+- 通过 `editorHandleRef` 暴露命令式方法。
+- 管理 `readOnly` 的 `Compartment`，实现不重挂载切换。
+- 管理 `collabAdapter` 的 attach/detach 生命周期。
 
-## `inline-preview.ts` —— 装饰引擎
+## 实时预览
 
-三块组成，各自有存在的具体理由。
+`inline-preview.ts` 是主装饰引擎，负责：
 
-### `previewFrozenField`
+- 为标题、引用、代码块、任务列表等添加行类。
+- 为强调、行内代码、删除线、高亮、链接等添加内容标记。
+- 在非激活行隐藏 Markdown 语法令牌。
+- 把列表符号、任务复选框、水平线等渲染为更接近阅读状态的表现。
+- 处理鼠标冻结和紧凑列表 Enter 行为。
 
-一个布尔 `StateField`，跟踪装饰重建是否暂停。由冻结插件的 `setFrozen` effect 切换。
+装饰构建会调用 `ensureSyntaxTree(state, state.doc.length, 200)`，尽量保证全文解析覆盖。若解析在首次构建时没有到达文末，`treeProgressPlugin` 会在解析树增长后触发补建。
 
-### `freezeMousePlugin`
+## 功能模块
 
-一个 `ViewPlugin`，在 `view.dom` 上有**捕获阶段**的 `pointerdown` 监听、在 `window` 上有 `pointerup` 监听。在内容 DOM 内 pointerdown 时，分发 `setFrozen(true)`；pointerup 后约 100ms 尾延时，分发 `setFrozen(false)`。
+### 图片
 
-冻结存在的原因是：点击标题过去会立即显示 `# ` 前缀 —— 这会让标题文本在用户点击过程中向右移动，有时会把点击变成一处微型拖拽选区。现在显示要等点击完全结束。
+`features/image/index.ts` 读取 Lezer 已解析出的 `Image` 节点，在图片源码行下方插入块级 Widget。图片节点仍保留在 Markdown 原文中，非激活行由实时预览隐藏源码。
 
-**捕获阶段很重要**：`@codemirror/lang-markdown` 自己的 pointerdown handler 在冒泡阶段运行并分发选区变更。没有捕获，CM6 会在我们冻结之前就重建装饰，reveal 还是会触发。**内容 DOM 过滤也很重要**：没有它，滚动条拖拽会触发冻结，整个拖拽期间都停止装饰重建 —— 深层内容在 mouseup 前一直保持原始状态。
+图片尺寸会按 URL 缓存自然宽高，避免虚拟滚动重新挂载图片时出现高度跳变。
 
-### `inlinePreviewPlugin`
+### 表格
 
-一个 `ViewPlugin`，其 `decorations` facet 驱动显示。在文档变更、选区变更或焦点变更时重建，受冻结标志约束。**不在视口变更时重建** —— 仅滚动不应重建装饰，因为在 iOS 上，每当重建为上滚视口顶部的行产生新装饰时（CM6 的锚点与滚动动画冲突），就会中断惯性动量。
+`features/table/index.ts` 把 GFM Table 节点替换为交互式 `<table>` Widget。单元格内部可编辑，输入后重新序列化为 Markdown，并替换原表格源码范围。
 
-构建函数调用 `ensureSyntaxTree(state, state.doc.length, 200)`，在遍历树之前强制全文解析覆盖。部分解析意味着初始解析窗口之外的内容永远渲染成原始的 `##`/`**`，因为装饰不再随滚动重建。全文覆盖是一次性开销；后续调用几乎免费，因为树到达目标后 `ensureSyntaxTree` 会短路。
+表格 Widget 的 `eq()` 以结构为主，尽量保留 DOM，避免每次输入都丢失光标。宽表在自身 wrapper 内横向滚动，不撑宽编辑器。
 
-## 什么会被隐藏、设置样式或替换
+### Wiki 链接
 
-- **行类**（无条件按块类型应用）：`cm-moss-h1`..`h6`、`cm-moss-blockquote`、`cm-moss-fenced-code`、`cm-moss-hr`、`cm-moss-task-done`。它们设置字号/字重/装饰。激活与非激活状态之间没有高度变化，因为类不关心光标位置。
+`features/wiki-links/index.ts` 用文本扫描识别 `[[target]]` 与 `[[target|label]]`。它提供装饰、点击打开、异步 resolve、自动补全和简单缓存。
 
-- **行内内容标记**（无条件应用在语法令牌之间的内容上）：`cm-moss-strong`、`cm-moss-em`、`cm-moss-inline-code`、`cm-moss-strike`、`cm-moss-link`。链接标记还通过 `::after` 伪元素渲染一个"外部打开"图标；只有图标的命中区域可点击，因为链接文本本身是可编辑的散文。
+当前 Wiki 链接不是 Lezer 新语法，而是一个基于文本范围的编辑器功能。
 
-- **隐藏装饰**（仅应用到非激活行）：`HeaderMark`、`EmphasisMark`、`CodeMark`、`CodeInfo`、`LinkMark`、`URL`、`LinkTitle`、`StrikethroughMark`、`QuoteMark` 以及 `Escape`。标题和引用标记会吞掉一个尾随空格，避免隐藏状态下的行显得缩进。`Escape` 只隐藏前导反斜杠 —— 来自 RSS 或其他源的 `\.`、`\,` 密集内容在聚焦前读起来很干净。
+### Callout
 
-- **Widget**（常开替换）：列表 `ListMark` 渲染为 `•`、`TaskMarker` 渲染为复选框、水平线通过行上的 CSS `::after` 规则渲染、每条图片源码行下方渲染图片（见 `features/image/`），还有完整的所见即所得表格（见 `features/table/`）。
+`features/callout/index.ts` 识别 `> [!TYPE]` 形式的 Obsidian 风格 callout。它不定义新 Lezer 节点，而是复用 Markdown blockquote，给相关行添加类并在非激活状态下把标记替换为标签。
 
-- **列表布局**遵循解析出的 `ListItem` 祖先链。条目拥有的每条物理源码行（包括惰性/硬换行续行）都得到相同的悬挂缩进内容列。结构性的前导空格在视觉上被隐藏但文档保持不变，因此有序标记宽度和奇怪但合法的 CommonMark 缩进不会扭曲渲染出来的嵌套深度。
+## 自定义语法注册
 
-## `features/image/` —— 块图片 widget
+`syntax/index.ts` 定义：
 
-图片不能从 `ViewPlugin` 输出，因为 CM6 要求块装饰来自 `StateField` 或强制 facet。图片状态字段与行内预览插件并存；CM6 在渲染时组合两套装饰。
+- `MossCustomSyntax`
+- `RegisteredMossSyntax`
+- `defineMossSyntax()`
+- `registerMossSyntax()`
 
-对每个 `Image` 节点，字段在 `line.to` 处输出一个 `side: 1` 的块 widget，让图片立即渲染在源码行下方。表格内的图片被跳过 —— 表格 widget 会在单元格内联渲染它们。
+`MossEditor` 在挂载时调用 `registerMossSyntax(customSyntax)`。其中：
 
-尺寸不变量：`<img>` 使用 `display: block; max-width: 100%; height: auto`，在不超出自然尺寸的前提下适配阅读列。小图按自身尺寸渲染、左对齐。
+- `markdown` 会进入 `markdown({ extensions })`。
+- `extensions` 会追加到编辑器扩展集合。
+- `name` 必须非空且不能重复。
 
-**窄失效**：每次事务中，`changeAffectsImages` 检查变更是否与既有图片装饰重叠，或者变更行是否包含 `![`。两者都不命中时，状态字段返回经映射的既有集合（不变）。这让大文档中的纯散文编辑成本保持 O(变更大小) 而非 O(文档大小)。
+## 主题
 
-## `features/table/` —— 所见即所得表格
+`theme/index.ts` 导出两类扩展：
 
-表格在行级上放弃了"源码即 DOM"不变量：Table 节点的整个范围被替换为交互式 `<table>` widget。每个单元格是一小棵 DOM 树，拥有一个 contenteditable `<div>`，持有原始 markdown；当单元格包含 `![alt](url)` 时，下方还渲染一个图片预览条。
+- `mossTheme`：CodeMirror 主题，绑定 `--moss-*` CSS 变量。
+- `mossSyntax`：语法高亮样式，覆盖 Markdown 令牌和围栏代码内的语言令牌。
 
-widget 的 `eq()` 只看结构（行 × 列数），因此 CM6 在每次按键分发之间保留既有 DOM，光标也能幸存于编辑。单元格输入会重新序列化整张表并替换当前源码范围 —— 每次通过 `posAtDOM + 树遍历` 重新解析该范围，因为先前的编辑会移动边界。
+样式文件分三类：
 
-宽表在 wrapper 内拥有自己的横向滚动（`overflow-x: auto`），因此 10 列表格进入视口时不会把编辑器的内容列撑得比视口还宽。这曾是移动端溢出 bug 的根因，值得保留。
+- `tokens.css`：主题变量。
+- `inline-preview.css`：编辑器内部样式。
+- `content.css`：编辑器外 Markdown 内容样式。
 
-交互契约：
+## 代码语言
 
-- Tab / Shift-Tab 在单元格间移动。在最后一个单元格后按 Tab 会追加新行并落在其第一个单元格上。
-- 右键打开菜单：插入行 / 删除行 / 插入列 / 删除列。最后一列被夹住，保证 lezer 仍能把残余解析为 Table。
-- 列对齐（`:---`、`---:`、`:---:`）会被解析并持久化。
-- 图片单元格内，焦点离开单元格时原始 `![alt](url)` 隐藏 —— 静止时只显示图片，与表格外的块图片不变量一致。
-- 紧邻表格之后的行的退格键会把整张表选中为原子单元，而不是把内容并进最后一行。
-
-## 自定义语法框架（`syntax/` + `features/`）
-
-MossMD 通过一层小型注册层支持自定义块语法。语法模块可以提供 Lezer Markdown 解析扩展、CodeMirror 视图扩展，或两者：
-
-```ts
-const syntax = mossCalloutSyntax();
-```
-
-`MossEditor` 在挂载时调用 `registerMossSyntax(customSyntax)`。Markdown 条目被转发进 `markdown({ extensions })`；视图条目追加在内置实时预览/表格/图片/wiki-link 扩展之后。注册层校验每个语法都有非空且唯一的名称，让意外的重复模块大声失败。
-
-内置 Callout 模块（`src/features/callout/`）是对该接口的首次验证。它不需要生成语法，因为 Obsidian callout 是带 `[!TYPE]` 标记的 blockquote；它提供一个视图扩展，用于检测那些范围、应用 callout 行类、并把非激活行上的标记替换为紧凑标签。Mermaid/Kanban 式块可以遵循同样的形态，仅在语法需要时才添加 Markdown 解析扩展或生成语法。
-
-## 紧凑 Enter 覆盖
-
-`@codemirror/lang-markdown` 把 `insertNewlineContinueMarkup` 作为默认的 Enter handler。它会检查语法树以决定要延续的列表是"松散"（CommonMark：条目间有空行）还是紧凑，若是松散则往续行里插入空行以保持松散风格。
-
-在行内实时预览模式下松散和紧凑列表看起来一样，所以这个区分不值得它的代价。更糟的是，lezer 常把刚输入的列表项在靠近既有列表时归类为松散 —— 用户最终会在条目之间得到多余的空行。
-
-`inline-preview.ts` 中的 `insertTightListItem` 以 `Prec.highest` 覆盖 Enter。绑定行为：
-
-- 在 `BulletList` 内部，总是输出 `\n<indent><marker> `（紧凑）。
-- 在任务条目内，输出 `\n<indent><marker> [ ] ` —— 新任务从不勾选开始，即使你是在已勾选项上按的 Enter。
-- 在空的续行上（`- ` 后无内容，或 `- [ ] ` 后无内容），把该行替换为只有缩进，按用户的期望退出列表。
-
-## 输入中的强调
-
-CommonMark 的 flanking 规则认为 `**foo **` 不是强调，因为闭合的 `**` 前有空白。Lezer 也这么认为，不会输出 `StrongEmphasis`。结果：用户在 `**...**` 内输入时，每次按空格加粗样式都会闪烁开关。
-
-`supplementMidTypingEmphasis` 修补了 UX：在聚焦行上，扫描光标所在处两侧成对的定界符（`**`、`__`、`~~`、`*`、`_`），无论 flanking 如何都自行输出标记。光标离开后，lezer 说了算，视觉回到该行序列化时真正会持久化的样子。
-
-## 括号 / 强调自动配对
-
-`closeBrackets()` 默认配对 `(`、`[`、`{`、`"`、`'`、`*`、`_`、`` ` ``；我们扩展 markdown 语言的 data facet 以包含 markdown 特定的对称定界符。`edit-helpers.ts` 里的 `extendEmphasisPair` 增加一个特殊情况：在空 `*|*`（或 `_|_`）内输入 `*` 会把这一对升级成 `**|**` —— 这是 Obsidian 的快捷方式，无需想双重按键就能快速输入粗体。`startAsteriskList` 解决另一种解释：在合法行前缀处的自动配对星号内输入空格会吞掉闭合符，使 `*|*` 在输入文本前变成无序列表标记 `* |`。
-
-## `theme/index.ts`
-
-两个 CM6 扩展：
-
-- 一个 `EditorView.theme()`，其视觉/选区/滚动条样式绑定 `--moss-*` 自定义属性。完整变量列表见 README。
-- 一对 `HighlightStyle` + `syntaxHighlighting`，同时为 markdown 令牌和围栏代码块内嵌套语法输出的令牌着色。代码语言颜色默认使用 Material Palenight 调色板，`[data-theme="light"]` 时切换到 GitHub 风格浅色调色板。
-
-## `core/code-languages.ts`
-
-精选围栏代码语言注册表。每种语言的 `load()` 都是动态 import，打包器会把每个语法拆成独立 chunk，用户只下载自己打开过的语法。
-
-注册表通过 `/code-languages` 子路径暴露，消费方显式选择使用；主入口 bundle 没有任何 lang-* 依赖。
+`core/code-languages.ts` 导出 `MOSS_CODE_LANGUAGES`。每个语言通过 `LanguageDescription.load()` 动态加载，避免主入口直接打包全部语法。
 
 ## 搜索
 
-编辑器把 `@codemirror/search` 与一个自定义极简面板结合：输入框 + 命中计数 + 上/下一条/关闭图标按钮。无替换、无大小写/正则/整词开关 —— 面向读者而非编辑器。键盘用户获得 CM6 `searchKeymap` 的同等行为（Cmd/Ctrl+G 下一条，Shift+同键上一条，Escape 关闭）。
+编辑器使用 `@codemirror/search`，并提供自定义极简搜索面板。命令式句柄可以打开或关闭搜索，也可以通过 `revealText(query)` 做不打开面板的定位高亮。
 
-外部代码可通过命令式 handle 的 `isSearchOpen()` 检测"搜索是否打开"，它委托给 CM6 的 `searchPanelOpen(state)`。
+## 阅读模式
+
+`core/read-only.ts` 同时使用三层机制：
+
+- `EditorView.editable.of(false)` 关闭内容可编辑。
+- `EditorState.readOnly.of(true)` 阻止普通输入事务。
+- `readOnlyFacet` 供图片、表格、链接等功能读取当前模式。
+
+阅读模式通过 `Compartment` 切换，不重建编辑器。
 
 ## 协作接口
 
-`src/collab/index.ts` 的 `CollabAdapter` 接口允许接入任意 CRDT/OT 实现（yjs、Automerge、自定义）。编辑器拥有适配器生命周期：挂载时 attach，文档切换/卸载时 detach，通过 `editorHandle.setCollabAdapter(adapter)` 切换而不重挂载视图。
+`collab/index.ts` 提供 `CollabAdapter`：
 
 ```ts
 interface CollabAdapter {
   attach(view: EditorView): Promise<void>;
-  detach(): void;
+  detach(): void | Promise<void>;
   onRemoteChange(cb: (doc: string) => void): () => void;
-  getAwareness?(): Awareness;
+  getAwareness?(): unknown;
 }
 ```
 
-`onRemoteChange` 在首个接口版本里有意采用整文档：传入的快照以 `Transaction.remote` 事务替换 `state.doc`，让原始 markdown 保持为共享边界。yjs 适配器以后仍可在 `attach(view)` 内安装 CM6/yjs 原生扩展；这个接口留下那扇门，同时今天不把 yjs 变成依赖。
-
-默认 `noopCollabAdapter` 什么都不做。消费方通过 `collabAdapter` prop 传入自己的实现，并可在运行时用 `editorHandle.setCollabAdapter(adapter)` 切换。
+当前远程变更以整文档快照应用，并标记为 `Transaction.remote`。未来接入 yjs 时，可以在 `attach(view)` 内安装更细粒度的 CM6 扩展。

@@ -492,7 +492,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             parent = parent.parent;
           }
           if (parent && parent.name === 'Link') {
-            shouldHide = !activeLinkStarts.has(parent.from);
+            shouldHide = !activeLinkStarts.has(parent.from) && !activeLines.has(lineNum);
           } else {
             shouldHide = !activeLines.has(lineNum);
           }

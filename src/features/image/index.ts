@@ -12,7 +12,7 @@ import {
   WidgetType,
   type DecorationSet,
 } from '@codemirror/view';
-import { treeGrowthEffect, treeProgressPlugin } from '../core/tree-progress';
+import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
 
 // Image blocks.
 //

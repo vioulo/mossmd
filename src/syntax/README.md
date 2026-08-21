@@ -1,6 +1,8 @@
 # Moss 自定义语法
 
-`syntax/` 是 Markdown 解析扩展及其配套 CodeMirror 视图扩展的注册层。
+`syntax/` 只负责 Markdown/Lezer 扩展的注册协议。完整的用户功能放在
+`features/<name>/` 中；一个 feature 可以同时提供 Markdown 语法扩展和
+CodeMirror 装饰、widget、命令等编辑器行为。
 
 自定义块应打包成小型模块，导出 `MossCustomSyntax` 对象：
 
@@ -28,10 +30,10 @@ export const calloutSyntax = defineMossSyntax({
 
 `extensions` 字段追加到编辑器的 CM6 扩展集合之后（内置的实时预览、图片、表格、wiki-link 和只读扩展之后）。用于 widget、装饰、命令、facet、悬停面板或自动补全源。
 
-推荐的模块布局：
+推荐的 feature 模块布局：
 
 ```text
-src/syntax/<name>/
+src/features/<name>/
   index.ts       公共 `MossCustomSyntax` 导出
   markdown.ts    Lezer Markdown 扩展
   decoration.ts  CM6 StateField/ViewPlugin 装饰层

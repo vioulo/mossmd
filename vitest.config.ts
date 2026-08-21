@@ -23,24 +23,28 @@ export default defineConfig({
         replacement: path.resolve(__dirname, 'src/syntax/index.ts'),
       },
       {
-        find: /^mossmd\/syntax\/callout$/,
-        replacement: path.resolve(__dirname, 'src/syntax/callout/index.ts'),
-      },
-      {
         find: /^mossmd\/theme$/,
         replacement: path.resolve(__dirname, 'src/theme/index.ts'),
       },
       {
-        find: /^mossmd\/plugins\/image-blocks$/,
-        replacement: path.resolve(__dirname, 'src/plugins/image-blocks.ts'),
+        find: /^mossmd\/features$/,
+        replacement: path.resolve(__dirname, 'src/features/index.ts'),
       },
       {
-        find: /^mossmd\/plugins\/table-widget$/,
-        replacement: path.resolve(__dirname, 'src/plugins/table-widget.ts'),
+        find: /^mossmd\/features\/image$/,
+        replacement: path.resolve(__dirname, 'src/features/image/index.ts'),
       },
       {
-        find: /^mossmd\/plugins\/wiki-links$/,
-        replacement: path.resolve(__dirname, 'src/plugins/wiki-links.ts'),
+        find: /^mossmd\/features\/table$/,
+        replacement: path.resolve(__dirname, 'src/features/table/index.ts'),
+      },
+      {
+        find: /^mossmd\/features\/wiki-links$/,
+        replacement: path.resolve(__dirname, 'src/features/wiki-links/index.ts'),
+      },
+      {
+        find: /^mossmd\/features\/callout$/,
+        replacement: path.resolve(__dirname, 'src/features/callout/index.ts'),
       },
     ],
   },

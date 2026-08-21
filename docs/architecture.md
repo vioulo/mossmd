@@ -39,10 +39,12 @@ src/
     edit-helpers.ts      括号 / 强调自动配对
     read-only.ts         共享阅读模式 facet + CM6 扩展
     tree-progress.ts     解析进度跟踪
-  plugins/
-    table-widget.ts      所见即所得表格（StateField）
-    image-blocks.ts      块图片 widget（StateField）
-    wiki-links.ts        wiki 链接 + 自动补全
+  features/
+    index.ts              用户功能聚合入口
+    image/index.ts        块图片 widget（StateField）
+    table/index.ts        所见即所得表格（StateField）
+    wiki-links/index.ts   wiki 链接 + 自动补全
+    callout/index.ts      Callout 语法适配与视图扩展
   collab/                协作接口
   syntax/                自定义块语法（Lezer 语法）
   styles/
@@ -50,6 +52,11 @@ src/
     inline-preview.css        CodeMirror/编辑器表面样式
     content.css               渲染后 markdown 表面样式
 ```
+
+`syntax/` 是通用的语法注册协议；`features/` 按用户功能聚合实现。一个
+feature 可以使用既有 Markdown 节点，也可以同时提供新的 Lezer 语法和
+CodeMirror 视图扩展。比如图片和表格复用现有 Markdown 语法，Callout
+复用 blockquote 语法但提供自己的装饰行为。
 
 每个 CodeMirror 模块都是**对等依赖**，这样消费方的打包器只解析一份副本。同一个 bundle 里出现两份 `@codemirror/state` 会静默破坏状态字段的身份检查；对等依赖正是用来阻止这种情况的。
 
@@ -100,11 +107,11 @@ src/
 
 - **隐藏装饰**（仅应用到非激活行）：`HeaderMark`、`EmphasisMark`、`CodeMark`、`CodeInfo`、`LinkMark`、`URL`、`LinkTitle`、`StrikethroughMark`、`QuoteMark` 以及 `Escape`。标题和引用标记会吞掉一个尾随空格，避免隐藏状态下的行显得缩进。`Escape` 只隐藏前导反斜杠 —— 来自 RSS 或其他源的 `\.`、`\,` 密集内容在聚焦前读起来很干净。
 
-- **Widget**（常开替换）：列表 `ListMark` 渲染为 `•`、`TaskMarker` 渲染为复选框、水平线通过行上的 CSS `::after` 规则渲染、每条图片源码行下方渲染图片（见 `image-blocks.ts`），还有完整的所见即所得表格（见 `table-widget.ts`）。
+- **Widget**（常开替换）：列表 `ListMark` 渲染为 `•`、`TaskMarker` 渲染为复选框、水平线通过行上的 CSS `::after` 规则渲染、每条图片源码行下方渲染图片（见 `features/image/`），还有完整的所见即所得表格（见 `features/table/`）。
 
 - **列表布局**遵循解析出的 `ListItem` 祖先链。条目拥有的每条物理源码行（包括惰性/硬换行续行）都得到相同的悬挂缩进内容列。结构性的前导空格在视觉上被隐藏但文档保持不变，因此有序标记宽度和奇怪但合法的 CommonMark 缩进不会扭曲渲染出来的嵌套深度。
 
-## `image-blocks.ts` —— 块图片 widget
+## `features/image/` —— 块图片 widget
 
 图片不能从 `ViewPlugin` 输出，因为 CM6 要求块装饰来自 `StateField` 或强制 facet。图片状态字段与行内预览插件并存；CM6 在渲染时组合两套装饰。
 
@@ -114,7 +121,7 @@ src/
 
 **窄失效**：每次事务中，`changeAffectsImages` 检查变更是否与既有图片装饰重叠，或者变更行是否包含 `![`。两者都不命中时，状态字段返回经映射的既有集合（不变）。这让大文档中的纯散文编辑成本保持 O(变更大小) 而非 O(文档大小)。
 
-## `table-widget.ts` —— 所见即所得表格
+## `features/table/` —— 所见即所得表格
 
 表格在行级上放弃了"源码即 DOM"不变量：Table 节点的整个范围被替换为交互式 `<table>` widget。每个单元格是一小棵 DOM 树，拥有一个 contenteditable `<div>`，持有原始 markdown；当单元格包含 `![alt](url)` 时，下方还渲染一个图片预览条。
 
@@ -130,7 +137,7 @@ widget 的 `eq()` 只看结构（行 × 列数），因此 CM6 在每次按键�
 - 图片单元格内，焦点离开单元格时原始 `![alt](url)` 隐藏 —— 静止时只显示图片，与表格外的块图片不变量一致。
 - 紧邻表格之后的行的退格键会把整张表选中为原子单元，而不是把内容并进最后一行。
 
-## 自定义语法框架（`syntax/`）
+## 自定义语法框架（`syntax/` + `features/`）
 
 MossMD 通过一层小型注册层支持自定义块语法。语法模块可以提供 Lezer Markdown 解析扩展、CodeMirror 视图扩展，或两者：
 
@@ -140,7 +147,7 @@ const syntax = mossCalloutSyntax();
 
 `MossEditor` 在挂载时调用 `registerMossSyntax(customSyntax)`。Markdown 条目被转发进 `markdown({ extensions })`；视图条目追加在内置实时预览/表格/图片/wiki-link 扩展之后。注册层校验每个语法都有非空且唯一的名称，让意外的重复模块大声失败。
 
-内置 Callout 模块（`src/syntax/callout/`）是对该接口的首次验证。它不需要生成语法，因为 Obsidian callout 是带 `[!TYPE]` 标记的 blockquote；它提供一个视图扩展，用于检测那些范围、应用 callout 行类、并把非激活行上的标记替换为紧凑标签。Mermaid/Kanban 式块可以遵循同样的形态，仅在语法需要时才添加 Markdown 解析扩展或生成语法。
+内置 Callout 模块（`src/features/callout/`）是对该接口的首次验证。它不需要生成语法，因为 Obsidian callout 是带 `[!TYPE]` 标记的 blockquote；它提供一个视图扩展，用于检测那些范围、应用 callout 行类、并把非激活行上的标记替换为紧凑标签。Mermaid/Kanban 式块可以遵循同样的形态，仅在语法需要时才添加 Markdown 解析扩展或生成语法。
 
 ## 紧凑 Enter 覆盖
 

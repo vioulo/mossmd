@@ -39,19 +39,27 @@
       "types": "./dist/theme/index.d.ts",
       "default": "./dist/theme/index.js"
     },
+    "./features": {
+      "types": "./dist/features/index.d.ts",
+      "default": "./dist/features/index.js"
+    },
+    "./features/image": {
+      "types": "./dist/features/image/index.d.ts",
+      "default": "./dist/features/image/index.js"
+    },
+    "./features/table": {
+      "types": "./dist/features/table/index.d.ts",
+      "default": "./dist/features/table/index.js"
+    },
+    "./features/wiki-links": {
+      "types": "./dist/features/wiki-links/index.d.ts",
+      "default": "./dist/features/wiki-links/index.js"
+    },
+    "./features/callout": {
+      "types": "./dist/features/callout/index.d.ts",
+      "default": "./dist/features/callout/index.js"
+    },
     "./editor.css": "./dist/styles/inline-preview.css",
-    "./plugins/image-blocks": {
-      "types": "./dist/plugins/image-blocks.d.ts",
-      "default": "./dist/plugins/image-blocks.js"
-    },
-    "./plugins/table-widget": {
-      "types": "./dist/plugins/table-widget.d.ts",
-      "default": "./dist/plugins/table-widget.js"
-    },
-    "./plugins/wiki-links": {
-      "types": "./dist/plugins/wiki-links.d.ts",
-      "default": "./dist/plugins/wiki-links.js"
-    },
     "./styles.css": "./dist/styles/inline-preview.css",
     "./content.css": "./dist/styles/content.css",
     "./tokens.css": "./dist/styles/tokens.css",
@@ -62,10 +70,6 @@
     "./syntax": {
       "types": "./dist/syntax/index.d.ts",
       "default": "./dist/syntax/index.js"
-    },
-    "./syntax/callout": {
-      "types": "./dist/syntax/callout/index.d.ts",
-      "default": "./dist/syntax/callout/index.js"
     }
   },
   "files": [

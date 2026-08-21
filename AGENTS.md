@@ -97,9 +97,9 @@ bun run typecheck    # tsc --noEmit
 | 3 | 只读 | `core/read-only.ts` | `readOnly` prop 切换 |
 | 4 | 高亮 | `highlight.ts` | `==text==` 渲染 |
 | 5 | 行内预览 | `inline-preview.ts` | 实时预览可用 |
-| 6 | 图片块 | `plugins/image-blocks.ts` | 图片在源码下方渲染 |
-| 7 | 表格 | `plugins/table-widget.ts` | 编辑单元格、右键菜单 |
-| 8 | Wiki 链接 | `plugins/wiki-links.ts` | `[[link]]` 自动补全 |
+| 6 | 图片块 | `features/image/index.ts` | 图片在源码下方渲染 |
+| 7 | 表格 | `features/table/index.ts` | 编辑单元格、右键菜单 |
+| 8 | Wiki 链接 | `features/wiki-links/index.ts` | `[[link]]` 自动补全 |
 | 9 | 代码语言 | `core/code-languages.ts` | 围栏代码高亮 |
 | 10 | 编辑器装配 | `editor.tsx` | 完整 demo 可用 |
 

@@ -48,19 +48,22 @@ import {
   extendEmphasisPair,
   startAsteriskList,
 } from './core/edit-helpers';
-import { imageBlocks } from './plugins/image-blocks';
+import { imageBlocks } from './features/image';
 import { highlightMarkdown } from './highlight';
 import { inlinePreview } from './inline-preview';
 import { readOnlyExtension } from './core/read-only';
-import { tables } from './plugins/table-widget';
-import { wikiLinks, type WikiLinksConfig } from './plugins/wiki-links';
+import { tables } from './features/table';
+import {
+  wikiLinks,
+  type WikiLinksConfig,
+} from './features/wiki-links';
 import { noopCollabAdapter, type CollabAdapter } from './collab';
 import {
   registerMossSyntax,
   type MossCustomSyntax,
 } from './syntax';
 import type { InlinePreviewConfig } from './inline-preview';
-import type { TablesConfig } from './plugins/table-widget';
+import type { MossTablesConfig as TablesConfig } from './features/table';
 
 // Stable references so consumers that don't pass `codeLanguages` or
 // `extensions` don't force-remount the editor on every render.

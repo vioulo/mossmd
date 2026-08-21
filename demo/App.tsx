@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MossEditor,
-  mossCalloutSyntax,
   type MossEditorHandle,
-  type WikiLinkSuggestion,
 } from 'mossmd';
 import { MOSS_CODE_LANGUAGES } from 'mossmd/code-languages';
+import {
+  mossCalloutSyntax,
+  type WikiLinkSuggestion,
+} from 'mossmd/features';
 import 'mossmd/editor.css';
 import {
   SAMPLE_SIZES,

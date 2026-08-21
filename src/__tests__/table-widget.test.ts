@@ -3,7 +3,7 @@ import {
   parseCellInline,
   serializeTable,
   splitRowCells,
-} from '../plugins/table-widget';
+} from '../features/table';
 
 // Reconstruct a model from serialized markdown the same way the widget
 // does: split the header (line 0) and body rows (line 2+), skipping the

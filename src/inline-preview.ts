@@ -664,7 +664,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       }
 
       // Tables are rendered by the separate `tables()` block-widget
-      // plugin (./plugins/table-widget.ts) — the whole Table range is
+      // table feature (./features/table) — the whole Table range is
       // replaced with an interactive HTML `<table>`. Any inline
       // decorations on TableHeader/TableRow/TableDelimiter would
       // target ranges that are already hidden behind the replace
@@ -688,7 +688,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         const lineNum = imageLine.number;
         if (!activeLines.has(lineNum)) {
           // Hide the raw `![alt](url)` on inactive lines so only the
-          // rendered image block (emitted by the image-blocks plugin state
+          // rendered image block (emitted by the image feature state
           // field below the line) shows. We deliberately keep the
           // now-empty source `.cm-line` at its default line-height
           // rather than collapsing it via `display: none`: on iOS

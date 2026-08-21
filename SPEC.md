@@ -25,10 +25,12 @@ mossmd/
 │   │   ├── edit-helpers.ts         # 括号/强调配对
 │   │   ├── read-only.ts            # 阅读模式 facet
 │   │   └── tree-progress.ts        # 解析进度跟踪
-│   ├── plugins/
-│   │   ├── table-widget.ts         # 所见即所得表格
-│   │   ├── image-blocks.ts         # 图片块 widget
-│   │   └── wiki-links.ts           # Wiki 链接 + 自动补全
+│   ├── features/
+│   │   ├── index.ts                # 用户功能聚合入口
+│   │   ├── table/index.ts          # 所见即所得表格
+│   │   ├── image/index.ts          # 图片块 widget
+│   │   ├── wiki-links/index.ts     # Wiki 链接 + 自动补全
+│   │   └── callout/index.ts        # Callout 视图扩展
 │   ├── highlight.ts                # ==highlight== 扩展
 │   ├── collab/
 │   │   └── index.ts                # 协作接口
@@ -99,13 +101,13 @@ mossmd/
 - 冻结逻辑、行类、隐藏装饰、widget —— 架构相同
 - 集成自定义语法装饰（阶段 2）
 
-### 6. 图片块（`plugins/image-blocks.ts`）
+### 6. 图片块（`features/image/index.ts`）
 **来源**：atomic-editor/src/image-blocks.ts
 **变更**：
 - 类名：`.cm-atomic-image` → `.cm-moss-image`
 - 导出：`imageBlocks()` → `mossImageBlocks()`
 
-### 7. 表格（`plugins/table-widget.ts`）—— **复杂**
+### 7. 表格（`features/table/index.ts`）—— **复杂**
 **来源**：atomic-editor/src/table-widget.ts
 **变更**：
 - 类名：`.cm-atomic-table*` → `.cm-moss-table*`
@@ -114,7 +116,7 @@ mossmd/
 - 右键菜单：插入/删除行/列、对齐切换
 - **新增**：列对齐持久化（`:---`、`---:`、`:---:`）
 
-### 8. Wiki 链接（`plugins/wiki-links.ts`）
+### 8. Wiki 链接（`features/wiki-links/index.ts`）
 **来源**：atomic-editor/src/wiki-links.ts
 **变更**：
 - 类名：`.cm-atomic-wiki-link*` → `.cm-moss-wiki-link*`
@@ -153,7 +155,7 @@ mossmd/
 
 ### 自定义语法模块方案
 
-每个块应放在本包 `src/syntax/<name>/`（属于本包时），或放在消费方包中（与应用相关时）：
+每个完整功能应放在本包 `src/features/<name>/`（属于本包时），或放在消费方包中（与应用相关时）：
 
 ```bash
 index.ts               # MossCustomSyntax 导出
@@ -165,7 +167,7 @@ decoration.ts          # CM6 装饰/widget/命令
 
 ### 注册形态
 ```ts
-import { mossCalloutSyntax } from 'mossmd/syntax/callout';
+import { mossCalloutSyntax } from 'mossmd/features/callout';
 
 const calloutSyntax = mossCalloutSyntax();
 ```

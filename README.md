@@ -191,7 +191,8 @@ const codeLanguages = [
 `[[target]]` 与 `[[target|label]]` 链接——Obsidian 的笔记互链方式——作为可组合扩展内置。它渲染带标签链接、异步解析裸目标（显示真实标题与已解析/缺失状态）、点击打开链接，一输入 `[[` 即提供自动补全：
 
 ```tsx
-import { MossEditor, mossWikiLinks } from 'mossmd';
+import { MossEditor } from 'mossmd';
+import { mossWikiLinks } from 'mossmd/features/wiki-links';
 
 <MossEditor
   markdownSource={'See [[project-atlas|the design doc]] for details.'}
@@ -205,9 +206,9 @@ import { MossEditor, mossWikiLinks } from 'mossmd';
 />;
 ```
 
-Draft links stay editable while the cursor is inside them; resolution is debounced and cached. See [`src/plugins/wiki-links.ts`](./src/plugins/wiki-links.ts) for the full config — custom serialization, resolver policies, suggestion limits, and the `WikiLinkSuggestion` / `WikiLinkResolvedTarget` types.
+Draft links stay editable while the cursor is inside them; resolution is debounced and cached. See [`src/features/wiki-links/index.ts`](./src/features/wiki-links/index.ts) for the full config — custom serialization, resolver policies, suggestion limits, and the `WikiLinkSuggestion` / `WikiLinkResolvedTarget` types.
 
-光标在草稿链接内时保持可编辑；解析防抖且缓存。完整配置见 [`src/plugins/wiki-links.ts`](./src/plugins/wiki-links.ts)——自定义序列化、解析策略、建议上限，以及 `WikiLinkSuggestion` / `WikiLinkResolvedTarget` 类型。
+光标在草稿链接内时保持可编辑；解析防抖且缓存。完整配置见 [`src/features/wiki-links/index.ts`](./src/features/wiki-links/index.ts)——自定义序列化、解析策略、建议上限，以及 `WikiLinkSuggestion` / `WikiLinkResolvedTarget` 类型。
 
 ## Custom Syntax / 自定义语法
 
@@ -217,7 +218,7 @@ MossMD 提供自定义语法注册层。包内含可选 Callout 模块，更重�
 
 ```tsx
 import { MossEditor } from 'mossmd';
-import { mossCalloutSyntax } from 'mossmd/syntax/callout';
+import { mossCalloutSyntax } from 'mossmd/features/callout';
 
 <MossEditor
   markdownSource={markdown}
@@ -347,7 +348,7 @@ The shared token layer is available as `mossmd/tokens.css`. The package ships a 
 | `--moss-hl-operator` | `#89ddff` |
 | `--moss-hl-invalid` | `#ff5370` |
 
-## Extending with plugins / 用插件扩展
+## Extending with CM6 extensions / 用 CM6 扩展
 
 CodeMirror 6 is extension-based, and so is this package. Pass any number of CM6 extensions via the `extensions` prop to layer in autocomplete sources, custom decorations, domain-specific keymaps, collaboration (yjs), vim mode, or anything else. (The [wiki-links](#wiki-links) extension above is built with exactly this hook.)
 
@@ -386,13 +387,15 @@ If the React wrapper's extension set is too opinionated, every piece is exported
 ```ts
 import {
   mossInlinePreview,  // live preview decorations
-  mossImageBlocks,    // rendered image widgets
-  mossTables,         // WYSIWYG table widget
-  mossWikiLinks,      // [[...]] links
   mossTheme,
   mossSyntax,
   extendEmphasisPair,
 } from 'mossmd';
+import {
+  mossImageBlocks,
+  mossTables,
+} from 'mossmd/features';
+import { mossWikiLinks } from 'mossmd/features/wiki-links';
 ```
 
 You could build an editor that includes `mossInlinePreview()` + `mossTables()` but skips `mossTheme` for your own `EditorView.theme({...})`, or swap `mossSyntax` for a custom `syntaxHighlighting(HighlightStyle.define([...]))`. At that point you're outside the React wrapper and in plain CM6 territory.

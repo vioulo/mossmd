@@ -10,7 +10,7 @@ import {
 import { EditorView } from '@codemirror/view';
 import { MossEditor } from '../editor';
 import { readOnlyExtension } from '../core/read-only';
-import { wikiLinks } from '../plugins/wiki-links';
+import { mossWikiLinks as wikiLinks } from '../features/wiki-links';
 
 type Mounted = { host: HTMLElement; root: Root };
 const mounts: Mounted[] = [];

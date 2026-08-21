@@ -7,16 +7,6 @@ export type {
 export { mossInlinePreview } from './inline-preview';
 export type { MossInlinePreviewConfig } from './inline-preview';
 export { mossHighlightMarkdown } from './highlight';
-export { mossImageBlocks } from './plugins/image-blocks';
-export { mossTables } from './plugins/table-widget';
-export type { MossTablesConfig } from './plugins/table-widget';
-export { mossWikiLinks } from './plugins/wiki-links';
-export type {
-  WikiLinkStatus,
-  WikiLinkSuggestion,
-  WikiLinkResolvedTarget,
-  MossWikiLinksConfig,
-} from './plugins/wiki-links';
 export { mossTheme, mossSyntax } from './theme';
 export {
   autoCloseCodeFence,
@@ -34,10 +24,5 @@ export type {
   RegisteredMossSyntax,
   MossCustomSyntax,
 } from './syntax';
-export { mossCallouts, mossCalloutSyntax } from './syntax/callout';
-export type {
-  MossCalloutsConfig,
-  MossCalloutType,
-} from './syntax/callout';
 export { MOSS_CODE_LANGUAGES } from './core/code-languages';
 export { setFrozen, defaultOnLinkClick } from './inline-preview';

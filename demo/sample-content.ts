@@ -294,8 +294,9 @@ function cacheKey(
   lists: ListsMode,
   codeBlocks: CodeBlocksMode,
   size: SampleSize,
+  title: string,
 ): string {
-  return `${mode}|${separators}|${tables}|${lists}|${codeBlocks}|${size}`;
+  return `${mode}|${separators}|${tables}|${lists}|${codeBlocks}|${size}|${title}`;
 }
 
 export interface SampleOptions {
@@ -304,6 +305,7 @@ export interface SampleOptions {
   tables?: TablesMode;
   lists?: ListsMode;
   codeBlocks?: CodeBlocksMode;
+  title?: string;
 }
 
 export function generateSampleMarkdown(
@@ -315,7 +317,8 @@ export function generateSampleMarkdown(
   const tables = opts.tables ?? 'with tables';
   const lists = opts.lists ?? 'with lists';
   const codeBlocks = opts.codeBlocks ?? 'with code blocks';
-  const key = cacheKey(mode, separators, tables, lists, codeBlocks, size);
+  const title = opts.title ?? 'MossMD';
+  const key = cacheKey(mode, separators, tables, lists, codeBlocks, size, title);
   const cached = cache.get(key);
   if (cached) return cached;
 
@@ -338,7 +341,7 @@ export function generateSampleMarkdown(
   const rng = mulberry32(seed);
 
   const sections: string[] = [
-    `# MossMD`,
+    `# ${title}`,
     `_CodeMirror 6 markdown editor with Obsidian-style inline live preview — WYSIWYG tables, syntax-highlighted code, interactive checkboxes, and cursor-scoped link unfold. Showing a ${size} sample._`,
     // Hero section — the three features that make users go "oh nice"
     // on first load. Deterministic content so the first-visit
@@ -346,6 +349,11 @@ export function generateSampleMarkdown(
     // for the section loop below.
     '## Try it',
   ];
+
+  sections.push(
+    'MossMD — CodeMirror 6 Markdown editor with Obsidian-style live preview. [GitHub](https://github.com/vioulo/mossmd)',
+  );
+
   sections.push(
     'Callouts keep Obsidian-style blocks readable while the source stays plain markdown:',
     [
@@ -436,6 +444,7 @@ export function generateSampleMarkdown(
       section(rng, i, imageless, includeTables, includeLists, includeCodeBlocks),
     );
   }
+
   const doc = sections.join('\n\n') + '\n';
   cache.set(key, doc);
   return doc;

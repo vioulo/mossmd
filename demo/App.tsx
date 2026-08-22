@@ -385,7 +385,7 @@ export function App() {
 
       <footer className="demo-footer">
         MossMD — CodeMirror 6 Markdown editor with Obsidian-style live preview.
-        <a href="https://github.com/yourname/mossmd" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 12 }}>
+        <a href="https://github.com/vioulo/mossmd" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 12 }}>
           GitHub
         </a>
       </footer>

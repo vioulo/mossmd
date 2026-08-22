@@ -13,14 +13,14 @@
     "react"
   ],
   "license": "MIT",
-  "author": "",
-  "homepage": "https://github.com/yourname/mossmd#readme",
+  "author": "vioulo",
+  "homepage": "https://github.com/vioulo/mossmd#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourname/mossmd.git"
+    "url": "git+https://github.com/vioulo/mossmd.git"
   },
   "bugs": {
-    "url": "https://github.com/yourname/mossmd/issues"
+    "url": "https://github.com/vioulo/mossmd/issues"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -68,8 +68,8 @@
       "default": "./dist/collab/index.js"
     },
     "./syntax": {
-      "types": "./dist/syntax/index.d.ts",
-      "default": "./dist/syntax/index.js"
+      "types": "./dist/core/custom-syntax.d.ts",
+      "default": "./dist/core/custom-syntax.js"
     }
   },
   "files": [

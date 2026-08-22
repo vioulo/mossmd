@@ -26,7 +26,7 @@ MossMD 要处理较长 Markdown 文档，并且要在编辑时保持滚动稳定
 
 ### 鼠标冻结
 
-点击标题或链接时，如果装饰立即重建，源码前缀可能在鼠标下方突然显露，导致光标位置漂移。`inline-preview.ts` 在 `pointerdown` 后短暂冻结装饰重建，并在 `pointerup` 后延迟释放。
+点击标题或链接时，如果装饰立即重建，源码前缀可能在鼠标下方突然显露，导致光标位置漂移。`src/core/inline-preview.ts` 在 `pointerdown` 后短暂冻结装饰重建，并在 `pointerup` 后延迟释放。
 
 ### 窄失效
 
@@ -38,9 +38,10 @@ MossMD 要处理较长 Markdown 文档，并且要在编辑时保持滚动稳定
 src/
   index.ts
   editor.tsx
-  inline-preview.ts
-  highlight.ts
   core/
+    custom-syntax.ts
+    inline-preview.ts
+    highlight.ts
     code-languages.ts
     edit-helpers.ts
     read-only.ts
@@ -63,7 +64,7 @@ src/
     content.css
 ```
 
-`core` 放基础机制，`features` 按用户功能聚合，`syntax` 只保留注册协议。图片和表格复用 Markdown 原生节点；Callout 复用 blockquote 结构并提供自己的装饰；未来 Mermaid 或 Kanban 如果需要新语法，也应作为 feature 落地。
+`core` 放基础机制，`features` 按用户功能聚合，`custom-syntax` 放语法注册协议。图片和表格复用 Markdown 原生节点；Callout 复用 blockquote 结构并提供自己的装饰；未来 Mermaid 或 Kanban 如果需要新语法，也应作为 feature 落地。
 
 ## `MossEditor`
 
@@ -116,7 +117,7 @@ src/
 
 ## 自定义语法注册
 
-`syntax/index.ts` 定义：
+`src/core/custom-syntax.ts` 定义：
 
 - `MossCustomSyntax`
 - `RegisteredMossSyntax`

@@ -127,7 +127,7 @@ import { mossWikiLinks } from 'mossmd/features';
 
 ## 自定义语法
 
-MossMD 提供自定义语法注册层。语法模块会把 `markdown` 交给 `@codemirror/lang-markdown`，把 `extensions` 追加到编辑器扩展集合之后。
+MossMD 提供自定义语法注册层。公开入口是 `mossmd/syntax`，源码对应的协议实现落在 `src/core/custom-syntax.ts`。语法模块会把 `markdown` 交给 `@codemirror/lang-markdown`，把 `extensions` 追加到编辑器扩展集合之后。
 
 ```tsx
 import { MossEditor } from 'mossmd';
@@ -194,7 +194,7 @@ import { mossImageBlocks, mossTables, mossWikiLinks } from 'mossmd/features';
 开发环境需要 Node.js 18+ 或 Bun 1.0+。
 
 ```bash
-git clone https://github.com/yourname/mossmd
+git clone https://github.com/vioulo/mossmd
 cd mossmd
 bun install
 bun run dev

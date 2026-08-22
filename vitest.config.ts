@@ -20,7 +20,7 @@ export default defineConfig({
       },
       {
         find: /^mossmd\/syntax$/,
-        replacement: path.resolve(__dirname, 'src/syntax/index.ts'),
+        replacement: path.resolve(__dirname, 'src/core/custom-syntax.ts'),
       },
       {
         find: /^mossmd\/theme$/,

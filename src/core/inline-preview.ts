@@ -1,10 +1,12 @@
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import type { SyntaxNode } from '@lezer/common';
 import {
+  Annotation,
   EditorSelection,
   Prec,
   StateEffect,
   StateField,
+  type ChangeSpec,
   type Extension,
   type Range,
   type Text,
@@ -64,6 +66,7 @@ const FREEZE_TAIL_MS = 100;
 // ---- freeze plumbing -----------------------------------------------------
 
 export const setFrozen = StateEffect.define<boolean>();
+const refreshInlinePreview = StateEffect.define<void>();
 
 const previewFrozenField = StateField.define<boolean>({
   create: () => false,
@@ -257,7 +260,8 @@ class BulletWidget extends WidgetType {
     // checkboxes, and ordered-list numbers. `.cm-moss-bullet`
     // layers on bullet-specific color / weight.
     const span = document.createElement('span');
-    span.className = 'cm-moss-list-marker cm-moss-bullet';
+    span.className =
+      'cm-moss-list-marker cm-moss-unordered-marker cm-moss-bullet';
     span.textContent = '•';
     return span;
   }
@@ -287,7 +291,8 @@ class TaskCheckboxWidget extends WidgetType {
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.checked = this.checked;
-    input.className = 'cm-moss-list-marker cm-moss-task-checkbox';
+    input.className =
+      'cm-moss-list-marker cm-moss-unordered-marker cm-moss-task-checkbox';
     input.setAttribute('contenteditable', 'false');
     input.addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -354,7 +359,9 @@ function pushReplace(
 
 const LIST_BASE_EM = 0.8;
 const LIST_ALCOVE_EM = 1.2;
-const LIST_LEVEL_EM = 0.6;
+// Four source spaces are about one `em` in the proportional editor font.
+// Keep the preview step aligned with the actual Tab indentation unit.
+const LIST_LEVEL_EM = 1;
 
 function nearestListItem(node: SyntaxNode | null): SyntaxNode | null {
   for (let current = node; current; current = current.parent) {
@@ -554,6 +561,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
 
       if (node.name === 'ListMark' && node.from < node.to) {
         const line = doc.lineAt(node.from);
+        const lineActive = activeLines.has(line.number);
         // Detect a task item from the line text. ListMark is visited
         // before the TaskMarker on its line, so a forward single-pass
         // walk can't look the marker position up from a map; the
@@ -608,6 +616,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             if (!sameListItem(owner, listItem)) continue;
 
             const markerLine = ownedLine.number === line.number;
+            if (!markerLine && contentFrom === ownedLine.from) continue;
             ranges.push(
               Decoration.line({
                 attributes: {
@@ -621,6 +630,14 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
               pushReplace(ranges, doc, ownedLine.from, contentFrom);
             }
           }
+        }
+
+        const markText = doc.sliceString(node.from, node.to);
+        if (
+          lineActive &&
+          (taskFrom !== undefined || markText === '-' || markText === '*' || markText === '+')
+        ) {
+          return;
         }
 
         // Figure out how far past node.to the mark's trailing
@@ -638,7 +655,6 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
           // Hide `- ` (ListMark through the space before `[`).
           pushReplace(ranges, doc, node.from, taskFrom);
         } else {
-          const markText = doc.sliceString(node.from, node.to);
           if (markText === '-' || markText === '*' || markText === '+') {
             // Bullet: substitute with the fixed-width marker
             // widget, swallowing the trailing space so content
@@ -651,7 +667,13 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             // alcove. Hide the trailing space separately so the
             // total marker-plus-space footprint matches ALCOVE.
             ranges.push(
-              Decoration.mark({ class: 'cm-moss-list-marker' }).range(
+              Decoration.mark({
+                class: `cm-moss-list-marker ${
+                  /^\d/.test(markText)
+                    ? 'cm-moss-ordered-marker'
+                    : 'cm-moss-unordered-marker'
+                }`,
+              }).range(
                 node.from,
                 node.to,
               ),
@@ -707,6 +729,8 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       if (node.name === 'TaskMarker' && node.from < node.to) {
         const markText = doc.sliceString(node.from, node.to);
         const checked = /\[x\]/i.test(markText);
+        const lineNum = doc.lineAt(node.from).number;
+        if (activeLines.has(lineNum)) return;
         // Swallow the single trailing space after `[ ]` / `[x]` so the
         // checkbox widget owns the alcove exactly (mirrors how bullet
         // markers also swallow their trailing space). Without this the
@@ -720,7 +744,6 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
           widget: new TaskCheckboxWidget(checked),
         });
         if (checked) {
-          const lineNum = doc.lineAt(node.from).number;
           const line = doc.line(lineNum);
           ranges.push(
             Decoration.line({ class: 'cm-moss-task-done' }).range(line.from),
@@ -888,6 +911,19 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
       const prevFrozen = update.startState.field(previewFrozenField);
       const nextFrozen = update.state.field(previewFrozenField);
       const justUnfroze = prevFrozen && !nextFrozen;
+      const composingTransaction = update.transactions.some((tr) =>
+        tr.isUserEvent('input.type.compose'),
+      );
+
+      if (
+        update.docChanged &&
+        (composingTransaction ||
+          update.view.composing ||
+          update.view.compositionStarted)
+      ) {
+        this.decorations = this.decorations.map(update.changes);
+        return;
+      }
 
       // A doc change is unambiguous edit intent, so rebuild even while
       // frozen. Returning the stale (pre-edit) decoration set here would
@@ -905,8 +941,13 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
       // parse didn't reach the end, later blocks (headings, lists,
       // etc.) render as raw `##`/`**` until this fires.
       let treeGrew = false;
+      let forceRefresh = false;
       for (const tr of update.transactions) {
         for (const effect of tr.effects) {
+          if (effect.is(refreshInlinePreview)) {
+            forceRefresh = true;
+            break;
+          }
           if (effect.is(treeGrowthEffect)) {
             treeGrew = true;
             break;
@@ -932,6 +973,7 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
         update.state.facet(readOnlyFacet);
 
       if (
+        forceRefresh ||
         justUnfroze ||
         update.docChanged ||
         update.selectionSet ||
@@ -945,6 +987,13 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
   },
   {
     decorations: (v) => v.decorations,
+    eventHandlers: {
+      compositionend(_event, view) {
+        setTimeout(() => {
+          view.dispatch({ effects: refreshInlinePreview.of() });
+        }, 0);
+      },
+    },
   },
 );
 
@@ -1004,7 +1053,7 @@ const fencedCodeSelectionPlugin = ViewPlugin.fromClass(
   },
 );
 
-// Tight-continuation Enter for bullet lists.
+// Tight-continuation Enter for markdown lists.
 //
 // Why we override the default: @codemirror/lang-markdown's
 // `insertNewlineContinueMarkup` uses the syntax tree to decide whether a
@@ -1014,42 +1063,301 @@ const fencedCodeSelectionPlugin = ViewPlugin.fromClass(
 // siblings in a loose list, and the new item sprouts a blank line the
 // user didn't intend. In our inline-preview mode loose vs tight lists
 // look identical anyway, so we always continue tight.
-function insertTightListItem(view: EditorView): boolean {
+interface ListLinePrefix {
+  indent: string;
+  marker: string;
+  markerFrom: number;
+  markerTo: number;
+  ordered: boolean;
+  number: number | null;
+  delimiter: '.' | ')' | null;
+  taskPrefix: string | null;
+  content: string;
+}
+
+const LIST_INDENT_COLUMNS = 4;
+const renumberOrderedListsAnnotation = Annotation.define<boolean>();
+
+function parseListLine(lineText: string, lineFrom: number): ListLinePrefix | null {
+  const match = lineText.match(/^(\s*)([-*+]|\d{1,9}[.)])(\s+)/);
+  if (!match) return null;
+
+  const [, indent, marker] = match;
+  const orderedMatch = marker.match(/^(\d{1,9})([.)])$/);
+  const rest = lineText.slice(match[0].length);
+  const taskMatch = rest.match(/^(\[[ xX]\]\s*)/);
+
+  return {
+    indent,
+    marker,
+    markerFrom: lineFrom + indent.length,
+    markerTo: lineFrom + indent.length + marker.length,
+    ordered: orderedMatch != null,
+    number: orderedMatch ? Number.parseInt(orderedMatch[1], 10) : null,
+    delimiter: orderedMatch ? (orderedMatch[2] as '.' | ')') : null,
+    taskPrefix: taskMatch?.[0] ?? null,
+    content: rest.slice(taskMatch?.[0].length ?? 0),
+  };
+}
+
+function orderedMarker(number: number, delimiter: '.' | ')' | null): string {
+  return `${number}${delimiter ?? '.'}`;
+}
+
+function continuationFor(prefix: ListLinePrefix, nextNumber?: number): string {
+  const marker = prefix.ordered
+    ? orderedMarker(nextNumber ?? (prefix.number ?? 0) + 1, prefix.delimiter)
+    : prefix.marker;
+  return `${prefix.indent}${marker} ${prefix.taskPrefix ? '[ ] ' : ''}`;
+}
+
+function indentedOrderedNumber(
+  doc: Text,
+  lineNumber: number,
+  newIndentLength: number,
+): number {
+  const previous = previousListPrefixAtIndent(
+    doc,
+    lineNumber - 1,
+    newIndentLength,
+    true,
+  );
+  return (previous?.number ?? 0) + 1;
+}
+
+function previousListPrefixAtIndent(
+  doc: Text,
+  beforeLine: number,
+  indentLength: number,
+  ordered: boolean,
+): ListLinePrefix | null {
+  for (let number = beforeLine; number >= 1; number--) {
+    const line = doc.line(number);
+    const prefix = parseListLine(line.text, line.from);
+    if (!prefix) continue;
+    if (prefix.indent.length === indentLength && prefix.ordered === ordered) {
+      return prefix;
+    }
+    if (prefix.indent.length < indentLength) break;
+  }
+  return null;
+}
+
+function previousListPrefix(
+  doc: Text,
+  beforeLine: number,
+): ListLinePrefix | null {
+  for (let number = beforeLine; number >= 1; number--) {
+    const line = doc.line(number);
+    const prefix = parseListLine(line.text, line.from);
+    if (prefix) return prefix;
+    if (line.text.trim() && line.text.search(/\S/) <= 0) return null;
+  }
+  return null;
+}
+
+function nearestOuterListPrefix(
+  doc: Text,
+  beforeLine: number,
+  indentLength: number,
+): ListLinePrefix | null {
+  let best: ListLinePrefix | null = null;
+  for (let number = beforeLine; number >= 1; number--) {
+    const line = doc.line(number);
+    const prefix = parseListLine(line.text, line.from);
+    if (!prefix || prefix.indent.length >= indentLength) continue;
+    if (!best || prefix.indent.length > best.indent.length) best = prefix;
+    if (best.indent.length === 0) break;
+  }
+  return best;
+}
+
+function listItemLineRange(
+  doc: Text,
+  startLineNumber: number,
+  indentLength: number,
+): { from: number; to: number } {
+  let endLineNumber = startLineNumber;
+  for (let number = startLineNumber + 1; number <= doc.lines; number++) {
+    const line = doc.line(number);
+    if (!line.text.trim()) {
+      endLineNumber = number;
+      continue;
+    }
+
+    const prefix = parseListLine(line.text, line.from);
+    const leading = line.text.search(/\S/);
+    if (
+      (prefix && prefix.indent.length <= indentLength) ||
+      (!prefix && leading >= 0 && leading <= indentLength)
+    ) {
+      break;
+    }
+    endLineNumber = number;
+  }
+
+  return {
+    from: doc.line(startLineNumber).from,
+    to: doc.line(endLineNumber).to,
+  };
+}
+
+function nextOuterListNumber(
+  doc: Text,
+  beforeLine: number,
+  targetIndentLength: number,
+): number {
+  const previous = previousListPrefixAtIndent(
+    doc,
+    beforeLine,
+    targetIndentLength,
+    true,
+  );
+  return (previous?.number ?? 0) + 1;
+}
+
+function isLineInsideMarkdownCode(state: EditorView['state'], lineNumber: number): boolean {
+  const line = state.doc.line(lineNumber);
+  for (
+    let node: SyntaxNode | null = syntaxTree(state).resolveInner(line.from, -1);
+    node;
+    node = node.parent
+  ) {
+    if (node.name === 'CodeBlock' || node.name === 'FencedCode') return true;
+  }
+  return false;
+}
+
+export function orderedListRenumberChanges(
+  state: EditorView['state'],
+): ChangeSpec[] {
+  const changes: ChangeSpec[] = [];
+  const expectedByIndent = new Map<number, number>();
+
+  for (let lineNumber = 1; lineNumber <= state.doc.lines; lineNumber++) {
+    const line = state.doc.line(lineNumber);
+    const prefix = parseListLine(line.text, line.from);
+    const leading = line.text.search(/\S/);
+
+    if (prefix?.ordered && !isLineInsideMarkdownCode(state, lineNumber)) {
+      for (const indent of [...expectedByIndent.keys()]) {
+        if (indent > prefix.indent.length) expectedByIndent.delete(indent);
+      }
+
+      const expected =
+        expectedByIndent.get(prefix.indent.length) ?? prefix.number ?? 1;
+      if (prefix.number !== expected) {
+        changes.push({
+          from: prefix.markerFrom,
+          to: prefix.markerFrom + String(prefix.number ?? '').length,
+          insert: String(expected),
+        });
+      }
+      expectedByIndent.set(prefix.indent.length, expected + 1);
+      continue;
+    }
+
+    if (!line.text.trim()) continue;
+
+    const contentIndent = leading < 0 ? 0 : leading;
+    for (const indent of [...expectedByIndent.keys()]) {
+      if (indent >= contentIndent) expectedByIndent.delete(indent);
+    }
+  }
+
+  return changes;
+}
+
+export function renumberOrderedLists(view: EditorView): boolean {
+  let changed = false;
+  for (let pass = 0; pass < 5; pass++) {
+    const changes = orderedListRenumberChanges(view.state);
+    if (changes.length === 0) return changed;
+    view.dispatch({
+      changes,
+      annotations: renumberOrderedListsAnnotation.of(true),
+    });
+    changed = true;
+  }
+  return changed;
+}
+
+const orderedListRenumberPlugin = ViewPlugin.fromClass(
+  class {
+    private timer: ReturnType<typeof setTimeout> | null = null;
+
+    update(update: ViewUpdate) {
+      if (!update.docChanged) return;
+      if (update.transactions.some((tr) => tr.annotation(renumberOrderedListsAnnotation))) {
+        return;
+      }
+      if (update.transactions.some((tr) => tr.isUserEvent('input.type.compose'))) {
+        return;
+      }
+      if (update.view.composing || update.view.compositionStarted) return;
+      if (this.timer !== null) clearTimeout(this.timer);
+      this.timer = setTimeout(() => {
+        this.timer = null;
+        if (update.view.composing || update.view.compositionStarted) return;
+        renumberOrderedLists(update.view);
+      }, 0);
+    }
+
+    destroy() {
+      if (this.timer !== null) clearTimeout(this.timer);
+    }
+  },
+);
+
+export function insertTightListItem(view: EditorView): boolean {
+  if (view.composing || view.compositionStarted) return false;
+
   const { state } = view;
   const sel = state.selection.main;
   if (!sel.empty) return false;
   const from = sel.from;
   const line = state.doc.lineAt(from);
+  const lineText = state.doc.sliceString(line.from, line.to);
+  const prefix = parseListLine(lineText, line.from);
+  if (!prefix || isLineInsideMarkdownCode(state, line.number)) return false;
 
   const tree = syntaxTree(state);
   let cursor = tree.resolveInner(from, -1).cursor();
-  let inBulletList = false;
+  let inList = false;
   for (;;) {
-    if (cursor.name === 'BulletList') {
-      inBulletList = true;
+    if (cursor.name === 'BulletList' || cursor.name === 'OrderedList') {
+      inList = true;
       break;
     }
     if (!cursor.parent()) break;
   }
-  if (!inBulletList) return false;
+  // The parser can briefly lag behind a just-edited list line. The raw
+  // prefix is authoritative here, so a valid `2. ` line still gets list
+  // continuation behavior during that short window.
+  if (!inList) inList = prefix.ordered || prefix.marker.length > 0;
+  if (!inList) return false;
 
-  const lineText = state.doc.sliceString(line.from, line.to);
-  const prefix = lineText.match(/^(\s*)([-*+])(\s+)/);
-  if (!prefix) return false;
-
-  const [whole, indent, marker] = prefix;
-  const rest = lineText.slice(whole.length);
-
-  const taskMatch = rest.match(/^(\[[ xX]\])(\s*)/);
-  const taskPrefixLen = taskMatch ? taskMatch[0].length : 0;
-  const contentAfterPrefix = rest.slice(taskPrefixLen);
-
-  if (!contentAfterPrefix.trim()) {
-    const depth = Math.floor(indent.length / 2);
-    if (depth >= 1) {
-      const outerIndent = indent.slice(0, indent.length - 2);
-      const continuation = taskMatch ? `${marker} [ ] ` : `${marker} `;
-      const replacement = `${outerIndent}${continuation}`;
+  if (!prefix.content.trim()) {
+    if (prefix.indent.length > 0) {
+      const outer = nearestOuterListPrefix(
+        state.doc,
+        line.number - 1,
+        prefix.indent.length,
+      );
+      const outerIndent = outer?.indent ?? '';
+      const marker = prefix.ordered
+        ? orderedMarker(
+            nextOuterListNumber(
+              state.doc,
+              line.number - 1,
+              outerIndent.length,
+            ),
+            prefix.delimiter,
+          )
+        : prefix.marker;
+      const replacement = `${outerIndent}${marker} ${
+        prefix.taskPrefix ? '[ ] ' : ''
+      }`;
       view.dispatch({
         changes: { from: line.from, to: line.to, insert: replacement },
         selection: EditorSelection.cursor(line.from + replacement.length),
@@ -1063,11 +1371,129 @@ function insertTightListItem(view: EditorView): boolean {
     return true;
   }
 
-  const continuation = taskMatch ? `${marker} [ ] ` : `${marker} `;
-  const insert = `\n${indent}${continuation}`;
+  const continuation = continuationFor(prefix);
+  const insert = `\n${continuation}`;
   view.dispatch({
     changes: { from, to: from, insert },
     selection: EditorSelection.cursor(from + insert.length),
+  });
+  return true;
+}
+
+export function indentListItem(view: EditorView): boolean {
+  if (view.composing || view.compositionStarted) return false;
+
+  const { state } = view;
+  const sel = state.selection.main;
+  if (!sel.empty) return false;
+
+  const line = state.doc.lineAt(sel.from);
+  const prefix = parseListLine(line.text, line.from);
+  if (!prefix) return false;
+
+  const previous = previousListPrefix(state.doc, line.number - 1);
+  if (!previous) return false;
+
+  const addedIndent = ' '.repeat(LIST_INDENT_COLUMNS);
+  const newIndentLength = prefix.indent.length + addedIndent.length;
+  const range = listItemLineRange(state.doc, line.number, prefix.indent.length);
+  const changes: { from: number; to?: number; insert?: string }[] = [];
+  let selectionDelta = addedIndent.length;
+
+  for (
+    let number = state.doc.lineAt(range.from).number;
+    number <= state.doc.lineAt(range.to).number;
+    number++
+  ) {
+    const itemLine = state.doc.line(number);
+    if (number === line.number && prefix.ordered) {
+      const nextNumber = indentedOrderedNumber(
+        state.doc,
+        line.number,
+        newIndentLength,
+      );
+      const nextMarker = orderedMarker(nextNumber, prefix.delimiter);
+      selectionDelta = addedIndent.length + nextMarker.length - prefix.marker.length;
+      changes.push({
+        from: itemLine.from,
+        to: prefix.markerTo,
+        insert:
+          prefix.indent +
+          addedIndent +
+          nextMarker,
+      });
+    } else {
+      changes.push({ from: itemLine.from, insert: addedIndent });
+    }
+  }
+
+  view.dispatch({
+    changes,
+    selection: EditorSelection.cursor(sel.from + selectionDelta),
+  });
+  return true;
+}
+
+export function dedentListItem(view: EditorView): boolean {
+  if (view.composing || view.compositionStarted) return false;
+
+  const { state } = view;
+  const sel = state.selection.main;
+  if (!sel.empty) return false;
+
+  const line = state.doc.lineAt(sel.from);
+  const prefix = parseListLine(line.text, line.from);
+  if (!prefix || prefix.indent.length === 0) return false;
+
+  const outer = nearestOuterListPrefix(
+    state.doc,
+    line.number - 1,
+    prefix.indent.length,
+  );
+  const targetIndentLength = outer?.indent.length ?? 0;
+  const removeLength = prefix.indent.length - targetIndentLength;
+  if (removeLength <= 0) return false;
+
+  const range = listItemLineRange(state.doc, line.number, prefix.indent.length);
+  const changes: { from: number; to?: number; insert?: string }[] = [];
+
+  for (
+    let number = state.doc.lineAt(range.from).number;
+    number <= state.doc.lineAt(range.to).number;
+    number++
+  ) {
+    const itemLine = state.doc.line(number);
+    let removeTo = itemLine.from;
+    while (
+      removeTo < itemLine.to &&
+      removeTo < itemLine.from + removeLength &&
+      state.doc.sliceString(removeTo, removeTo + 1) === ' '
+    ) {
+      removeTo++;
+    }
+    if (removeTo > itemLine.from) {
+      changes.push({ from: itemLine.from, to: removeTo, insert: '' });
+    }
+  }
+
+  if (prefix.ordered) {
+    changes.push({
+      from: prefix.markerFrom,
+      to: prefix.markerTo,
+      insert: orderedMarker(
+        nextOuterListNumber(
+          state.doc,
+          line.number - 1,
+          targetIndentLength,
+        ),
+        prefix.delimiter,
+      ),
+    });
+  }
+
+  view.dispatch({
+    changes,
+    selection: EditorSelection.cursor(Math.max(line.from, sel.from - removeLength)),
   });
   return true;
 }
@@ -1125,6 +1551,7 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
     previewFrozenField,
     inlinePreviewPlugin,
     fencedCodeSelectionPlugin,
+    orderedListRenumberPlugin,
     freezeMousePlugin,
     treeProgressPlugin,
     makeLinkClickHandler(onLinkClick),
@@ -1132,7 +1559,13 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
     // handler, which is registered internally by the `markdown()`
     // extension (not just via the exported markdownKeymap) and
     // otherwise wins precedence.
-    Prec.highest(keymap.of([{ key: 'Enter', run: insertTightListItem }])),
+    Prec.highest(
+      keymap.of([
+        { key: 'Enter', run: insertTightListItem },
+        { key: 'Tab', run: indentListItem },
+        { key: 'Shift-Tab', run: dedentListItem },
+      ]),
+    ),
   ];
 }
 

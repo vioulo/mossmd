@@ -18,7 +18,11 @@ import {
   Transaction,
   type Extension,
 } from '@codemirror/state';
-import { indentOnInput, type LanguageDescription } from '@codemirror/language';
+import {
+  indentOnInput,
+  indentUnit,
+  type LanguageDescription,
+} from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import {
   defaultKeymap,
@@ -46,6 +50,9 @@ import { mossTheme, mossSyntax } from './theme';
 import {
   autoCloseCodeFence,
   extendEmphasisPair,
+  imeCompositionGuard,
+  normalizeDigitPunctuation,
+  separateHorizontalRule,
   startAsteriskList,
 } from './core/edit-helpers';
 import { imageBlocks } from './features/image';
@@ -388,13 +395,17 @@ export function MossEditor({
           dropCursor(),
           EditorState.allowMultipleSelections.of(true),
           indentOnInput(),
+          indentUnit.of('    '),
           rectangularSelection(),
           highlightActiveLine(),
           // Obsidian-style bracket pairing.
           closeBrackets(),
+          imeCompositionGuard,
           startAsteriskList,
           extendEmphasisPair,
           autoCloseCodeFence,
+          normalizeDigitPunctuation,
+          separateHorizontalRule,
           EditorView.lineWrapping,
           // Find-in-document. `top: true` drops the panel above the
           // editor (matching Obsidian / the prior Milkdown panel).

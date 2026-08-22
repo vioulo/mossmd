@@ -4,6 +4,8 @@ import { EditorView } from '@codemirror/view';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import {
   autoCloseCodeFenceInput,
+  normalizeDigitPunctuationInput,
+  separateHorizontalRuleInput,
   startAsteriskListInput,
 } from '../core/edit-helpers';
 
@@ -110,6 +112,65 @@ describe('autoCloseCodeFenceInput', () => {
     const view = makeView(doc, cursor);
 
     expect(autoCloseCodeFenceInput(view, cursor, cursor, '`')).toBe(false);
+    expect(view.state.doc.toString()).toBe(doc);
+  });
+});
+
+describe('normalizeDigitPunctuationInput', () => {
+  it('normalizes a Chinese period after a digit', () => {
+    const view = makeView('1', 1);
+
+    expect(normalizeDigitPunctuationInput(view, 1, 1, '。')).toBe(true);
+    expect(view.state.doc.toString()).toBe('1. ');
+    expect(view.state.selection.main.head).toBe(3);
+  });
+
+  it('normalizes a Chinese comma after a digit', () => {
+    const view = makeView('1', 1);
+
+    expect(normalizeDigitPunctuationInput(view, 1, 1, '，')).toBe(true);
+    expect(view.state.doc.toString()).toBe('1, ');
+  });
+
+  it('does not normalize Chinese punctuation after prose', () => {
+    const view = makeView('a', 1);
+
+    expect(normalizeDigitPunctuationInput(view, 1, 1, '。')).toBe(false);
+    expect(view.state.doc.toString()).toBe('a');
+  });
+
+  it('does not normalize inside fenced code', () => {
+    const doc = '```\n1\n```';
+    const view = makeView(doc, 5);
+
+    expect(normalizeDigitPunctuationInput(view, 5, 5, '。')).toBe(false);
+    expect(view.state.doc.toString()).toBe(doc);
+  });
+});
+
+describe('separateHorizontalRuleInput', () => {
+  it('inserts a blank line before a horizontal rule after prose', () => {
+    const doc = 'paragraph\n--';
+    const view = makeView(doc, doc.length);
+
+    expect(separateHorizontalRuleInput(view, doc.length, doc.length, '-')).toBe(true);
+    expect(view.state.doc.toString()).toBe('paragraph\n\n---');
+    expect(view.state.selection.main.head).toBe('paragraph\n\n---'.length);
+  });
+
+  it('inserts a blank line before a horizontal rule after a list item', () => {
+    const doc = '- item\n--';
+    const view = makeView(doc, doc.length);
+
+    expect(separateHorizontalRuleInput(view, doc.length, doc.length, '-')).toBe(true);
+    expect(view.state.doc.toString()).toBe('- item\n\n---');
+  });
+
+  it('does not add an extra blank line when one already exists', () => {
+    const doc = 'paragraph\n\n--';
+    const view = makeView(doc, doc.length);
+
+    expect(separateHorizontalRuleInput(view, doc.length, doc.length, '-')).toBe(false);
     expect(view.state.doc.toString()).toBe(doc);
   });
 });

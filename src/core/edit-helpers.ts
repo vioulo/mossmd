@@ -107,6 +107,42 @@ export const autoCloseCodeFence = Prec.highest(
   EditorView.inputHandler.of(autoCloseCodeFenceInput),
 );
 
+function isImeKeyEvent(event: KeyboardEvent): boolean {
+  return (
+    event.key === 'Process' ||
+    event.keyCode === 229 ||
+    (event.isComposing && (event.key === 'Enter' || event.key === 'NumpadEnter'))
+  );
+}
+
+const imeCompositionEndedAt = new WeakMap<EditorView, number>();
+
+// IME candidate confirmation can arrive as an Enter-like key event after
+// compositionend. Keep it out of every editor keymap, not just list handling,
+// so Markdown, search, and consumer keymaps cannot turn candidate selection
+// into a newline.
+export const imeCompositionGuard = Prec.highest(
+  EditorView.domEventHandlers({
+    keydown(event, view) {
+      const recentlyEnded =
+        view !== null &&
+        Date.now() - (imeCompositionEndedAt.get(view) ?? 0) < 120;
+      if (
+        !isImeKeyEvent(event) &&
+        !(recentlyEnded && (event.key === 'Enter' || event.key === 'NumpadEnter'))
+      ) {
+        return false;
+      }
+      event.stopPropagation();
+      return true;
+    },
+    compositionend(_event, view) {
+      imeCompositionEndedAt.set(view, Date.now());
+      return false;
+    },
+  }),
+);
+
 export function autoCloseCodeFenceInput(
   view: EditorView,
   from: number,
@@ -134,6 +170,42 @@ export function autoCloseCodeFenceInput(
   return true;
 }
 
+export const separateHorizontalRule = Prec.highest(
+  EditorView.inputHandler.of(separateHorizontalRuleInput),
+);
+
+export function separateHorizontalRuleInput(
+  view: EditorView,
+  from: number,
+  to: number,
+  text: string,
+): boolean {
+  if (text !== '-' || from !== to) return false;
+
+  const { state } = view;
+  if (state.selection.ranges.length !== 1 || !state.selection.main.empty) {
+    return false;
+  }
+
+  const line = state.doc.lineAt(from);
+  const before = state.doc.sliceString(line.from, from);
+  const after = state.doc.sliceString(from, line.to);
+  if (!/^ {0,3}--$/.test(before) || after.trim()) return false;
+  if (line.number === 1 || state.doc.line(line.number - 1).text.trim() === '') {
+    return false;
+  }
+  if (isInsideMarkdownCode(state, from)) return false;
+
+  view.dispatch({
+    changes: [
+      { from: line.from, insert: '\n' },
+      { from, insert: '-' },
+    ],
+    selection: { anchor: from + 2 },
+  });
+  return true;
+}
+
 function isInsideFencedCodeBeforeLine(doc: string, lineNumber: number): boolean {
   const lines = doc.split('\n');
   let marker: '`' | '~' | null = null;
@@ -155,4 +227,66 @@ function isInsideFencedCodeBeforeLine(doc: string, lineNumber: number): boolean 
   }
 
   return marker !== null;
+}
+
+function isInsideMarkdownCode(
+  state: EditorView['state'],
+  position: number,
+): boolean {
+  for (
+    let node: SyntaxNode | null = syntaxTree(state).resolveInner(position, -1);
+    node;
+    node = node.parent
+  ) {
+    if (
+      node.name === 'CodeBlock' ||
+      node.name === 'FencedCode' ||
+      node.name === 'InlineCode'
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const DIGIT_PUNCTUATION: Record<string, string> = {
+  '。': '.',
+  '．': '.',
+  '｡': '.',
+  '，': ',',
+  '、': ',',
+  '：': ':',
+  '；': ';',
+  '？': '?',
+  '！': '!',
+};
+
+export const normalizeDigitPunctuation = Prec.highest(
+  EditorView.inputHandler.of(normalizeDigitPunctuationInput),
+);
+
+export function normalizeDigitPunctuationInput(
+  view: EditorView,
+  from: number,
+  to: number,
+  text: string,
+): boolean {
+  const punctuation = DIGIT_PUNCTUATION[text];
+  if (!punctuation || from !== to || from === 0) return false;
+
+  const { state } = view;
+  if (state.selection.ranges.length !== 1 || !state.selection.main.empty) {
+    return false;
+  }
+  if (!/\d/.test(state.doc.sliceString(from - 1, from))) return false;
+
+  if (isInsideMarkdownCode(state, from)) return false;
+
+  const after = state.doc.sliceString(from, Math.min(state.doc.length, from + 1));
+  const insert = after === ' ' ? punctuation : `${punctuation} `;
+  view.dispatch({
+    changes: { from, insert },
+    selection: { anchor: from + insert.length },
+  });
+  return true;
 }

@@ -56,7 +56,7 @@ describe('MossEditor', () => {
     expect(content?.textContent).toContain('em');
   });
 
-  it('applies the owning list item indent to physical continuation lines', () => {
+  it('applies list indent only to marker lines and indented continuations', () => {
     const markdown = [
       '- [ ] Move `a/b.ts` to `a/c/b.ts` (no',
       'type changes).',
@@ -71,10 +71,10 @@ describe('MossEditor', () => {
       lines.find((line) => line.textContent?.includes(text));
 
     expect(lineWith('Move')?.style.paddingLeft).toBe('2em');
-    expect(lineWith('type changes')?.style.paddingLeft).toBe('2em');
-    expect(lineWith('type changes')?.style.textIndent).toBe('0em');
-    expect(lineWith('Extract')?.style.paddingLeft).toBe('2.6em');
-    expect(lineWith('frames')?.style.paddingLeft).toBe('2.6em');
+    expect(lineWith('type changes')?.style.paddingLeft).toBe('');
+    expect(lineWith('type changes')?.style.textIndent).toBe('');
+    expect(lineWith('Extract')?.style.paddingLeft).toBe('3em');
+    expect(lineWith('frames')?.style.paddingLeft).toBe('3em');
     expect(lineWith('frames')?.style.textIndent).toBe('0em');
   });
 
@@ -101,8 +101,8 @@ describe('MossEditor', () => {
     expect(lineWith('top-level')?.style.paddingLeft).toBe('2em');
     expect(lineWith('continuation')?.textContent).not.toMatch(/^\s/);
     expect(lineWith('top-level')?.textContent).not.toMatch(/^\s/);
-    expect(lineWith('ordered child')?.style.paddingLeft).toBe('2.6em');
-    expect(lineWith('ordered continuation')?.style.paddingLeft).toBe('2.6em');
+    expect(lineWith('ordered child')?.style.paddingLeft).toBe('3em');
+    expect(lineWith('ordered continuation')?.style.paddingLeft).toBe('3em');
     expect(lineWith('ordered child')?.textContent).not.toMatch(/^\s/);
     expect(lineWith('ordered continuation')?.textContent).not.toMatch(/^\s/);
     expect(handleRef.current?.getMarkdown()).toBe(markdown);

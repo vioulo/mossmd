@@ -27,6 +27,7 @@ export const mossTheme: Extension = EditorView.theme(
       caretColor: 'var(--moss-accent-bright, #a78bfa)',
       padding: '0',
       paddingBottom: '40vh',
+      tabSize: '4',
       // CM6's base theme sets `min-width: max-content` on
       // `.cm-content` so it always grows to fit its widest child.
       // That defeats every width constraint on our block widgets

@@ -17,12 +17,12 @@ MossMD 是一个基于 CodeMirror 6 的 Obsidian 风格 Markdown 编辑器，特
 src/
   index.ts
   editor.tsx
-  inline-preview.ts
-  highlight.ts
   theme/index.ts
   core/
     code-languages.ts
     edit-helpers.ts
+    highlight.ts
+    inline-preview.ts
     read-only.ts
     tree-progress.ts
   features/
@@ -31,8 +31,8 @@ src/
     table/index.ts
     wiki-links/index.ts
     callout/index.ts
+    collab/index.ts
   syntax/index.ts
-  collab/index.ts
   styles/
     tokens.css
     inline-preview.css

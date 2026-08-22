@@ -17,7 +17,7 @@ import {
   type DecorationSet,
 } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
-import { matchHighlight } from '../../highlight';
+import { matchHighlight } from '../../core/highlight';
 import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
 import { readOnlyFacet } from '../../core/read-only';
 

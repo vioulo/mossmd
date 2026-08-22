@@ -4,9 +4,9 @@ export type {
   MossEditorProps,
 } from './editor';
 
-export { mossInlinePreview } from './inline-preview';
-export type { MossInlinePreviewConfig } from './inline-preview';
-export { mossHighlightMarkdown } from './highlight';
+export { mossInlinePreview } from './core/inline-preview';
+export type { MossInlinePreviewConfig } from './core/inline-preview';
+export { mossHighlightMarkdown } from './core/highlight';
 export { mossTheme, mossSyntax } from './theme';
 export {
   autoCloseCodeFence,
@@ -19,10 +19,10 @@ export type { CollabAdapter } from './collab';
 export {
   defineMossSyntax,
   registerMossSyntax,
-} from './syntax';
+} from './core/custom-syntax';
 export type {
   RegisteredMossSyntax,
   MossCustomSyntax,
-} from './syntax';
+} from './core/custom-syntax';
 export { MOSS_CODE_LANGUAGES } from './core/code-languages';
-export { setFrozen, defaultOnLinkClick } from './inline-preview';
+export { setFrozen, defaultOnLinkClick } from './core/inline-preview';

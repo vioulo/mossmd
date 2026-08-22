@@ -18,8 +18,8 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
-import { treeGrowthEffect, treeProgressPlugin } from './core/tree-progress';
-import { readOnlyFacet } from './core/read-only';
+import { treeGrowthEffect, treeProgressPlugin } from './tree-progress';
+import { readOnlyFacet } from './read-only';
 
 // Inline preview — the Obsidian "Live Preview" model.
 //

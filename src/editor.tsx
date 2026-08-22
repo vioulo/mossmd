@@ -49,8 +49,8 @@ import {
   startAsteriskList,
 } from './core/edit-helpers';
 import { imageBlocks } from './features/image';
-import { highlightMarkdown } from './highlight';
-import { inlinePreview } from './inline-preview';
+import { highlightMarkdown } from './core/highlight';
+import { inlinePreview } from './core/inline-preview';
 import { readOnlyExtension } from './core/read-only';
 import { tables } from './features/table';
 import {
@@ -61,8 +61,8 @@ import { noopCollabAdapter, type CollabAdapter } from './collab';
 import {
   registerMossSyntax,
   type MossCustomSyntax,
-} from './syntax';
-import type { InlinePreviewConfig } from './inline-preview';
+} from './core/custom-syntax';
+import type { InlinePreviewConfig } from './core/inline-preview';
 import type { MossTablesConfig as TablesConfig } from './features/table';
 
 // Stable references so consumers that don't pass `codeLanguages` or

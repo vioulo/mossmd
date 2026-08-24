@@ -56,7 +56,7 @@ import {
   startAsteriskList,
 } from './core/edit-helpers';
 import { imageBlocks } from './features/image';
-import { highlightMarkdown } from './core/highlight';
+import { highlightMarkdown } from './syntax/highlight';
 import { inlinePreview } from './core/inline-preview';
 import { readOnlyExtension } from './core/read-only';
 import { tables } from './features/table';
@@ -65,7 +65,7 @@ import {
   type WikiLinksConfig,
 } from './features/wiki-links';
 import { noopCollabAdapter, type CollabAdapter } from './collab';
-import { registerMossSyntax, type MossCustomSyntax } from './core/custom-syntax';
+import { registerMossSyntax, type MossCustomSyntax } from './syntax';
 import type { InlinePreviewConfig } from './core/inline-preview';
 import type { MossTablesConfig as TablesConfig } from './features/table';
 

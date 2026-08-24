@@ -8,7 +8,7 @@ import {
 } from '@codemirror/view';
 import { type Extension, type Range } from '@codemirror/state';
 import { readOnlyFacet } from '../../core/read-only';
-import { defineMossSyntax, type MossCustomSyntax } from '../../core/custom-syntax';
+import { defineMossSyntax, type MossCustomSyntax } from '../../syntax';
 
 export type MossCalloutType =
   | 'note'

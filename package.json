@@ -68,8 +68,12 @@
       "default": "./dist/collab/index.js"
     },
     "./syntax": {
-      "types": "./dist/core/custom-syntax.d.ts",
-      "default": "./dist/core/custom-syntax.js"
+      "types": "./dist/syntax/index.d.ts",
+      "default": "./dist/syntax/index.js"
+    },
+    "./syntax/highlight": {
+      "types": "./dist/syntax/highlight.d.ts",
+      "default": "./dist/syntax/highlight.js"
     }
   },
   "files": [

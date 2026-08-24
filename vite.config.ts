@@ -74,6 +74,10 @@ export default defineConfig({
         find: /^mossmd\/features\/callout$/,
         replacement: path.resolve(__dirname, 'src/features/callout/index.ts'),
       },
+      {
+        find: /^mossmd\/features\/slash-commands$/,
+        replacement: path.resolve(__dirname, 'src/features/slash-commands/index.ts'),
+      },
     ],
   },
   build: {

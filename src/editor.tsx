@@ -64,6 +64,10 @@ import {
   wikiLinks,
   type WikiLinksConfig,
 } from './features/wiki-links';
+import {
+  mossSlashCommands,
+  type MossSlashCommandsConfig,
+} from './features/slash-commands';
 import { noopCollabAdapter, type CollabAdapter } from './collab';
 import { registerMossSyntax, type MossCustomSyntax } from './syntax';
 import { lucideSvg } from './core/icons';
@@ -255,6 +259,7 @@ export interface MossMDProps {
   inlinePreviewConfig?: InlinePreviewConfig;
   tablesConfig?: TablesConfig;
   wikiLinksConfig?: WikiLinksConfig;
+  slashCommandsConfig?: MossSlashCommandsConfig;
   collabAdapter?: CollabAdapter;
 }
 
@@ -284,6 +289,7 @@ export function MossMD({
   inlinePreviewConfig = {},
   tablesConfig = {},
   wikiLinksConfig = {},
+  slashCommandsConfig,
   collabAdapter = noopCollabAdapter,
 }: MossMDProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -462,7 +468,13 @@ export function MossMD({
                 }),
               ]
             : []),
+          ...(slashCommandsConfig
+            ? [mossSlashCommands(slashCommandsConfig)]
+            : []),
           EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              console.log('[mossmd editor] docChanged, userEvent=', update.transactions.map(t => t.annotation(Transaction.userEvent)));
+            }
             if (!update.docChanged) return;
             onMarkdownChangeRef.current?.(update.state.doc.toString());
           }),
@@ -484,6 +496,8 @@ export function MossMD({
       }),
     });
     viewRef.current = view;
+    // DEBUG: expose view for inspection
+    (window as unknown as { __mossView?: EditorView }).__mossView = view;
 
     void attachCollabAdapter(collabAdapter, view).catch(() => {});
 

@@ -14,6 +14,8 @@ import {
 import { MOSS_CODE_LANGUAGES } from 'mossmd/code-languages';
 import {
   mossCalloutSyntax,
+  mossDefaultSlashCommands,
+  type MossSlashCommand,
   type WikiLinkSuggestion,
 } from 'mossmd/features';
 import 'mossmd/editor.css';
@@ -24,6 +26,126 @@ import {
   type SampleSize,
 } from './sample-content';
 import { wavyHrSyntax } from './wavy-hr';
+import {
+  createUploadCommands,
+  overrideDefaultUploads,
+} from './custom-upload';
+
+// Demo-only slash commands — markdown snippet helpers shipped alongside
+// the demo, NOT in the package. The package itself only ships the
+// upload-image / upload-file skeletons (`mossDefaultSlashCommands`).
+// Consumers are expected to compose their own snippet set on top.
+const DEMO_SNIPPET_COMMANDS: MossSlashCommand[] = [
+  {
+    id: 'h1',
+    label: 'Heading 1',
+    detail: '# Title',
+    keywords: ['heading', 'title'],
+    apply: (view, from, to) =>
+      view.dispatch({
+        changes: { from, to, insert: '# ' },
+        selection: { anchor: from + 2 },
+      }),
+  },
+  {
+    id: 'h2',
+    label: 'Heading 2',
+    detail: '## Section',
+    keywords: ['heading', 'section'],
+    apply: (view, from, to) =>
+      view.dispatch({
+        changes: { from, to, insert: '## ' },
+        selection: { anchor: from + 3 },
+      }),
+  },
+  {
+    id: 'bullet-list',
+    label: 'Bullet list',
+    detail: '- item',
+    keywords: ['list', 'unordered', 'bullet'],
+    apply: (view, from, to) =>
+      view.dispatch({
+        changes: { from, to, insert: '- ' },
+        selection: { anchor: from + 2 },
+      }),
+  },
+  {
+    id: 'ordered-list',
+    label: 'Numbered list',
+    detail: '1. item',
+    keywords: ['list', 'ordered', 'number'],
+    apply: (view, from, to) =>
+      view.dispatch({
+        changes: { from, to, insert: '1. ' },
+        selection: { anchor: from + 3 },
+      }),
+  },
+  {
+    id: 'quote',
+    label: 'Quote',
+    detail: '> text',
+    keywords: ['blockquote', 'quote'],
+    apply: (view, from, to) =>
+      view.dispatch({
+        changes: { from, to, insert: '> ' },
+        selection: { anchor: from + 2 },
+      }),
+  },
+  {
+    id: 'code-block',
+    label: 'Code block',
+    detail: '``` fenced',
+    keywords: ['code', 'fence', 'snippet'],
+    apply: (view, from, to) =>
+      view.dispatch({
+        changes: { from, to, insert: '```js\n\n```' },
+        selection: { anchor: from + 5 },
+      }),
+  },
+  {
+    id: 'hr',
+    label: 'Horizontal rule',
+    detail: '--- solid / *** wavy / ___ glyph',
+    keywords: ['divider', 'rule', 'separator'],
+    apply: (view, from, to) =>
+      view.dispatch({
+        changes: { from, to, insert: '---' },
+        selection: { anchor: from + 3 },
+      }),
+  },
+  {
+    id: 'table',
+    label: 'Table',
+    detail: '2×2 grid',
+    keywords: ['grid', 'matrix'],
+    apply: (view, from, to) =>
+      view.dispatch({
+        changes: { from, to, insert: '| a | b |\n| - | - |\n| c | d |' },
+      }),
+  },
+  {
+    id: 'callout',
+    label: 'Callout',
+    detail: '> [!note]',
+    keywords: ['note', 'tip', 'warning', 'box'],
+    apply: (view, from, to) =>
+      view.dispatch({
+        changes: { from, to, insert: '> [!note]\n> ' },
+        selection: { anchor: from + 11 },
+      }),
+  },
+  {
+    id: 'image-url',
+    label: 'Image by URL',
+    detail: '![alt|caption](url)',
+    keywords: ['picture', 'photo'],
+    apply: (view, from, to) =>
+      view.dispatch({
+        changes: { from, to, insert: '![alt|caption](https://)' },
+        selection: { anchor: from + 5 },
+      }),
+  },
+];
 
 type ThemeMode = 'dark' | 'light';
 
@@ -60,6 +182,26 @@ const DEFAULT_TOGGLES: ContentToggles = {
 };
 
 const MOSS_DEMO_SYNTAX = [mossCalloutSyntax(), wavyHrSyntax()];
+
+// Compose the package's default upload skeletons with a demo-specific
+// uploader. The demo "uploader" just wraps `URL.createObjectURL` so
+// the page works without a backend — in a real app you'd swap this
+// for `createUploader({ endpoint: '/api/upload' })` (see
+// `demo/custom-upload.ts` for the full pattern). `overrideDefaultUploads`
+// drops the package's stub upload-image / upload-file and inserts our
+// custom ones in their place, leaving the rest of the package defaults
+// (and the demo snippet commands above) intact.
+const demoUploader = async (file: File): Promise<string> =>
+  URL.createObjectURL(file);
+const demoUploadCommands = createUploadCommands(demoUploader);
+
+const MOSS_DEMO_SLASH_COMMANDS = {
+  commands: overrideDefaultUploads(
+    [...DEMO_SNIPPET_COMMANDS, ...mossDefaultSlashCommands],
+    demoUploadCommands,
+  ),
+  sideButton: true,
+};
 
 function formatBytes(chars: number): string {
   if (chars < 1024) return `${chars} B`;
@@ -377,6 +519,7 @@ export function App() {
               readOnly={readOnly}
               codeLanguages={MOSS_CODE_LANGUAGES}
               customSyntax={MOSS_DEMO_SYNTAX}
+              slashCommandsConfig={MOSS_DEMO_SLASH_COMMANDS}
               initialRevealText={revealText}
               inlinePreviewConfig={{ onLinkClick: handleLinkClick }}
               wikiLinksConfig={{

@@ -13,3 +13,8 @@ export type {
   MossCalloutsConfig,
   MossCalloutType,
 } from './callout';
+export { mossSlashCommands, mossDefaultSlashCommands } from './slash-commands';
+export type {
+  MossSlashCommand,
+  MossSlashCommandsConfig,
+} from './slash-commands';

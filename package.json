@@ -59,6 +59,10 @@
       "types": "./dist/features/callout/index.d.ts",
       "default": "./dist/features/callout/index.js"
     },
+    "./features/slash-commands": {
+      "types": "./dist/features/slash-commands/index.d.ts",
+      "default": "./dist/features/slash-commands/index.js"
+    },
     "./editor.css": "./dist/styles/inline-preview.css",
     "./styles.css": "./dist/styles/inline-preview.css",
     "./content.css": "./dist/styles/content.css",

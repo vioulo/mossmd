@@ -1,5 +1,18 @@
-import { autocompletion, type Completion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
-import { Prec, RangeSetBuilder, StateEffect, StateField, type EditorState, type Extension, type Text } from '@codemirror/state';
+import {
+  autocompletion,
+  type Completion,
+  type CompletionContext,
+  type CompletionResult,
+} from '@codemirror/autocomplete';
+import {
+  EditorState,
+  Prec,
+  RangeSetBuilder,
+  StateEffect,
+  StateField,
+  type Extension,
+  type Text,
+} from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType, keymap, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 import { readOnlyFacet } from '../../core/read-only';
 
@@ -227,11 +240,28 @@ function wikiLinkEditKeymap(): Extension {
 function wikiLinkCompletions(config: WikiLinksConfig): Extension {
   if (!config.suggest) return [];
 
-  return autocompletion({
-    activateOnTyping: true,
-    icons: false,
-    override: [async (context) => completionSource(context, config)],
-  });
+  // Register via `EditorState.languageData` (additive, mergeable)
+  // rather than `autocompletion({ override: [...] })`. The `override`
+  // field is single-valued and throws "Config merge conflict" when
+  // two extensions both set it. languageData lets wiki-links and
+  // slash-commands each contribute their own sources without conflict.
+  //
+  // CRITICAL: `autocomplete` must be a STABLE function reference. CM6
+  // matches ActiveSources by `s.source == source` (identity). A fresh
+  // arrow returned each provider call breaks the lookup, so the
+  // Activate transition never persists and the source is never queried.
+  const autocompleteHandler = (context: CompletionContext): Promise<CompletionResult | null> =>
+    completionSource(context, config);
+  return [
+    autocompletion({
+      activateOnTyping: true,
+      icons: false,
+      closeOnBlur: true,
+    }),
+    EditorState.languageData.of(() => [
+      { autocomplete: autocompleteHandler },
+    ]),
+  ];
 }
 
 async function completionSource(

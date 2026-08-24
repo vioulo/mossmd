@@ -498,6 +498,77 @@
   max-width: 100%;
 }
 
+/* ------------------------------------------------------------------ */
+/* Slash-commands side `+` button + popup tweaks.
+ *
+ * The `+` button is rendered by mossSlashCommands (sideButton: true)
+ * as a non-block widget at line.from when the cursor sits on an
+ * empty line. CSS pulls it into the left gutter via absolute
+ * positioning. `.cm-line` gets `position: relative` scoped to this
+ * editor so the absolute child resolves against the line, not the
+ * scroller — keeps the button aligned with its row through scroll.
+ *
+ * The autocomplete popup is themed by `.cm-tooltip` in the editor
+ * theme; we only add small per-item layout tweaks here.
+ * ------------------------------------------------------------------- */
+.moss-cm-editor .cm-line {
+  position: relative;
+}
+
+.cm-moss-side-plus {
+  position: absolute;
+  left: -1.6em;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.2em;
+  height: 1.2em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--moss-fg-muted, #888);
+  font: inherit;
+  font-size: 1em;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.35;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+
+.cm-moss-side-plus:hover,
+.cm-moss-side-plus:focus-visible {
+  background: var(--moss-hover-bg, rgba(255, 255, 255, 0.06));
+  color: var(--moss-fg, #dcddde);
+  opacity: 1;
+  outline: none;
+}
+
+.cm-tooltip-autocomplete {
+  font-family: var(--moss-font, system-ui, sans-serif);
+  font-size: 0.875rem;
+  padding: 4px;
+}
+
+.cm-tooltip-autocomplete li[aria-selected] {
+  background: var(--moss-accent-bg, rgba(79, 172, 254, 0.14));
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-tooltip-autocomplete .cm-completionLabel {
+  display: inline-block;
+  min-width: 8em;
+}
+
+.cm-tooltip-autocomplete .cm-completionDetail {
+  color: var(--moss-fg-muted, #888);
+  font-size: 0.8125rem;
+}
+
 /* Bullet widget — replaces the raw `-` / `*` marker on bullet-list
  * items. Matches the visual weight of a real list marker while
  * staying in the muted-secondary color so the item text dominates. */

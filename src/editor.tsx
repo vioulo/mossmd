@@ -82,7 +82,7 @@ function defaultOpenLink(url: string): void {
   }
 }
 
-export interface MossEditorHandle {
+export interface MossMDHandle {
   focus: () => void;
   undo: () => void;
   redo: () => void;
@@ -110,7 +110,7 @@ export interface MossEditorHandle {
   setCollabAdapter: (adapter: CollabAdapter) => Promise<void>;
 }
 
-export interface MossEditorProps {
+export interface MossMDProps {
   /**
    * Opaque identity for the document. Swapping `documentId` tears down
    * and re-mounts the view so cursor / undo state from a previous
@@ -193,7 +193,7 @@ export interface MossEditorProps {
    * — keyboard-driven undo/redo, opening the search panel on Ctrl+F
    * from outside the editor, pulling the current markdown on demand.
    */
-  editorHandleRef?: MutableRefObject<MossEditorHandle | null>;
+  editorHandleRef?: MutableRefObject<MossMDHandle | null>;
 
   /**
    * Grammars to load for fenced code blocks whose info string matches.
@@ -206,7 +206,7 @@ export interface MossEditorProps {
    *
    * ```ts
    * import { MOSS_CODE_LANGUAGES } from 'mossmd/code-languages';
-   * <MossEditor codeLanguages={MOSS_CODE_LANGUAGES} ... />
+   * <MossMD codeLanguages={MOSS_CODE_LANGUAGES} ... />
    * ```
    *
    * Or build your own list from the `LanguageDescription` factory
@@ -246,7 +246,7 @@ export interface MossEditorProps {
    *   }],
    * });
    *
-   * <MossEditor extensions={[wikiLinkCompletion]} ... />
+   * <MossMD extensions={[wikiLinkCompletion]} ... />
    * ```
    */
   extensions?: readonly Extension[];
@@ -267,7 +267,7 @@ export interface MossEditorProps {
  * import 'mossmd/editor.css';
  * ```
  */
-export function MossEditor({
+export function MossMD({
   markdownSource,
   documentId,
   initialSearchText,
@@ -284,7 +284,7 @@ export function MossEditor({
   tablesConfig = {},
   wikiLinksConfig = {},
   collabAdapter = noopCollabAdapter,
-}: MossEditorProps) {
+}: MossMDProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const clearRevealTimerRef = useRef<number | null>(null);

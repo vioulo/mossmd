@@ -1,8 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  MossEditor,
-  type MossEditorHandle,
+  MossMD,
+  type MossMDHandle,
 } from 'mossmd';
 import 'mossmd/editor.css';
 import './harness.css';
@@ -38,7 +38,7 @@ interface HarnessState {
 }
 
 function Harness() {
-  const handleRef = useRef<MossEditorHandle | null>(null);
+  const handleRef = useRef<MossMDHandle | null>(null);
   const openedUrls = useRef<string[]>([]);
   const pendingLoad = useRef<(() => void) | null>(null);
   const [state, setState] = useState<HarnessState>({
@@ -98,7 +98,7 @@ function Harness() {
   return (
     <main className="harness-shell" data-harness-revision={state.revision}>
       <div className="harness-editor">
-        <MossEditor
+        <MossMD
           documentId={`fixture-${state.revision}`}
           editorHandleRef={handleRef}
           markdownSource={state.markdown}

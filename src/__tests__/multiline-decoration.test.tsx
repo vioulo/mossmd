@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { MossEditor } from '../editor';
+import { MossMD } from '../editor';
 
 type Mounted = { host: HTMLElement; root: Root };
 const mounts: Mounted[] = [];
@@ -13,7 +13,7 @@ function mount(markdown: string): Mounted {
   document.body.appendChild(host);
   const root = createRoot(host);
   act(() => {
-    root.render(<MossEditor markdownSource={markdown} />);
+    root.render(<MossMD markdownSource={markdown} />);
   });
   const m = { host, root };
   mounts.push(m);

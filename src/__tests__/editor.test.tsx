@@ -3,8 +3,8 @@ import { act, createRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
 import {
-  MossEditor,
-  type MossEditorHandle,
+  MossMD,
+  type MossMDHandle,
 } from '../editor';
 
 const hosts: HTMLElement[] = [];
@@ -26,14 +26,14 @@ afterEach(() => {
   for (const host of hosts.splice(0)) host.remove();
 });
 
-describe('MossEditor', () => {
+describe('MossMD', () => {
   it('mounts and exposes the initial markdown via the imperative handle', () => {
-    const handleRef = createRef<MossEditorHandle | null>() as {
-      current: MossEditorHandle | null;
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
     };
 
     mount(
-      <MossEditor
+      <MossMD
         markdownSource={'# Hello\n\nWorld.'}
         editorHandleRef={handleRef}
       />,
@@ -45,7 +45,7 @@ describe('MossEditor', () => {
 
   it('renders `.cm-content` with the raw markdown visible in the DOM', () => {
     const { host } = mount(
-      <MossEditor markdownSource={'**bold** and *em*'} />,
+      <MossMD markdownSource={'**bold** and *em*'} />,
     );
     const content = host.querySelector('.cm-content');
     expect(content).not.toBeNull();
@@ -64,7 +64,7 @@ describe('MossEditor', () => {
       '    frames).',
     ].join('\n');
     const { host } = mount(
-      <MossEditor markdownSource={markdown} />,
+      <MossMD markdownSource={markdown} />,
     );
     const lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
     const lineWith = (text: string) =>
@@ -85,11 +85,11 @@ describe('MossEditor', () => {
       '     1. ordered child',
       '        ordered continuation',
     ].join('\n');
-    const handleRef = createRef<MossEditorHandle | null>() as {
-      current: MossEditorHandle | null;
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
     };
     const { host } = mount(
-      <MossEditor
+      <MossMD
         markdownSource={markdown}
         editorHandleRef={handleRef}
       />,
@@ -110,7 +110,7 @@ describe('MossEditor', () => {
 
   it('keeps bare URLs visible on inactive lines', () => {
     const { host } = mount(
-      <MossEditor markdownSource={'- https://example.com'} />,
+      <MossMD markdownSource={'- https://example.com'} />,
     );
 
     const content = host.querySelector('.cm-content');
@@ -124,7 +124,7 @@ describe('MossEditor', () => {
     ['escaped URL slashes', String.raw`https:\/\/example.com`],
   ])('renders %s as clean visible URL text', (_name, markdown) => {
     const { host } = mount(
-      <MossEditor markdownSource={markdown} />,
+      <MossMD markdownSource={markdown} />,
     );
 
     expect(host.querySelector('.cm-content')?.textContent).toBe(
@@ -141,7 +141,7 @@ describe('MossEditor', () => {
   ])('opens the correct URL for %s', (markdown, expectedUrl) => {
     const onLinkClick = vi.fn();
     const { host } = mount(
-      <MossEditor
+      <MossMD
         markdownSource={markdown}
         onLinkClick={onLinkClick}
       />,
@@ -181,7 +181,7 @@ describe('MossEditor', () => {
 
   it('renders highlight syntax with the expected preview class', () => {
     const { host } = mount(
-      <MossEditor markdownSource={'This has ==highlighted text== in it.'} />,
+      <MossMD markdownSource={'This has ==highlighted text== in it.'} />,
     );
 
     const highlight = host.querySelector('.cm-moss-highlight');
@@ -191,7 +191,7 @@ describe('MossEditor', () => {
 
   it('does not partially highlight a triple-equals span', () => {
     const { host } = mount(
-      <MossEditor markdownSource={'This is ===not highlighted===.'} />,
+      <MossMD markdownSource={'This is ===not highlighted===.'} />,
     );
 
     expect(host.querySelector('.cm-moss-highlight')).toBeNull();
@@ -199,7 +199,7 @@ describe('MossEditor', () => {
 
   it('renders highlight syntax inside table cells', () => {
     const { host } = mount(
-      <MossEditor
+      <MossMD
         markdownSource={[
           '| Plain | Highlight |',
           '| --- | --- |',
@@ -218,7 +218,7 @@ describe('MossEditor', () => {
   it('paints selected fenced code above the block backdrop', () => {
     const markdown = ['```ts', 'const selected = true;', '```'].join('\n');
     const { host } = mount(
-      <MossEditor markdownSource={markdown} />,
+      <MossMD markdownSource={markdown} />,
     );
     const editor = host.querySelector<HTMLElement>('.cm-editor');
     expect(editor).not.toBeNull();

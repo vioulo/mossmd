@@ -8,7 +8,7 @@ import {
   type Extension,
 } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { MossEditor } from '../editor';
+import { MossMD } from '../editor';
 import { readOnlyExtension } from '../core/read-only';
 import { mossWikiLinks as wikiLinks } from '../features/wiki-links';
 
@@ -24,7 +24,7 @@ function mount(markdown: string, options: Parameters<typeof wikiLinks>[0] = {}):
   const root = createRoot(host);
   act(() => {
     root.render(
-      <MossEditor
+      <MossMD
         markdownSource={markdown}
         extensions={[
           wikiLinks({

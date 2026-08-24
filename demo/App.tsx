@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  MossEditor,
-  type MossEditorHandle,
+  MossMD,
+  type MossMDHandle,
 } from 'mossmd';
 import { MOSS_CODE_LANGUAGES } from 'mossmd/code-languages';
 import {
@@ -105,7 +105,7 @@ export function App() {
   });
   const [, setOpenedWikiTarget] = useState<string | null>(null);
 
-  const editorRef = useRef<MossEditorHandle | null>(null);
+  const editorRef = useRef<MossMDHandle | null>(null);
 
   const revealText = useMemo(() => {
     if (typeof window === 'undefined') return null;
@@ -366,7 +366,7 @@ export function App() {
 
         <div className="demo-editor-pane">
           <div className="demo-editor-wrapper">
-            <MossEditor
+            <MossMD
               documentId={documentId}
               markdownSource={initialMarkdown}
               editorHandleRef={editorRef}

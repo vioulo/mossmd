@@ -40,12 +40,12 @@ CodeMirror 和 React 相关包都是对等依赖，需要和编辑器一起安�
 ## 使用
 
 ```tsx
-import { MossEditor } from 'mossmd';
+import { MossMD } from 'mossmd';
 import 'mossmd/editor.css';
 
 export function App() {
   return (
-    <MossEditor
+    <MossMD
       markdownSource={'# Hello\n\nA paragraph.'}
       onMarkdownChange={(md) => console.log(md)}
     />
@@ -61,15 +61,15 @@ export function App() {
 
 ```tsx
 import { useRef } from 'react';
-import { MossEditor, type MossEditorHandle } from 'mossmd';
+import { MossMD, type MossMDHandle } from 'mossmd';
 
 export function ToolbarDemo() {
-  const editor = useRef<MossEditorHandle | null>(null);
+  const editor = useRef<MossMDHandle | null>(null);
 
   return (
     <>
       <button onClick={() => editor.current?.openSearch()}>搜索</button>
-      <MossEditor markdownSource={'…'} editorHandleRef={editor} />
+      <MossMD markdownSource={'…'} editorHandleRef={editor} />
     </>
   );
 }
@@ -80,7 +80,7 @@ export function ToolbarDemo() {
 ## 阅读模式
 
 ```tsx
-<MossEditor markdownSource={'…'} readOnly />
+<MossMD markdownSource={'…'} readOnly />
 ```
 
 阅读模式会保持整篇文档渲染，不显示光标下的源码。链接可直接打开，任务复选框仍可切换，查找功能也正常工作。`readOnly` 通过 `Compartment` 动态切换，不会重挂载编辑器。
@@ -99,10 +99,10 @@ export function ToolbarDemo() {
 围栏代码块默认只是等宽文本。要启用高亮，传入 `codeLanguages` 数组。
 
 ```tsx
-import { MossEditor } from 'mossmd';
+import { MossMD } from 'mossmd';
 import { MOSS_CODE_LANGUAGES } from 'mossmd/code-languages';
 
-<MossEditor markdownSource={'…'} codeLanguages={MOSS_CODE_LANGUAGES} />
+<MossMD markdownSource={'…'} codeLanguages={MOSS_CODE_LANGUAGES} />
 ```
 
 如果你想自己组装语言列表，也可以直接传 `LanguageDescription[]`。
@@ -110,10 +110,10 @@ import { MOSS_CODE_LANGUAGES } from 'mossmd/code-languages';
 ## Wiki 链接
 
 ```tsx
-import { MossEditor } from 'mossmd';
+import { MossMD } from 'mossmd';
 import { mossWikiLinks } from 'mossmd/features';
 
-<MossEditor
+<MossMD
   markdownSource={'See [[project-atlas|the design doc]] for details.'}
   extensions={[
     mossWikiLinks({
@@ -127,13 +127,13 @@ import { mossWikiLinks } from 'mossmd/features';
 
 ## 自定义语法
 
-MossMD 提供自定义语法注册层。公开入口是 `mossmd/syntax`，源码对应的协议实现落在 `src/core/custom-syntax.ts`。语法模块会把 `markdown` 交给 `@codemirror/lang-markdown`，把 `extensions` 追加到编辑器扩展集合之后。
+MossMD 提供自定义语法注册层。公开入口是 `mossmd/syntax`，源码对应的协议实现落在 `src/syntax/index.ts`。语法模块会把 `markdown` 交给 `@codemirror/lang-markdown`，把 `extensions` 追加到编辑器扩展集合之后。
 
 ```tsx
-import { MossEditor } from 'mossmd';
+import { MossMD } from 'mossmd';
 import { mossCalloutSyntax } from 'mossmd/features';
 
-<MossEditor
+<MossMD
   markdownSource={markdown}
   customSyntax={[mossCalloutSyntax()]}
 />

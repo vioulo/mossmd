@@ -2,26 +2,26 @@ import { describe, expect, it, afterEach, vi } from 'vitest';
 import { act, createRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import {
-  MossEditor,
-  type MossEditorHandle,
-  type MossEditorProps,
+  MossMD,
+  type MossMDHandle,
+  type MossMDProps,
 } from '../editor';
 
 const hosts: { host: HTMLElement; root: Root }[] = [];
 
-function mount(props: MossEditorProps) {
+function mount(props: MossMDProps) {
   const host = document.createElement('div');
   host.style.width = '600px';
   host.style.height = '400px';
   document.body.appendChild(host);
   const root = createRoot(host);
   act(() => {
-    root.render(<MossEditor {...props} />);
+    root.render(<MossMD {...props} />);
   });
   hosts.push({ host, root });
-  const rerender = (next: MossEditorProps) => {
+  const rerender = (next: MossMDProps) => {
     act(() => {
-      root.render(<MossEditor {...next} />);
+      root.render(<MossMD {...next} />);
     });
   };
   return { host, rerender };
@@ -88,8 +88,8 @@ describe('read-only mode', () => {
   });
 
   it('toggles read-only through the imperative handle', () => {
-    const handleRef = createRef<MossEditorHandle | null>() as {
-      current: MossEditorHandle | null;
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
     };
     const { host } = mount({ markdownSource: TABLE, editorHandleRef: handleRef });
     const content = host.querySelector<HTMLElement>('.cm-content');
@@ -119,8 +119,8 @@ describe('read-only mode', () => {
   });
 
   it('preserves an open search panel while toggling read-only', () => {
-    const handleRef = createRef<MossEditorHandle | null>() as {
-      current: MossEditorHandle | null;
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
     };
     mount({ markdownSource: 'find the needle', editorHandleRef: handleRef });
 
@@ -214,8 +214,8 @@ describe('read-only mode', () => {
 
   it('blocks a stale table menu action after switching to read-only', () => {
     const onMarkdownChange = vi.fn();
-    const handleRef = createRef<MossEditorHandle | null>() as {
-      current: MossEditorHandle | null;
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
     };
     const { host, rerender } = mount({
       markdownSource: TABLE,

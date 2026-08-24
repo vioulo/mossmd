@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { MossEditor } from '../editor';
+import { MossMD } from '../editor';
 import { MARKDOWN_CONTRACTS } from './fixtures/markdown-contracts';
 
 const hosts: HTMLElement[] = [];
@@ -15,7 +15,7 @@ function mount(markdown: string): HTMLElement {
   hosts.push(host);
   const root = createRoot(host);
   roots.push(root);
-  act(() => root.render(<MossEditor markdownSource={markdown} />));
+  act(() => root.render(<MossMD markdownSource={markdown} />));
   return host;
 }
 

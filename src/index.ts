@@ -1,7 +1,7 @@
-export { MossEditor } from './editor';
+export { MossMD } from './editor';
 export type {
-  MossEditorHandle,
-  MossEditorProps,
+  MossMDHandle,
+  MossMDProps,
 } from './editor';
 
 export { mossInlinePreview } from './core/inline-preview';

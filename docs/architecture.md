@@ -64,9 +64,9 @@ src/
     content.css
 ```
 
-`core` 放基础机制，`features` 按用户功能聚合，`custom-syntax` 放语法注册协议。图片和表格复用 Markdown 原生节点；Callout 复用 blockquote 结构并提供自己的装饰；未来 Mermaid 或 Kanban 如果需要新语法，也应作为 feature 落地。
+`core` 放基础机制，`features` 按用户功能聚合，`syntax` 放语法注册协议和语法扩展。图片和表格复用 Markdown 原生节点；Callout 复用 blockquote 结构并提供自己的装饰；未来 Mermaid 或 Kanban 如果需要新语法，也应作为 feature 落地。
 
-## `MossEditor`
+## `MossMD`
 
 `editor.tsx` 是 React 包装层，负责创建和销毁 `EditorView`，并把内置扩展装配到同一个 `EditorState` 中。
 
@@ -117,14 +117,14 @@ src/
 
 ## 自定义语法注册
 
-`src/core/custom-syntax.ts` 定义：
+`src/syntax/index.ts` 定义：
 
 - `MossCustomSyntax`
 - `RegisteredMossSyntax`
 - `defineMossSyntax()`
 - `registerMossSyntax()`
 
-`MossEditor` 在挂载时调用 `registerMossSyntax(customSyntax)`。其中：
+`MossMD` 在挂载时调用 `registerMossSyntax(customSyntax)`。其中：
 
 - `markdown` 会进入 `markdown({ extensions })`。
 - `extensions` 会追加到编辑器扩展集合。

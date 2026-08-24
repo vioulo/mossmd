@@ -207,6 +207,9 @@ const LINE_CLASS_BY_BLOCK: Record<string, string> = {
   FencedCode: 'cm-moss-fenced-code',
 };
 
+const CODE_COPY_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="10" height="10" rx="2"></rect><path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path></svg>';
+
 const HIDEABLE_SYNTAX = new Set([
   'HeaderMark',
   'EmphasisMark',
@@ -250,6 +253,40 @@ function linkDestinationUrl(link: SyntaxNode, doc: Text): SyntaxNode | null {
   );
 }
 
+async function copyTextToClipboard(text: string): Promise<void> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+  } catch {
+    // Fall back to the legacy path below.
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+  } finally {
+    textarea.remove();
+  }
+}
+
+function fencedCodeSource(doc: Text, from: number, to: number): string {
+  const raw = doc.sliceString(from, to);
+  const lines = raw.split('\n');
+  if (lines.length < 2) return raw;
+  if (!/^ {0,3}(`{3,}|~{3,})/.test(lines[0])) return raw;
+  if (!/^ {0,3}(`{3,}|~{3,})\s*$/.test(lines[lines.length - 1])) return raw;
+  return lines.slice(1, -1).join('\n');
+}
+
 class BulletWidget extends WidgetType {
   eq(): boolean {
     return true;
@@ -271,6 +308,39 @@ class BulletWidget extends WidgetType {
 }
 
 const BULLET_WIDGET = new BulletWidget();
+
+class CodeCopyWidget extends WidgetType {
+  constructor(readonly code: string) {
+    super();
+  }
+
+  eq(other: CodeCopyWidget): boolean {
+    return other.code === this.code;
+  }
+
+  toDOM(): HTMLElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'cm-moss-code-copy';
+    button.innerHTML = CODE_COPY_ICON;
+    button.setAttribute('aria-label', 'Copy code');
+    button.title = 'Copy code';
+    button.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void copyTextToClipboard(this.code);
+    });
+    return button;
+  }
+
+  ignoreEvent(event: Event): boolean {
+    return event.type === 'mousedown' || event.type === 'click';
+  }
+}
 
 class TaskCheckboxWidget extends WidgetType {
   constructor(readonly checked: boolean) {
@@ -458,6 +528,11 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         if (anyActive) {
           for (let n = firstLine; n <= lastLine; n++) activeLines.add(n);
         }
+        ranges.push(
+          Decoration.widget({
+            widget: new CodeCopyWidget(fencedCodeSource(doc, node.from, node.to)),
+          }).range(doc.line(firstLine).from),
+        );
       }
       if (node.name === 'Link' && view.hasFocus) {
         for (const range of state.selection.ranges) {
@@ -470,13 +545,27 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
           }
         }
       }
-      const lineClass = LINE_CLASS_BY_BLOCK[node.name];
-      if (lineClass) {
+      if (node.name === 'FencedCode') {
         const firstLine = doc.lineAt(node.from);
         const lastLine = doc.lineAt(node.to);
         for (let n = firstLine.number; n <= lastLine.number; n++) {
           const line = doc.line(n);
-          ranges.push(Decoration.line({ class: lineClass }).range(line.from));
+          const classes = ['cm-moss-fenced-code'];
+          if (n === firstLine.number) classes.push('cm-moss-fenced-code-start');
+          if (n === lastLine.number) classes.push('cm-moss-fenced-code-end');
+          ranges.push(
+            Decoration.line({ class: classes.join(' ') }).range(line.from),
+          );
+        }
+      } else {
+        const lineClass = LINE_CLASS_BY_BLOCK[node.name];
+        if (lineClass) {
+          const firstLine = doc.lineAt(node.from);
+          const lastLine = doc.lineAt(node.to);
+          for (let n = firstLine.number; n <= lastLine.number; n++) {
+            const line = doc.line(n);
+            ranges.push(Decoration.line({ class: lineClass }).range(line.from));
+          }
         }
       }
 

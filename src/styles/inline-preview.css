@@ -214,11 +214,33 @@
 .cm-line.cm-moss-fenced-code {
   font-family: var(--moss-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 0.92em;
-  background: var(--moss-code-bg, color-mix(in srgb, #2d2d2d 88%, black 12%));
-  box-shadow: inset 2px 0 0
-    var(--moss-code-rail, color-mix(in srgb, var(--moss-accent, #7c3aed) 45%, var(--moss-border, #3d3d3d) 55%));
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
+  position: relative;
+  background-color: color-mix(in srgb, var(--moss-code-bg, #2d2d2d) 86%, transparent 14%);
+  background-image:
+    radial-gradient(
+      circle at 1px 1px,
+      color-mix(in srgb, var(--moss-fg-faint, #666) 22%, transparent 78%) 1px,
+      transparent 1.1px
+    );
+  background-size: 14px 14px;
+  border-left: 1px solid color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
+  border-right: 1px solid color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
+  padding-left: 0.7rem;
+  padding-right: 2.4rem;
+}
+
+.cm-line.cm-moss-fenced-code-start {
+  border-top: 1px solid color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
+  border-top-left-radius: var(--moss-radius, 6px);
+  border-top-right-radius: var(--moss-radius, 6px);
+  padding-top: 0.28rem;
+}
+
+.cm-line.cm-moss-fenced-code-end {
+  border-bottom: 1px solid color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
+  border-bottom-left-radius: var(--moss-radius, 6px);
+  border-bottom-right-radius: var(--moss-radius, 6px);
+  padding-bottom: 0.28rem;
 }
 
 /* `drawSelection()` paints behind content, where the opaque code backdrop
@@ -229,6 +251,39 @@
     --moss-selection-bg,
     color-mix(in srgb, #7c3aed 28%, #1e1e1e 72%)
   );
+}
+
+.cm-moss-code-copy {
+  position: absolute;
+  top: 0.15rem;
+  inset-inline-end: 0.15rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--moss-radius, 6px);
+  color: var(--moss-fg-muted, #888);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: background-color 0.12s ease, color 0.12s ease, opacity 0.12s ease, border-color 0.12s ease;
+}
+
+.cm-line.cm-moss-fenced-code:hover .cm-moss-code-copy,
+.cm-moss-code-copy:focus-visible {
+  opacity: 1;
+  background: var(--moss-bg-surface, #2d2d2d);
+  color: var(--moss-fg, #dcddde);
+  border-color: var(--moss-border, #3d3d3d);
+}
+
+.cm-moss-code-copy svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* Inline content marks — applied on the text inside **…**, *…*, `…`,

@@ -215,6 +215,38 @@ describe('MossMD', () => {
     expect(highlight?.textContent).toContain('glow');
   });
 
+  it('renders a code copy button that copies the fenced body only', () => {
+    const markdown = ['```ts', 'const answer = 42;', 'console.log(answer);', '```'].join('\n');
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    try {
+      const { host } = mount(<MossMD markdownSource={markdown} />);
+      const button = host.querySelector<HTMLButtonElement>('.cm-moss-code-copy');
+      expect(button).not.toBeNull();
+
+      act(() => {
+        button?.dispatchEvent(
+          new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }),
+        );
+      });
+
+      expect(writeText).toHaveBeenCalledWith(
+        'const answer = 42;\nconsole.log(answer);',
+      );
+    } finally {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, 'clipboard', originalClipboard);
+      } else {
+        Reflect.deleteProperty(navigator, 'clipboard');
+      }
+    }
+  });
+
   it('paints selected fenced code above the block backdrop', () => {
     const markdown = ['```ts', 'const selected = true;', '```'].join('\n');
     const { host } = mount(

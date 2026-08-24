@@ -20,8 +20,10 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
+import { Check, Copy } from 'lucide-react';
 import { treeGrowthEffect, treeProgressPlugin } from './tree-progress';
 import { readOnlyFacet } from './read-only';
+import { lucideSvg } from './icons';
 
 // Inline preview — the Obsidian "Live Preview" model.
 //
@@ -207,8 +209,8 @@ const LINE_CLASS_BY_BLOCK: Record<string, string> = {
   FencedCode: 'cm-moss-fenced-code',
 };
 
-const CODE_COPY_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="10" height="10" rx="2"></rect><path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path></svg>';
+const CODE_COPY_ICON = lucideSvg(Copy, { size: 16 });
+const CODE_COPY_SUCCESS_ICON = lucideSvg(Check, { size: 16 });
 
 const HIDEABLE_SYNTAX = new Set([
   'HeaderMark',
@@ -272,10 +274,14 @@ async function copyTextToClipboard(text: string): Promise<void> {
   document.body.appendChild(textarea);
   textarea.select();
   try {
-    document.execCommand('copy');
+    if (document.execCommand('copy')) {
+      return;
+    }
   } finally {
     textarea.remove();
   }
+
+  throw new Error('Copy failed');
 }
 
 function fencedCodeSource(doc: Text, from: number, to: number): string {
@@ -314,8 +320,35 @@ class CodeCopyWidget extends WidgetType {
     super();
   }
 
+  private button: HTMLButtonElement | null = null;
+  private copiedTimer: number | null = null;
+
   eq(other: CodeCopyWidget): boolean {
     return other.code === this.code;
+  }
+
+  private setCopied(copied: boolean): void {
+    if (!this.button) return;
+    this.button.classList.toggle('is-copied', copied);
+    this.button.innerHTML = copied ? CODE_COPY_SUCCESS_ICON : CODE_COPY_ICON;
+    this.button.setAttribute('aria-label', copied ? 'Copied' : 'Copy code');
+    this.button.title = copied ? 'Copied' : 'Copy code';
+  }
+
+  private clearTimer(): void {
+    if (this.copiedTimer != null) {
+      window.clearTimeout(this.copiedTimer);
+      this.copiedTimer = null;
+    }
+  }
+
+  private flashCopied(): void {
+    this.clearTimer();
+    this.setCopied(true);
+    this.copiedTimer = window.setTimeout(() => {
+      this.copiedTimer = null;
+      this.setCopied(false);
+    }, 1200);
   }
 
   toDOM(): HTMLElement {
@@ -325,16 +358,27 @@ class CodeCopyWidget extends WidgetType {
     button.innerHTML = CODE_COPY_ICON;
     button.setAttribute('aria-label', 'Copy code');
     button.title = 'Copy code';
+    this.button = button;
     button.addEventListener('mousedown', (event) => {
       event.preventDefault();
       event.stopPropagation();
     });
-    button.addEventListener('click', (event) => {
+    button.addEventListener('click', async (event) => {
       event.preventDefault();
       event.stopPropagation();
-      void copyTextToClipboard(this.code);
+      const copied = await copyTextToClipboard(this.code)
+        .then(() => true)
+        .catch(() => false);
+      if (copied) {
+        this.flashCopied();
+      }
     });
     return button;
+  }
+
+  destroy(): void {
+    this.clearTimer();
+    this.button = null;
   }
 
   ignoreEvent(event: Event): boolean {

@@ -6,22 +6,22 @@ import { fileURLToPath } from 'url';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT = join(__dirname, '..');
 const TEMP_DIR = join(ROOT, '.test-package');
+const BUN_TMPDIR = join(TEMP_DIR, '.bun-tmp');
+const BUN_INSTALL = join(TEMP_DIR, '.bun-install');
 
 async function run() {
   console.log('Building package...');
   execSync('bun run build', { cwd: ROOT, stdio: 'inherit' });
 
   console.log('Packing tarball...');
-  const packOutput = execSync('bun pack --dry-run', { cwd: ROOT, encoding: 'utf-8' });
-  const tarballMatch = packOutput.match(/mossmd-[\d\.]+\.tgz/);
-  if (!tarballMatch) throw new Error('Could not determine tarball name');
-  const tarball = tarballMatch[0];
-
-  execSync(`bun pack`, { cwd: ROOT, stdio: 'inherit' });
+  const tarball = 'mossmd-test-package.tgz';
+  execSync(`bun pm pack --filename ${tarball}`, { cwd: ROOT, stdio: 'inherit' });
 
   console.log('Creating temp directory...');
   await rm(TEMP_DIR, { recursive: true, force: true });
   await mkdir(TEMP_DIR, { recursive: true });
+  await mkdir(BUN_TMPDIR, { recursive: true });
+  await mkdir(BUN_INSTALL, { recursive: true });
 
   console.log('Extracting tarball...');
   execSync(`tar -xzf ${tarball} -C ${TEMP_DIR}`, { cwd: ROOT, stdio: 'inherit' });
@@ -68,12 +68,12 @@ export default defineConfig({
 
   await mkdir(join(consumerDir, 'src'), { recursive: true });
   await writeFile(join(consumerDir, 'src/main.tsx'), `
-import { MossEditor } from 'mossmd';
+import { MossMD } from 'mossmd';
 import 'mossmd/styles.css';
 import { createRoot } from 'react-dom/client';
 
 createRoot(document.getElementById('root')!).render(
-  <MossEditor markdownSource="# Hello from consumer" readOnly />
+  <MossMD markdownSource="# Hello from consumer" readOnly />
 );
 `);
 
@@ -84,7 +84,11 @@ createRoot(document.getElementById('root')!).render(
 `);
 
   console.log('Installing consumer deps...');
-  execSync('bun install', { cwd: consumerDir, stdio: 'inherit' });
+  execSync('bun install', {
+    cwd: consumerDir,
+    env: { ...process.env, BUN_INSTALL, BUN_TMPDIR, TMPDIR: BUN_TMPDIR },
+    stdio: 'inherit',
+  });
 
   console.log('Building consumer...');
   execSync('bun run build', { cwd: consumerDir, stdio: 'inherit' });

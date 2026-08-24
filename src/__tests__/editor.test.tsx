@@ -215,10 +215,11 @@ describe('MossMD', () => {
     expect(highlight?.textContent).toContain('glow');
   });
 
-  it('renders a code copy button that copies the fenced body only', () => {
+  it('renders a code copy button that copies the fenced body only', async () => {
     const markdown = ['```ts', 'const answer = 42;', 'console.log(answer);', '```'].join('\n');
     const writeText = vi.fn().mockResolvedValue(undefined);
     const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    vi.useFakeTimers();
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText },
@@ -229,16 +230,27 @@ describe('MossMD', () => {
       const button = host.querySelector<HTMLButtonElement>('.cm-moss-code-copy');
       expect(button).not.toBeNull();
 
-      act(() => {
+      await act(async () => {
         button?.dispatchEvent(
           new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }),
         );
+        await Promise.resolve();
       });
 
       expect(writeText).toHaveBeenCalledWith(
         'const answer = 42;\nconsole.log(answer);',
       );
+      expect(button?.classList.contains('is-copied')).toBe(true);
+      expect(button?.getAttribute('aria-label')).toBe('Copied');
+
+      act(() => {
+        vi.advanceTimersByTime(1200);
+      });
+
+      expect(button?.classList.contains('is-copied')).toBe(false);
+      expect(button?.getAttribute('aria-label')).toBe('Copy code');
     } finally {
+      vi.useRealTimers();
       if (originalClipboard) {
         Object.defineProperty(navigator, 'clipboard', originalClipboard);
       } else {

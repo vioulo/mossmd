@@ -45,6 +45,7 @@ import {
   searchPanelOpen,
   setSearchQuery,
 } from '@codemirror/search';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 import { mossTheme, mossSyntax } from './theme';
 import {
@@ -66,6 +67,7 @@ import {
 } from './features/wiki-links';
 import { noopCollabAdapter, type CollabAdapter } from './collab';
 import { registerMossSyntax, type MossCustomSyntax } from './syntax';
+import { lucideSvg } from './core/icons';
 import type { InlinePreviewConfig } from './core/inline-preview';
 import type { MossTablesConfig as TablesConfig } from './features/table';
 
@@ -789,9 +791,9 @@ function findScrollParent(node: HTMLElement): HTMLElement | null {
 // also means we can style it to match the rest of the app without
 // fighting base CM6 styles.
 
-const SEARCH_ICON_PREV = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`;
-const SEARCH_ICON_NEXT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
-const SEARCH_ICON_CLOSE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+const SEARCH_ICON_PREV = lucideSvg(ChevronLeft, { size: 18 });
+const SEARCH_ICON_NEXT = lucideSvg(ChevronRight, { size: 18 });
+const SEARCH_ICON_CLOSE = lucideSvg(X, { size: 18 });
 
 function defaultSearchPanel(view: EditorView): Panel {
   const dom = document.createElement('div');

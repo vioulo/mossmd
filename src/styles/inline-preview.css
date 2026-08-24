@@ -281,6 +281,13 @@
   border-color: var(--moss-border, #3d3d3d);
 }
 
+.cm-moss-code-copy.is-copied {
+  opacity: 1;
+  background: var(--moss-accent, #7c3aed);
+  color: #fff;
+  border-color: var(--moss-accent, #7c3aed);
+}
+
 .cm-moss-code-copy svg {
   width: 1rem;
   height: 1rem;

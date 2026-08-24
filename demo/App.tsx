@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowUp,
+  Check,
+  Copy,
+  Download,
+  Moon,
+  Sun,
+} from 'lucide-react';
+import {
   MossMD,
   type MossMDHandle,
 } from 'mossmd';
@@ -255,9 +263,11 @@ export function App() {
             onClick={copyMarkdown}
             disabled={!liveMarkdown}
           >
-            {copied ? 'Copied!' : 'Copy MD'}
+            {copied ? <Check size={16} /> : <Copy size={16} />}
+            <span>{copied ? 'Copied!' : 'Copy MD'}</span>
           </button>
           <button className="demo-btn" onClick={downloadMarkdown} disabled={!liveMarkdown}>
+            <Download size={16} />
             Download
           </button>
           <button className="demo-btn" onClick={resetEditor}>
@@ -274,16 +284,7 @@ export function App() {
             aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
             title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
           >
-            {theme === 'dark' ? (
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M21 12.7A8.5 8.5 0 0 1 11.3 3a8.5 8.5 0 1 0 9.7 9.7Z" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="4.5" />
-                <path d="M12 2.5v2.2M12 19.3v2.2M4.7 4.7l1.6 1.6M17.7 17.7l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.7 19.3l1.6-1.6M17.7 6.3l1.6-1.6" />
-              </svg>
-            )}
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <button
             className={`demo-btn demo-raw-toggle ${showSource ? 'is-active' : ''}`}
@@ -417,9 +418,7 @@ export function App() {
         aria-label="Back to top"
         title="Back to top"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 19V5M5 12l7-7 7 7" />
-        </svg>
+        <ArrowUp size={18} />
       </button>
 
       <div className="demo-statusbar" aria-label="Document status">

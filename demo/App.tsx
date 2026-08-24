@@ -23,6 +23,7 @@ import {
   type SampleOptions,
   type SampleSize,
 } from './sample-content';
+import { wavyHrSyntax } from './wavy-hr';
 
 type ThemeMode = 'dark' | 'light';
 
@@ -58,7 +59,7 @@ const DEFAULT_TOGGLES: ContentToggles = {
   code: true,
 };
 
-const MOSS_DEMO_SYNTAX = [mossCalloutSyntax()];
+const MOSS_DEMO_SYNTAX = [mossCalloutSyntax(), wavyHrSyntax()];
 
 function formatBytes(chars: number): string {
   if (chars < 1024) return `${chars} B`;

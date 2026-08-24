@@ -473,9 +473,11 @@ function pushReplace(
 
 const LIST_BASE_EM = 0.8;
 const LIST_ALCOVE_EM = 1.2;
-// Four source spaces are about one `em` in the proportional editor font.
-// Keep the preview step aligned with the actual Tab indentation unit.
-const LIST_LEVEL_EM = 1;
+// Visual step per nested list level. Source uses 4 spaces per level
+// (LIST_INDENT_COLUMNS + indentUnit); 1em used to undershoot that,
+// making nested lists look cramped. 2em matches the alcove width and
+// reads closer to the source intent without bloating deep nests.
+const LIST_LEVEL_EM = 2;
 
 function nearestListItem(node: SyntaxNode | null): SyntaxNode | null {
   for (let current = node; current; current = current.parent) {

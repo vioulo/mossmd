@@ -415,6 +415,16 @@ export function generateSampleMarkdown(
   // ordinary text: headings, emphasis, escapes, collapsed links.
   sections.push('## And the usual markdown', paragraph(rng));
   sections.push('And highlight syntax works with ==double equals== markers too.');
+  // Custom HR showcase — the `wavyHrSyntax()` customSyntax in App.tsx
+  // layers a different visual on each CommonMark HR sigil: solid `---`,
+  // wavy `***`, glyph-centered `___`. Type any of them on a blank line
+  // to see the variant; click the line to reveal the raw marker.
+  sections.push(
+    'Custom HR visuals ship through `customSyntax` — same CommonMark markers, different paint:',
+    '***',
+    '___',
+    '---',
+  );
   if (includeSeparators) sections.push('---');
   if (includeLists) sections.push(list(rng));
   if (!imageless) {

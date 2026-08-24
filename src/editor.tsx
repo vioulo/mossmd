@@ -53,7 +53,6 @@ import {
   extendEmphasisPair,
   imeCompositionGuard,
   normalizeDigitPunctuation,
-  separateHorizontalRule,
   startAsteriskList,
 } from './core/edit-helpers';
 import { mossImages } from './features/image';
@@ -407,7 +406,6 @@ export function MossMD({
           extendEmphasisPair,
           autoCloseCodeFence,
           normalizeDigitPunctuation,
-          separateHorizontalRule,
           EditorView.lineWrapping,
           // Find-in-document. `top: true` drops the panel above the
           // editor (matching Obsidian / the prior Milkdown panel).

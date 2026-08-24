@@ -689,7 +689,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         }
       }
 
-      // Tables are rendered by the separate `tables()` block-widget
+      // Tables are rendered by the separate `mossTables()` block-widget
       // table feature (./features/table) — the whole Table range is
       // replaced with an interactive HTML `<table>`. Any inline
       // decorations on TableHeader/TableRow/TableDelimiter would

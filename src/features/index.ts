@@ -1,4 +1,4 @@
-export { mossImageBlocks } from './image';
+export { mossImages } from './image';
 export { mossTables } from './table';
 export type { MossTablesConfig } from './table';
 export { mossWikiLinks } from './wiki-links';

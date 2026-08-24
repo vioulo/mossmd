@@ -171,10 +171,10 @@ import {
   mossSyntax,
   extendEmphasisPair,
 } from 'mossmd';
-import { mossImageBlocks, mossTables, mossWikiLinks } from 'mossmd/features';
+import { mossImages, mossTables, mossWikiLinks } from 'mossmd/features';
 ```
 
-`mossInlinePreview()`、`mossTables()`、`mossImageBlocks()`、`mossWikiLinks()` 都是独立的 CM6 模块，可以按需组合。
+`mossInlinePreview()`、`mossTables()`、`mossImages()`、`mossWikiLinks()` 都是独立的 CM6 模块，可以按需组合。
 
 ## 协作
 

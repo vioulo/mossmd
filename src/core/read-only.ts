@@ -12,8 +12,8 @@ import { EditorView } from '@codemirror/view';
 // `readOnlyFacet` is the single source of truth the feature extensions
 // (inline-preview, tables) read via `state.facet(readOnlyFacet)` to
 // branch their behavior. It defaults to `false`, so composing
-// `inlinePreview()` / `tables()` standalone — without ever supplying
-// this facet — behaves exactly as before.
+// `inlinePreview()` / `mossTables()` standalone — without ever
+// supplying this facet — behaves exactly as before.
 
 export const readOnlyFacet = Facet.define<boolean, boolean>({
   combine: (values) => (values.length ? values[values.length - 1] : false),

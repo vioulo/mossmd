@@ -1347,7 +1347,7 @@ export const tableLinkClickFacet = Facet.define<
   combine: (values) => values[0] ?? defaultLinkOpener,
 });
 
-export function tables(config: TablesConfig = {}): Extension {
+export function mossTables(config: TablesConfig = {}): Extension {
   return [
     tableField,
     treeProgressPlugin,
@@ -1356,5 +1356,3 @@ export function tables(config: TablesConfig = {}): Extension {
     Prec.high(keymap.of([{ key: 'Backspace', run: backspaceAtTableBoundary }])),
   ];
 }
-
-export const mossTables = tables;

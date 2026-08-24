@@ -55,11 +55,11 @@ import {
   separateHorizontalRule,
   startAsteriskList,
 } from './core/edit-helpers';
-import { imageBlocks } from './features/image';
+import { mossImages } from './features/image';
 import { highlightMarkdown } from './syntax/highlight';
 import { inlinePreview } from './core/inline-preview';
 import { readOnlyExtension } from './core/read-only';
-import { tables } from './features/table';
+import { mossTables } from './features/table';
 import {
   wikiLinks,
   type WikiLinksConfig,
@@ -445,11 +445,11 @@ export function MossMD({
             indentWithTab,
             ...defaultKeymap,
           ]),
-          tables({
+          mossTables({
             onLinkClick: handleLinkClick,
             ...tablesConfig,
           }),
-          imageBlocks(),
+          mossImages(),
           inlinePreview({
             onLinkClick: handleLinkClick,
             ...inlinePreviewConfig,

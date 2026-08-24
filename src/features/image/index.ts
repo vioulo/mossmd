@@ -232,8 +232,6 @@ const imageBlocksField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
-export function imageBlocks(): Extension {
+export function mossImages(): Extension {
   return [imageBlocksField, treeProgressPlugin];
 }
-
-export const mossImageBlocks = imageBlocks;

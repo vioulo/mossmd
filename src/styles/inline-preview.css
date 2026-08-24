@@ -519,7 +519,7 @@
   text-decoration: line-through;
 }
 
-/* WYSIWYG table block widget — emitted by `tables()` in
+/* WYSIWYG table block widget — emitted by `mossTables()` in
  * table-widget.ts. The Table node's source range is fully replaced
  * by this rendered `<table>`; users interact with cells directly
  * via `contenteditable`, with Tab / Shift-Tab moving focus between

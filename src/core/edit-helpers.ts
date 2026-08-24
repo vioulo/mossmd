@@ -107,11 +107,12 @@ export const autoCloseCodeFence = Prec.highest(
   EditorView.inputHandler.of(autoCloseCodeFenceInput),
 );
 
-function isImeKeyEvent(event: KeyboardEvent): boolean {
+function isImeEnterKeyEvent(event: KeyboardEvent): boolean {
   return (
-    event.key === 'Process' ||
-    event.keyCode === 229 ||
-    (event.isComposing && (event.key === 'Enter' || event.key === 'NumpadEnter'))
+    (event.isComposing &&
+      (event.key === 'Enter' || event.key === 'NumpadEnter')) ||
+    (event.keyCode === 229 &&
+      (event.key === 'Enter' || event.key === 'NumpadEnter'))
   );
 }
 
@@ -128,7 +129,7 @@ export const imeCompositionGuard = Prec.highest(
         view !== null &&
         Date.now() - (imeCompositionEndedAt.get(view) ?? 0) < 120;
       if (
-        !isImeKeyEvent(event) &&
+        !isImeEnterKeyEvent(event) &&
         !(recentlyEnded && (event.key === 'Enter' || event.key === 'NumpadEnter'))
       ) {
         return false;
@@ -262,8 +263,75 @@ const DIGIT_PUNCTUATION: Record<string, string> = {
 };
 
 export const normalizeDigitPunctuation = Prec.highest(
-  EditorView.inputHandler.of(normalizeDigitPunctuationInput),
+  [
+    EditorView.inputHandler.of(normalizeDigitPunctuationInput),
+    EditorView.domEventHandlers({
+      input(_event, view) {
+        scheduleDigitPunctuationNormalization(view);
+        return false;
+      },
+      compositionend(_event, view) {
+        scheduleDigitPunctuationNormalization(view);
+        return false;
+      },
+    }),
+  ],
 );
+
+const digitPunctuationTimers = new WeakMap<EditorView, number>();
+
+function scheduleDigitPunctuationNormalization(view: EditorView): void {
+  if (digitPunctuationTimers.has(view)) return;
+
+  const retry = (): void => {
+    digitPunctuationTimers.delete(view);
+    if (view.composing) {
+      digitPunctuationTimers.set(view, window.setTimeout(retry, 16));
+      return;
+    }
+    normalizeDigitPunctuationAtCursor(view);
+  };
+
+  digitPunctuationTimers.set(view, window.setTimeout(retry, 0));
+}
+
+function normalizeDigitPunctuationAtCursor(view: EditorView): void {
+  if (view.composing) return;
+
+  const { state } = view;
+  if (state.selection.ranges.length !== 1 || !state.selection.main.empty) {
+    return;
+  }
+
+  const cursor = state.selection.main.head;
+  const line = state.doc.lineAt(cursor);
+  const before = state.doc.sliceString(line.from, cursor);
+  let punctuationFrom = -1;
+  let punctuation: string | undefined;
+
+  for (let index = before.length - 1; index > 0; index--) {
+    if (!/\d/.test(before[index - 1])) continue;
+    const candidate = DIGIT_PUNCTUATION[before[index]];
+    if (candidate) {
+      punctuationFrom = line.from + index;
+      punctuation = candidate;
+      break;
+    }
+  }
+
+  if (punctuationFrom < 0 || !punctuation) return;
+  if (isInsideMarkdownCode(state, punctuationFrom)) return;
+
+  const after = state.doc.sliceString(
+    punctuationFrom + 1,
+    Math.min(state.doc.length, punctuationFrom + 2),
+  );
+  const insert = after === ' ' ? punctuation : `${punctuation} `;
+  view.dispatch({
+    changes: { from: punctuationFrom, to: punctuationFrom + 1, insert },
+    selection: { anchor: cursor + insert.length - 1 },
+  });
+}
 
 export function normalizeDigitPunctuationInput(
   view: EditorView,
@@ -271,8 +339,9 @@ export function normalizeDigitPunctuationInput(
   to: number,
   text: string,
 ): boolean {
-  const punctuation = DIGIT_PUNCTUATION[text];
-  if (!punctuation || from !== to || from === 0) return false;
+  const sourcePunctuation = text[0];
+  const punctuation = sourcePunctuation ? DIGIT_PUNCTUATION[sourcePunctuation] : undefined;
+  if (!punctuation || from !== to || from === 0 || view.composing) return false;
 
   const { state } = view;
   if (state.selection.ranges.length !== 1 || !state.selection.main.empty) {
@@ -282,8 +351,10 @@ export function normalizeDigitPunctuationInput(
 
   if (isInsideMarkdownCode(state, from)) return false;
 
+  const rest = text.slice(sourcePunctuation.length);
   const after = state.doc.sliceString(from, Math.min(state.doc.length, from + 1));
-  const insert = after === ' ' ? punctuation : `${punctuation} `;
+  const separator = rest.startsWith(' ') || after === ' ' ? '' : ' ';
+  const insert = `${punctuation}${separator}${rest}`;
   view.dispatch({
     changes: { from, insert },
     selection: { anchor: from + insert.length },

@@ -63,7 +63,7 @@ export function defaultOnLinkClick(url: string): void {
 
 const FREEZE_TAIL_MS = 100;
 
-// ---- freeze plumbing -----------------------------------------------------
+// freeze plumbing
 
 export const setFrozen = StateEffect.define<boolean>();
 const refreshInlinePreview = StateEffect.define<void>();
@@ -192,7 +192,7 @@ const freezeMousePlugin = ViewPlugin.fromClass(
   },
 );
 
-// ---- decoration building --------------------------------------------------
+// decoration building
 
 const LINE_CLASS_BY_BLOCK: Record<string, string> = {
   ATXHeading1: 'cm-moss-h1',
@@ -635,7 +635,11 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         const markText = doc.sliceString(node.from, node.to);
         if (
           lineActive &&
-          (taskFrom !== undefined || markText === '-' || markText === '*' || markText === '+')
+          (taskFrom !== undefined ||
+            markText === '-' ||
+            markText === '*' ||
+            markText === '+' ||
+            /^\d{1,9}[.)]$/.test(markText))
         ) {
           return;
         }
@@ -918,8 +922,7 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
       if (
         update.docChanged &&
         (composingTransaction ||
-          update.view.composing ||
-          update.view.compositionStarted)
+          update.view.composing)
       ) {
         this.decorations = this.decorations.map(update.changes);
         return;
@@ -988,6 +991,10 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
   {
     decorations: (v) => v.decorations,
     eventHandlers: {
+      compositionstart(_event, view) {
+        view.dispatch({ effects: refreshInlinePreview.of() });
+        return false;
+      },
       compositionend(_event, view) {
         setTimeout(() => {
           view.dispatch({ effects: refreshInlinePreview.of() });
@@ -1294,11 +1301,11 @@ const orderedListRenumberPlugin = ViewPlugin.fromClass(
       if (update.transactions.some((tr) => tr.isUserEvent('input.type.compose'))) {
         return;
       }
-      if (update.view.composing || update.view.compositionStarted) return;
+      if (update.view.composing) return;
       if (this.timer !== null) clearTimeout(this.timer);
       this.timer = setTimeout(() => {
         this.timer = null;
-        if (update.view.composing || update.view.compositionStarted) return;
+        if (update.view.composing) return;
         renumberOrderedLists(update.view);
       }, 0);
     }
@@ -1310,7 +1317,7 @@ const orderedListRenumberPlugin = ViewPlugin.fromClass(
 );
 
 export function insertTightListItem(view: EditorView): boolean {
-  if (view.composing || view.compositionStarted) return false;
+  if (view.composing) return false;
 
   const { state } = view;
   const sel = state.selection.main;
@@ -1381,7 +1388,7 @@ export function insertTightListItem(view: EditorView): boolean {
 }
 
 export function indentListItem(view: EditorView): boolean {
-  if (view.composing || view.compositionStarted) return false;
+  if (view.composing) return false;
 
   const { state } = view;
   const sel = state.selection.main;
@@ -1435,7 +1442,7 @@ export function indentListItem(view: EditorView): boolean {
 }
 
 export function dedentListItem(view: EditorView): boolean {
-  if (view.composing || view.compositionStarted) return false;
+  if (view.composing) return false;
 
   const { state } = view;
   const sel = state.selection.main;

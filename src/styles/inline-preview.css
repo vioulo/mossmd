@@ -409,6 +409,8 @@
  * reading-width column). Smaller images render at their own size,
  * left-aligned. Aspect ratio preserved by `height: auto`. */
 .cm-moss-image {
+  display: flex;
+  justify-content: center;
   padding: 0.35em 0;
 }
 

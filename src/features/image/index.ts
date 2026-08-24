@@ -49,17 +49,26 @@ import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
 const dimensionCache = new Map<string, { w: number; h: number }>();
 
 class ImageWidget extends WidgetType {
-  constructor(readonly src: string, readonly alt: string) {
+  constructor(
+    readonly src: string,
+    readonly alt: string,
+    readonly caption: string | null,
+  ) {
     super();
   }
 
   eq(other: ImageWidget): boolean {
-    return other.src === this.src && other.alt === this.alt;
+    return (
+      other.src === this.src &&
+      other.alt === this.alt &&
+      other.caption === this.caption
+    );
   }
 
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('div');
     wrap.className = 'cm-moss-image';
+    if (this.caption) wrap.classList.add('cm-moss-image-has-caption');
     const img = document.createElement('img');
     img.src = this.src;
     img.alt = this.alt;
@@ -86,6 +95,20 @@ class ImageWidget extends WidgetType {
       });
     }
     wrap.appendChild(img);
+
+    // Caption: rendered below the image. The source syntax is
+    // `![alt|caption](url)` — pipe inside the alt text separates
+    // accessibility alt (left, goes to `img.alt`) from visible
+    // caption (right, rendered here). When the pipe is present but
+    // empty (`![alt|](url)`), we fall back to the alt text as the
+    // caption so users get a one-field shorthand. No pipe at all
+    // means standard CommonMark image — no caption rendered.
+    if (this.caption) {
+      const caption = document.createElement('figcaption');
+      caption.className = 'cm-moss-image-caption';
+      caption.textContent = this.caption;
+      wrap.appendChild(caption);
+    }
 
     // Clicking the image should land the caret on the source line
     // (where the `![alt](url)` markdown lives) so the reveal happens
@@ -149,13 +172,28 @@ function buildImageBlocks(state: EditorState): DecorationSet {
       const raw = state.doc.sliceString(node.from, node.to);
       const match = raw.match(/^!\[([^\]]*)\]\(([^\s)"']+)(?:\s+["'][^)]*["'])?\)$/);
       if (!match) return;
-      const [, alt, src] = match;
+      const [, altRaw, src] = match;
       if (!src) return;
+
+      // Split the alt on `|` to extract a visible caption.
+      //   ![alt](url)         → alt only, no caption
+      //   ![alt|caption](url)  → alt for accessibility, caption shown
+      //   ![alt|](url)         → alt as caption (shorthand)
+      // `img.alt` always gets the left side (or the full alt when no
+      // pipe) so screen readers still read meaningful text.
+      let alt = altRaw;
+      let caption: string | null = null;
+      const pipeIdx = altRaw.indexOf('|');
+      if (pipeIdx >= 0) {
+        alt = altRaw.slice(0, pipeIdx);
+        const after = altRaw.slice(pipeIdx + 1);
+        caption = after || alt;
+      }
 
       const line = state.doc.lineAt(node.from);
       ranges.push(
         Decoration.widget({
-          widget: new ImageWidget(src, alt),
+          widget: new ImageWidget(src, alt, caption),
           block: true,
           // side: 1 places the block widget after the line's content,
           // so the image appears below its source line.

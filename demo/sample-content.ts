@@ -202,7 +202,16 @@ function imageBlock(rng: () => number): string {
   const w = 320 + Math.floor(rng() * 260);
   const h = 180 + Math.floor(rng() * 200);
   const alt = words(rng, 2 + Math.floor(rng() * 2));
-  return `![${alt}](https://picsum.photos/seed/${seed}/${w}/${h})`;
+  const url = `https://picsum.photos/seed/${seed}/${w}/${h}`;
+  // ~40% of images use the pipe syntax to show a caption; the rest
+  // stay plain `![alt](url)` to exercise the no-caption path. Of
+  // the captioned ones, ~1 in 4 uses the empty-pipe shorthand
+  // `![alt|](url)` to verify the alt-fallback branch.
+  const r = rng();
+  if (r < 0.6) return `![${alt}](${url})`;
+  if (r < 0.7) return `![${alt}|](${url})`;
+  const caption = words(rng, 4 + Math.floor(rng() * 4));
+  return `![${alt}|${caption}](${url})`;
 }
 
 // Generate a section: h2 + 3-6 blocks.

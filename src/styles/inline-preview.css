@@ -483,6 +483,21 @@
   border-radius: 0.4em;
 }
 
+/* When a caption is present, switch the wrap to a column so the
+ * figcaption stacks below the image instead of beside it. */
+.cm-moss-image.cm-moss-image-has-caption {
+  flex-direction: column;
+  align-items: center;
+}
+
+.cm-moss-image-caption {
+  margin: 0.4em 0 0;
+  text-align: center;
+  font-size: 0.85em;
+  color: var(--moss-fg-muted, #888);
+  max-width: 100%;
+}
+
 /* Bullet widget — replaces the raw `-` / `*` marker on bullet-list
  * items. Matches the visual weight of a real list marker while
  * staying in the muted-secondary color so the item text dominates. */

@@ -39,21 +39,24 @@ src/
   index.ts
   editor.tsx
   core/
-    custom-syntax.ts
-    inline-preview.ts
-    highlight.ts
     code-languages.ts
     edit-helpers.ts
+    icons.ts
+    inline-preview.ts
     read-only.ts
     tree-progress.ts
   features/
     index.ts
     image/index.ts
+    file-blocks/index.ts
     table/index.ts
     wiki-links/index.ts
     callout/index.ts
+    slash-commands/index.ts
+    upload/index.ts
   syntax/
     index.ts
+    highlight.ts
   collab/
     index.ts
   theme/
@@ -64,7 +67,7 @@ src/
     content.css
 ```
 
-`core` 放基础机制，`features` 按用户功能聚合，`syntax` 放语法注册协议和语法扩展。图片和表格复用 Markdown 原生节点；Callout 复用 blockquote 结构并提供自己的装饰；未来 Mermaid 或 Kanban 如果需要新语法，也应作为 feature 落地。
+`core` 放基础机制，`features` 按用户功能聚合，`syntax` 放语法注册协议和 `==highlight==` 扩展。图片和表格复用 Markdown 原生节点；Callout 复用 blockquote 结构并提供自己的装饰；文件块、斜杠命令、上传块同样作为 feature 落地。未来 Mermaid 或 Kanban 如果需要新语法，也应作为 feature 落地。
 
 ## `MossMD`
 
@@ -74,7 +77,7 @@ src/
 
 主要职责：
 
-- 装配 Markdown 语言、主题、输入辅助、搜索、图片、表格、实时预览、阅读模式和自定义语法。
+- 装配 Markdown 语言、主题、输入辅助、搜索、图片、文件块、表格、Wiki 链接、Callout、斜杠命令、上传块、实时预览、阅读模式和自定义语法。
 - 通过 `editorHandleRef` 暴露命令式方法。
 - 管理 `readOnly` 的 `Compartment`，实现不重挂载切换。
 - 管理 `collabAdapter` 的 attach/detach 生命周期。
@@ -99,6 +102,10 @@ src/
 
 图片尺寸会按 URL 缓存自然宽高，避免虚拟滚动重新挂载图片时出现高度跳变。
 
+### 文件块
+
+`features/file-blocks/index.ts` 把单独成段的非图片文件链接（按扩展名识别）渲染为卡片 Widget：大文件图标 + 扩展名徽章 + 文件名 + 大小提示。点击卡片会把光标落到源码行以便编辑，遵循光标显露约定。
+
 ### 表格
 
 `features/table/index.ts` 把 GFM Table 节点替换为交互式 `<table>` Widget。单元格内部可编辑，输入后重新序列化为 Markdown，并替换原表格源码范围。
@@ -114,6 +121,18 @@ src/
 ### Callout
 
 `features/callout/index.ts` 识别 `> [!TYPE]` 形式的 Obsidian 风格 callout。它不定义新 Lezer 节点，而是复用 Markdown blockquote，给相关行添加类并在非激活状态下把标记替换为标签。
+
+### 斜杠命令
+
+`features/slash-commands/index.ts` 提供行首 `/` 触发和行首 `+` 按钮触发的命令面板，两者共用同一份 completion source。命令的 `apply` 回调负责把 `/query` 范围替换为最终片段。`mossDefaultSlashCommands` 内置上传图片 / 文件骨架，消费方可在此基础上拼装自己的片段集。
+
+`+` 按钮只在空行渲染，避免与已有内容冲突。斜杠只是临时触发字符，选中命令后即被 `apply` 替换，原文不会保留 `/`。
+
+### 上传块
+
+`features/upload/index.ts` 与斜杠命令的上传命令配合，在 pending 期间渲染带本地预览和进度 / 状态的块级 Widget。成功后落回最终 Markdown，失败可重试或取消。
+
+上传器由消费方注入 `mossUploadCommands(uploader)`，S3 / OSS / Supabase / 自建 `/api/upload` 均可适配。pending 状态只活在编辑器 state 中（不写回原文），因此刷新页面会丢失在途 Widget；对瞬时交互而言可接受。
 
 ## 自定义语法注册
 

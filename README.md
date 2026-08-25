@@ -15,7 +15,12 @@ ChatGPT 推荐了 [atomic-editor](https://github.com/kenforthewin/atomic-editor)
 - **原始 Markdown 为唯一数据源**：所有装饰都只读，复制、保存、往返其它 Markdown 工具时都保持原文。
 - **布局稳定**：行高只由 CSS 类决定，点击、编辑、滚动不会让页面抖动。
 - **所见即所得表格**：单元格可直接编辑，宽表会在自身容器内横向滚动。
+- **图片块**：`Image` 节点在源码行下方渲染为块级 Widget，并缓存自然尺寸以减少虚拟滚动抖动。
+- **文件块**：单独成段的非图片文件链接渲染为带图标和扩展名徽章的卡片。
 - **Wiki 链接**：支持 `[[target]]`、`[[target|label]]`、异步解析、自动补全和点击打开。
+- **斜杠命令**：行首输入 `/` 或点击行首 `+` 触发命令面板，内置上传图片 / 文件骨架，可拼装自己的片段集。
+- **上传块**：上传过程中显示带进度与状态的块级 Widget，成功后落回最终 Markdown，失败可重试或取消；上传器由消费方注入。
+- **Callout**：识别 `> [!TYPE]` 形式的 Obsidian 风格块，非激活行收起为标签。
 - **智能列表**：Enter 可延续紧凑列表和任务列表，空条目上按 Enter 会缩出列表。
 - **代码高亮**：围栏代码块的语法在首次使用时才动态加载。
 - **自定义语法**：通过 `MossCustomSyntax` 注册额外块，适合 Callout、Mermaid、Kanban 等扩展。
@@ -76,6 +81,36 @@ export function ToolbarDemo() {
 ```
 
 可用方法包括：`focus`、`undo`、`redo`、`openSearch(query?)`、`closeSearch`、`revealText(query)`、`isSearchOpen`、`getMarkdown`、`getContentDOM`、`setReadOnly(readOnly)`、`setCollabAdapter(adapter)`。
+
+## 斜杠命令与上传
+
+`slashCommandsConfig` 接收一个命令数组和一个 `sideButton` 开关。行首输入 `/` 或点击行首 `+` 会弹出命令面板；选中后 `apply` 回调负责把 `/query` 范围替换成最终片段。
+
+```tsx
+import { MossMD } from 'mossmd';
+import { mossDefaultSlashCommands, mossUploadCommands } from 'mossmd/features';
+import type { MossUploader } from 'mossmd/features';
+
+const uploader: MossUploader = async (file, onProgress) => {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch('/api/upload', { method: 'POST', body: form });
+  onProgress(1);
+  return { url: (await res.json()).url };
+};
+
+const uploadCommands = mossUploadCommands(uploader);
+
+<MossMD
+  markdownSource={'…'}
+  slashCommandsConfig={{
+    commands: [...mossDefaultSlashCommands, ...uploadCommands],
+    sideButton: true,
+  }}
+/>
+```
+
+上传在 pending 期间显示一个块级进度 Widget，成功后落回最终 Markdown，失败可重试或取消。pending 状态只活在编辑器内部，不会污染原文。
 
 ## 阅读模式
 
@@ -171,10 +206,18 @@ import {
   mossSyntax,
   extendEmphasisPair,
 } from 'mossmd';
-import { mossImages, mossTables, mossWikiLinks } from 'mossmd/features';
+import {
+  mossImages,
+  mossFileBlocks,
+  mossTables,
+  mossWikiLinks,
+  mossCallouts,
+  mossSlashCommands,
+  mossUploadBlocks,
+} from 'mossmd/features';
 ```
 
-`mossInlinePreview()`、`mossTables()`、`mossImages()`、`mossWikiLinks()` 都是独立的 CM6 模块，可以按需组合。
+上述函数都是独立的 CM6 模块，可以按需组合。
 
 ## 协作
 
@@ -188,27 +231,6 @@ import { mossImages, mossTables, mossWikiLinks } from 'mossmd/features';
 - 行高只由 CSS 类控制
 - 鼠标按下后会短暂冻结装饰重建
 - 装饰重建只覆盖受影响的范围
-
-## 参与贡献
-
-开发环境需要 Node.js 18+ 或 Bun 1.0+。
-
-```bash
-git clone https://github.com/vioulo/mossmd
-cd mossmd
-bun install
-bun run dev
-```
-
-常用命令：
-
-```bash
-bun test
-bun run build
-bun run test:e2e
-bun run test:package
-bun run typecheck
-```
 
 ## 许可证
 

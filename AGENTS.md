@@ -24,21 +24,25 @@ MossMD 是基于 CodeMirror 6 的 Obsidian 风格 Markdown 编辑器，面向 Re
 src/
   index.ts                 根入口，导出编辑器、主题、基础扩展和语法注册协议
   editor.tsx               React 包装与 CodeMirror 扩展装配
-  inline-preview.ts        主实时预览装饰引擎
-  highlight.ts             `==highlight==` Markdown 扩展
   core/
     code-languages.ts      围栏代码语言注册表
     edit-helpers.ts        Markdown 输入辅助
+    icons.ts               Lucide 图标转 SVG 工具
+    inline-preview.ts      主实时预览装饰引擎
     read-only.ts           阅读模式 facet 与扩展
     tree-progress.ts       Lezer 解析进度广播
   features/
     index.ts               用户功能聚合入口
     image/index.ts         图片块 widget
+    file-blocks/index.ts   文件链接卡片 widget
     table/index.ts         所见即所得表格
     wiki-links/index.ts    Wiki 链接、解析与自动补全
     callout/index.ts       Obsidian 风格 Callout 装饰
+    slash-commands/index.ts  行首 `/` 与 `+` 触发的命令面板
+    upload/index.ts        上传进度块 widget 与上传命令
   syntax/
     index.ts               `MossCustomSyntax`、`defineMossSyntax()`、`registerMossSyntax()`
+    highlight.ts           `==highlight==` Markdown 扩展
   collab/index.ts          协作适配器接口
   styles/
     tokens.css             主题令牌
@@ -48,13 +52,14 @@ src/
 
 ## 公开入口
 
-- `mossmd`：`MossEditor`、主题、输入辅助、阅读模式、语法注册协议、代码语言注册表。
-- `mossmd/features`：图片、表格、Wiki 链接、Callout 等用户功能。
-- `mossmd/features/image`、`mossmd/features/table`、`mossmd/features/wiki-links`、`mossmd/features/callout`：单个 feature 的子路径。
-- `mossmd/syntax`：自定义语法注册协议。
+- `mossmd`：`MossMD`、`MossMDHandle`/`MossMDProps`、主题、输入辅助、阅读模式、语法注册协议、代码语言注册表。
+- `mossmd/features`：图片、文件块、表格、Wiki 链接、Callout、斜杠命令、上传块等用户功能。
+- `mossmd/features/image`、`mossmd/features/table`、`mossmd/features/wiki-links`、`mossmd/features/callout`、`mossmd/features/slash-commands`：单个 feature 的子路径。
+- `mossmd/syntax`：自定义语法注册协议；`mossmd/syntax/highlight`：`==highlight==` 扩展。
 - `mossmd/code-languages`：精选围栏代码语言列表。
+- `mossmd/theme`：主题扩展。
 - `mossmd/collab`：协作接口。
-- `mossmd/editor.css`、`mossmd/content.css`、`mossmd/tokens.css`：样式入口。
+- `mossmd/editor.css`（`styles.css` 别名）、`mossmd/content.css`、`mossmd/tokens.css`：样式入口。
 
 开发阶段不保留旧的 `mossmd/plugins/*` 或 `mossmd/syntax/callout` 兼容路径。
 

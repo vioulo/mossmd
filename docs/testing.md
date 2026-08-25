@@ -1,6 +1,6 @@
 # 测试
 
-测试 harness 有四层。每一层捕获一类不同的回归，CI 会跑全部四层。
+测试 harness 有三层。每一层捕获一类不同的回归。
 
 ## 快速集成测试
 
@@ -16,15 +16,9 @@ Chromium 运行每个规格。Firefox 和 WebKit 运行标记为 `@smoke` 的测
 
 使用 `bun run test:e2e:headed` 交互式调试 Chromium 套件。
 
-## Legacy 浏览器探针
-
-（可选）针对长文档与时序敏感行为的宽泛探针套件，包括布局漂移、滚动、点击冻结、块装饰、原始 markdown 复制和解析进度。
-
 ## 发布包冒烟测试
 
 `bun run test:package` 会创建真实的 npm tarball，在干净的临时消费方中安装它，导入文档化的入口点与样式表，并用 Vite 构建该消费方。这能在发布前捕获缺失文件、损坏的导出映射和仅限包内的模块解析失败。
-
-CI 还会运行 `bun audit --audit-level=moderate`。Dependabot 每周检查 npm 与 GitHub Actions 依赖。
 
 ## 添加回归测试
 

@@ -21,18 +21,23 @@ src/
   core/
     code-languages.ts
     edit-helpers.ts
-    highlight.ts
+    icons.ts
     inline-preview.ts
     read-only.ts
     tree-progress.ts
   features/
     index.ts
     image/index.ts
+    file-blocks/index.ts
     table/index.ts
     wiki-links/index.ts
     callout/index.ts
-    collab/index.ts
-  syntax/index.ts
+    slash-commands/index.ts
+    upload/index.ts
+  syntax/
+    index.ts
+    highlight.ts
+  collab/index.ts
   styles/
     tokens.css
     inline-preview.css
@@ -60,11 +65,13 @@ src/
 
 聚合导出：
 
-- `mossImageBlocks`
-- `mossTables`
-- `mossWikiLinks`
-- `mossCallouts`
-- `mossCalloutSyntax`
+- `mossImages`
+- `mossFileBlocks`
+- `mossTables`、`MossTablesConfig`
+- `mossWikiLinks` 及配套类型
+- `mossCallouts`、`mossCalloutSyntax` 及配套类型
+- `mossSlashCommands`、`mossDefaultSlashCommands` 及配套类型
+- `mossUploadBlocks`、`mossUploadCommands`、`beginUpload`、`retryUpload`、`cancelUpload` 及配套类型
 
 ### 子路径
 
@@ -72,21 +79,27 @@ src/
 - `mossmd/features/table`
 - `mossmd/features/wiki-links`
 - `mossmd/features/callout`
+- `mossmd/features/slash-commands`
 - `mossmd/syntax`
+- `mossmd/syntax/highlight`
 - `mossmd/collab`
 - `mossmd/code-languages`
 - `mossmd/theme`
+- `mossmd/editor.css` / `mossmd/styles.css`（别名）
+- `mossmd/content.css`
+- `mossmd/tokens.css`
 
 开发阶段不保留旧的 `mossmd/plugins/*` 兼容路径。
 
 ## 编辑器行为
 
-`MossEditor` 是 React 外壳，内部由单个 `EditorView` 驱动。主要 props：
+`MossMD` 是 React 外壳，内部由单个 `EditorView` 驱动。主要 props：
 
 - `markdownSource`
 - `documentId`
 - `initialSearchText`
 - `initialRevealText`
+- `blurEditorOnMount`
 - `readOnly`
 - `onMarkdownChange`
 - `onLinkClick`
@@ -97,6 +110,7 @@ src/
 - `inlinePreviewConfig`
 - `tablesConfig`
 - `wikiLinksConfig`
+- `slashCommandsConfig`
 - `collabAdapter`
 
 命令式句柄包含：
@@ -123,6 +137,10 @@ src/
 
 `features/image/index.ts` 把 `Image` 节点渲染成源码行下方的块级 Widget，并缓存图片自然尺寸，减少虚拟滚动中的高度抖动。
 
+### 文件块
+
+`features/file-blocks/index.ts` 把单独成段的非图片文件链接（按扩展名识别）渲染为卡片 Widget，展示文件图标、扩展名徽章、文件名和大小提示。
+
 ### 表格
 
 `features/table/index.ts` 把 GFM 表格替换为可编辑 `<table>` Widget。单元格内部维护原始 Markdown，输入后会重新序列化整张表。
@@ -140,9 +158,17 @@ src/
 
 `features/callout/index.ts` 识别 Obsidian 风格 `> [!TYPE]` blockquote，并在非激活状态下把标记收起为紧凑标签。
 
+### 斜杠命令
+
+`features/slash-commands/index.ts` 提供行首 `/` 触发和行首 `+` 按钮触发的命令面板。`mossDefaultSlashCommands` 内置上传图片 / 文件骨架，消费方可在此基础上拼装自己的片段集。
+
+### 上传块
+
+`features/upload/index.ts` 在 pending 期间渲染带本地预览和进度的块级 Widget，成功后落回最终 Markdown，失败可重试或取消。上传器由消费方通过 `mossUploadCommands(uploader)` 注入。
+
 ### 自定义语法
 
-`syntax/index.ts` 定义 `MossCustomSyntax`、`defineMossSyntax()`、`registerMossSyntax()`。`MossEditor` 会在挂载时把传入的 `customSyntax` 合并进 Markdown 扩展和 CM6 扩展集合。
+`syntax/index.ts` 定义 `MossCustomSyntax`、`defineMossSyntax()`、`registerMossSyntax()`。`MossMD` 会在挂载时把传入的 `customSyntax` 合并进 Markdown 扩展和 CM6 扩展集合。
 
 ### 主题
 
@@ -178,6 +204,7 @@ src/
 
 - `src/__tests__/edit-helpers.test.ts`
 - `src/__tests__/editor.test.tsx`
+- `src/__tests__/list-editing.test.ts`
 - `src/__tests__/markdown-contracts.test.tsx`
 - `src/__tests__/multiline-decoration.test.tsx`
 - `src/__tests__/read-only.test.tsx`

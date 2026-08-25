@@ -499,6 +499,258 @@
 }
 
 /* ------------------------------------------------------------------ */
+/* File link block.
+ *
+ * Same treatment as image blocks — rendered below a source line that
+ * contains a standalone file link `[label](url)`. Layout mirrors the
+ * upload-progress widget so the flow "upload widget → file-block
+ * widget" looks like a single continuous transition rather than a
+ * pop-and-replace. Left: preview (thumb for image URLs, glyph+ext
+ * badge for generic files). Right: name + info row. */
+.cm-moss-file-block {
+  display: flex;
+  align-items: center;
+  gap: 0.85em;
+  padding: 0.6em 0.9em;
+  margin: 0.25em 0;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.22));
+  border-radius: 0.55em;
+  background: var(--moss-file-block-bg, rgba(127, 127, 127, 0.06));
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.cm-moss-file-block:hover {
+  background: var(--moss-file-block-hover-bg, rgba(127, 127, 127, 0.1));
+  border-color: var(--moss-border, rgba(127, 127, 127, 0.35));
+}
+
+.cm-moss-file-block-preview {
+  flex: 0 0 auto;
+  width: 4.2em;
+  height: 4.2em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 0.5em;
+  background: var(--moss-file-block-preview-bg, rgba(127, 127, 127, 0.12));
+}
+
+.cm-moss-file-block-preview.cm-moss-file-block-preview-image {
+  background: transparent;
+}
+
+.cm-moss-file-block-preview-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cm-moss-file-block-preview.cm-moss-file-block-preview-file {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18em;
+  color: var(--moss-fg-muted, #9a9da4);
+}
+
+.cm-moss-file-block-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.cm-moss-file-block-glyph svg {
+  width: 2.6em;
+  height: 2.6em;
+}
+
+.cm-moss-file-block-ext {
+  font-size: 0.6em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  padding: 0.2em 0.45em;
+  border-radius: 0.3em;
+  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.32));
+  color: var(--moss-fg, #dcddde);
+  text-transform: uppercase;
+}
+
+.cm-moss-file-block-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.cm-moss-file-block-name {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: var(--moss-fg, #dcddde);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cm-moss-file-block-info {
+  font-size: 0.8em;
+  color: var(--moss-fg-muted, #888);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------ */
+/* Upload progress block.
+ *
+ * Rendered by mossUploadBlocks while an upload is in flight. Layout:
+ * preview on the left (image thumb or file icon), body on the right
+ * with filename + size, a progress bar, status text, and (on error)
+ * retry / cancel buttons. Matches the image block's padding so the
+ * transition from "uploading" → final markdown + image widget is
+ * visually smooth.
+ * ------------------------------------------------------------------ */
+.cm-moss-upload {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.5em 0.75em;
+  margin: 0.2em 0;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.18));
+  border-radius: 0.5em;
+  background: var(--moss-upload-bg, rgba(127, 127, 127, 0.06));
+}
+
+.cm-moss-upload-preview {
+  flex: 0 0 auto;
+  width: 3.5em;
+  height: 3.5em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 0.4em;
+  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.1));
+}
+
+.cm-moss-upload-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cm-moss-upload-preview.cm-moss-upload-preview-file {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18em;
+  color: var(--moss-fg-muted, #9a9da4);
+}
+
+.cm-moss-upload-file-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.cm-moss-upload-file-glyph svg {
+  width: 2.2em;
+  height: 2.2em;
+}
+
+.cm-moss-upload-ext {
+  font-size: 0.62em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  padding: 0.18em 0.4em;
+  border-radius: 0.25em;
+  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.32));
+  color: var(--moss-fg, #dcddde);
+  text-transform: uppercase;
+}
+
+.cm-moss-upload-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.cm-moss-upload-meta {
+  font-size: 0.85em;
+  color: var(--moss-fg, #dcddde);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cm-moss-upload-progress {
+  width: 100%;
+  height: 0.35em;
+  border-radius: 999px;
+  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.18));
+  overflow: hidden;
+}
+
+.cm-moss-upload-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--moss-accent, #4facfe);
+  transition: width 0.15s ease;
+}
+
+.cm-moss-upload-status {
+  font-size: 0.8em;
+  color: var(--moss-fg-muted, #888);
+}
+
+.cm-moss-upload-status.is-error {
+  color: var(--moss-danger, #ef5350);
+}
+
+.cm-moss-upload-actions {
+  display: inline-flex;
+  gap: 0.4em;
+}
+
+.cm-moss-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75em;
+  height: 1.75em;
+  padding: 0;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.2));
+  border-radius: 0.35em;
+  background: transparent;
+  color: var(--moss-fg-muted, #888);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.cm-moss-upload-btn:hover {
+  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.14));
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-moss-upload-btn svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* ------------------------------------------------------------------ */
 /* Slash-commands side `+` button + popup tweaks.
  *
  * The `+` button is rendered by mossSlashCommands (sideButton: true)
@@ -517,34 +769,45 @@
 
 .cm-moss-side-plus {
   position: absolute;
-  left: -1.6em;
+  /* Pull into the left gutter but keep a gap from the caret/text
+   * on the line (right edge sits ~0.6em left of line.from). */
+  left: -2.8em;
   top: 50%;
   transform: translateY(-50%);
-  width: 1.2em;
-  height: 1.2em;
+  width: 1.7em;
+  height: 1.7em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   margin: 0;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--moss-fg-muted, #888);
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
+  border-radius: 6px;
+  background: var(--moss-side-plus-bg, rgba(127, 127, 127, 0.22));
+  color: var(--moss-fg-muted, #b4b8bf);
   font: inherit;
   font-size: 1em;
   line-height: 1;
   cursor: pointer;
   user-select: none;
-  opacity: 0.35;
-  transition: opacity 0.12s ease, background-color 0.12s ease;
+  opacity: 1;
+  transition: opacity 0.12s ease, background-color 0.12s ease,
+    color 0.12s ease, border-color 0.12s ease;
 }
 
+.cm-moss-side-plus svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+
+/* Subtle hover: a muted neutral wash + slightly stronger border.
+ * No accent color — keeps the affordance quiet but discoverable. */
 .cm-moss-side-plus:hover,
 .cm-moss-side-plus:focus-visible {
-  background: var(--moss-hover-bg, rgba(255, 255, 255, 0.06));
+  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.32));
+  border-color: var(--moss-border, rgba(127, 127, 127, 0.7));
   color: var(--moss-fg, #dcddde);
-  opacity: 1;
   outline: none;
 }
 
@@ -564,9 +827,86 @@
   min-width: 8em;
 }
 
+/* "icon + title" layout: drop the secondary detail text and render a
+ * leading icon per command kind. Icons are lucide-shaped 24×24
+ * stroke SVGs inlined as data URIs (CSS data URIs can't read CSS
+ * vars, so the stroke is a fixed muted tone). `icons: true` in the
+ * autocompletion config makes CM6 emit the `.cm-completionIcon` span;
+ * we replace its default `::after` glyph with a background image. */
 .cm-tooltip-autocomplete .cm-completionDetail {
-  color: var(--moss-fg-muted, #888);
-  font-size: 0.8125rem;
+  display: none;
+}
+
+/* Override CM6's defaults: it sets `opacity: .6` (too faint for our
+ * stroke icons), `box-sizing: content-box` + `padding-right: .6em`
+ * (width/height then exclude padding, so the SVG gets clipped to a
+ * sub-em box and the background image reads as nearly invisible).
+ * Switch to border-box, drop the right padding (we use margin
+ * instead), and pin opacity to 1 so the icon is the visual anchor. */
+.cm-tooltip-autocomplete .cm-completionIcon {
+  width: 1.2em;
+  min-width: 1.2em;
+  height: 1.2em;
+  margin-right: 0.5em;
+  padding: 0;
+  vertical-align: text-bottom;
+  display: inline-block;
+  box-sizing: border-box;
+  opacity: 1;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon::after {
+  content: none;
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-moss-image {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23999da4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><circle cx='9' cy='9' r='2'/><path d='m21 15-3.5-3.5a2 2 0 0 0-2.8 0L6 21'/></svg>");
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-moss-file {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23999da4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><path d='M14 2v6h6'/></svg>");
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-moss-snippet {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23999da4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><path d='M14 2v6h6'/><path d='M16 13H8'/><path d='M16 17H8'/><path d='M10 9H8'/></svg>");
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-moss-list {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23999da4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M8 6h13'/><path d='M8 12h13'/><path d='M8 18h13'/><path d='M3 6h.01'/><path d='M3 12h.01'/><path d='M3 18h.01'/></svg>");
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-moss-code {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23999da4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='16 18 22 12 16 6'/><polyline points='8 6 2 12 8 18'/></svg>");
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-moss-table {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23999da4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 9h18'/><path d='M3 15h18'/><path d='M9 3v18'/></svg>");
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-moss-rule {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23999da4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14'/></svg>");
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon-moss-callout {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23999da4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/></svg>");
+}
+
+/* Hide the popup's scrollbar without disabling scroll. CM6's list
+ * is a <ul> with its own max-height + overflow:auto. */
+.cm-tooltip-autocomplete ul,
+.cm-tooltip-autocomplete .cm-completionList {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.cm-tooltip-autocomplete ul::-webkit-scrollbar,
+.cm-tooltip-autocomplete .cm-completionList::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Bullet widget — replaces the raw `-` / `*` marker on bullet-list

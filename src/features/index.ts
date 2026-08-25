@@ -1,4 +1,5 @@
 export { mossImages } from './image';
+export { mossFileBlocks } from './file-blocks';
 export { mossTables } from './table';
 export type { MossTablesConfig } from './table';
 export { mossWikiLinks } from './wiki-links';
@@ -18,3 +19,15 @@ export type {
   MossSlashCommand,
   MossSlashCommandsConfig,
 } from './slash-commands';
+export {
+  mossUploadBlocks,
+  mossUploadCommands,
+  beginUpload,
+  retryUpload,
+  cancelUpload,
+} from './upload';
+export type {
+  MossUploader,
+  MossUploadKind,
+  MossUploadResult,
+} from './upload';

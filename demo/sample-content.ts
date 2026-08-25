@@ -453,6 +453,14 @@ export function generateSampleMarkdown(
     // as `A link to example for reference.` on inactive cursor; clicking
     // inside the link reveals `[example](https://example.org)`.
     'A link to [example](https://example.org) for reference.',
+    // Standalone file links — rendered as file-card widgets below
+    // each source line so attachments get a real visual placeholder
+    // instead of disappearing into a plain blue underline. Layout
+    // mirrors the image-block + upload-progress widgets so the
+    // upload → final flow reads as one continuous transition.
+    '## Attachments',
+    '[project-brief.pdf](https://example.org/files/project-brief.pdf)',
+    '[design-notes.zip](https://example.org/files/design-notes.zip)',
   );
   for (let i = 1; i <= SECTIONS_PER_SIZE[size]; i++) {
     // When separators are on, drop an HR between every section so a

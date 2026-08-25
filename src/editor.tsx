@@ -56,6 +56,7 @@ import {
   startAsteriskList,
 } from './core/edit-helpers';
 import { mossImages } from './features/image';
+import { mossFileBlocks } from './features/file-blocks';
 import { highlightMarkdown } from './syntax/highlight';
 import { inlinePreview } from './core/inline-preview';
 import { readOnlyExtension } from './core/read-only';
@@ -456,6 +457,7 @@ export function MossMD({
             ...tablesConfig,
           }),
           mossImages(),
+          mossFileBlocks(),
           inlinePreview({
             onLinkClick: handleLinkClick,
             ...inlinePreviewConfig,
@@ -472,9 +474,6 @@ export function MossMD({
             ? [mossSlashCommands(slashCommandsConfig)]
             : []),
           EditorView.updateListener.of((update) => {
-            if (update.docChanged) {
-              console.log('[mossmd editor] docChanged, userEvent=', update.transactions.map(t => t.annotation(Transaction.userEvent)));
-            }
             if (!update.docChanged) return;
             onMarkdownChangeRef.current?.(update.state.doc.toString());
           }),

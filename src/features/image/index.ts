@@ -96,13 +96,12 @@ class ImageWidget extends WidgetType {
     }
     wrap.appendChild(img);
 
-    // Caption: rendered below the image. The source syntax is
-    // `![alt|caption](url)` — pipe inside the alt text separates
-    // accessibility alt (left, goes to `img.alt`) from visible
-    // caption (right, rendered here). When the pipe is present but
-    // empty (`![alt|](url)`), we fall back to the alt text as the
-    // caption so users get a one-field shorthand. No pipe at all
-    // means standard CommonMark image — no caption rendered.
+    // Caption: rendered below the image. The default syntax is
+    // `![alt](url)` — no pipe — and the whole alt text doubles as
+    // the visible caption. To give alt and caption different text,
+    // use `![alt|caption](url)`. A trailing pipe (`![alt|](url)`)
+    // is the explicit "no caption" form. `img.alt` always gets the
+    // accessibility text.
     if (this.caption) {
       const caption = document.createElement('figcaption');
       caption.className = 'cm-moss-image-caption';
@@ -175,19 +174,34 @@ function buildImageBlocks(state: EditorState): DecorationSet {
       const [, altRaw, src] = match;
       if (!src) return;
 
-      // Split the alt on `|` to extract a visible caption.
-      //   ![alt](url)         → alt only, no caption
-      //   ![alt|caption](url)  → alt for accessibility, caption shown
-      //   ![alt|](url)         → alt as caption (shorthand)
-      // `img.alt` always gets the left side (or the full alt when no
-      // pipe) so screen readers still read meaningful text.
+      // Extract a visible caption from the alt text.
+      //   ![alt](url)          → alt = caption = alt (default, no pipe)
+      //   ![alt|caption](url)   → alt for a11y, caption shown (complete)
+      //   ![alt|](url)          → alt only, NO caption (explicit off)
+      //   ![|caption](url)      → alt = caption = caption (incomplete)
+      // Rule of thumb: only a complete `xxx|yyy` split reuses the
+      // right side as the caption. Anything without a complete split
+      // (including no pipe at all) makes the whole text both alt and
+      // caption; a trailing pipe (`xxx|`) is the one exception that
+      // suppresses the caption.
       let alt = altRaw;
       let caption: string | null = null;
       const pipeIdx = altRaw.indexOf('|');
-      if (pipeIdx >= 0) {
-        alt = altRaw.slice(0, pipeIdx);
-        const after = altRaw.slice(pipeIdx + 1);
-        caption = after || alt;
+      if (pipeIdx < 0) {
+        caption = altRaw || null;
+      } else {
+        const left = altRaw.slice(0, pipeIdx);
+        const right = altRaw.slice(pipeIdx + 1);
+        if (right === '') {
+          alt = left;
+          caption = null;
+        } else if (left === '') {
+          alt = right;
+          caption = right;
+        } else {
+          alt = left;
+          caption = right;
+        }
       }
 
       const line = state.doc.lineAt(node.from);

@@ -39,7 +39,12 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
+import { Plus } from 'lucide-react';
+import { lucideSvg } from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
+import { mossUploadBlocks } from '../upload';
+
+const SIDE_PLUS_ICON = lucideSvg(Plus, { size: 18, strokeWidth: 2 });
 
 export interface MossSlashCommand {
   /** Stable id; used for dedupe and React keys if a consumer renders
@@ -51,6 +56,11 @@ export interface MossSlashCommand {
   detail?: string;
   /** Extra tokens used by the default fuzzy matcher. */
   keywords?: string[];
+  /** Icon kind key rendered as a leading icon in the popup. Maps to a
+   *  `.cm-completionIcon-moss-<icon>` CSS rule (see inline-preview.css).
+   *  Built-in kinds: 'image', 'file', 'snippet', 'list', 'code',
+   *  'table', 'rule', 'callout'. Omit to fall back to 'snippet'. */
+  icon?: string;
   /** Replace the `/query` range (or the empty cursor range when
    *  triggered via the `+` button) with this command's markdown.
    *  May be async — file pickers and network uploads are fine. */
@@ -83,7 +93,6 @@ interface SlashCommandCompletion extends Completion {
 const SLASH_QUERY_RE = /^\/[\w-]*$/;
 
 export function mossSlashCommands(config: MossSlashCommandsConfig): Extension {
-  console.log('[mossmd slash] mossSlashCommands() called, sideButton=', !!config.sideButton, 'commands=', config.commands.length);
   // Register the source via `EditorState.languageData` (additive,
   // mergeable) rather than `autocompletion({ override: [...] })`
   // (single-valued, conflicts on merge). Multiple features can each
@@ -102,17 +111,14 @@ export function mossSlashCommands(config: MossSlashCommandsConfig): Extension {
   const autocompleteHandler = (context: CompletionContext): Promise<CompletionResult | null> =>
     source(context, config);
   const extensions: Extension[] = [
-    EditorState.languageData.of(() => {
-      console.log('[mossmd slash] languageData provider called');
-      return [{ autocomplete: autocompleteHandler }];
-    }),
+    EditorState.languageData.of(() => [{ autocomplete: autocompleteHandler }]),
     // Global autocomplete config (without override). Equal-valued
     // scalar fields merge without conflict, so multiple features can
     // each call `autocompletion(...)` to set defaults; the values
     // must agree or CM6 throws "Config merge conflict".
     autocompletion({
       activateOnTyping: true,
-      icons: false,
+      icons: true,
       closeOnBlur: true,
     }),
   ];
@@ -121,6 +127,12 @@ export function mossSlashCommands(config: MossSlashCommandsConfig): Extension {
     extensions.push(sidePlusButtonPlugin);
   }
 
+  // Upload progress widgets. Always included — cheap no-op when no
+  // pending-upload markers exist in the doc. The orchestration lives
+  // in `mossUploadCommands(uploader)`'s `apply` callbacks; this field
+  // only renders state + dispatches effects.
+  extensions.push(mossUploadBlocks());
+
   return extensions;
 }
 
@@ -128,17 +140,10 @@ async function source(
   context: CompletionContext,
   config: MossSlashCommandsConfig,
 ): Promise<CompletionResult | null> {
-  // TEMP DEBUG — remove once popup is verified working.
-  console.log('[mossmd slash] source queried', {
-    pos: context.pos,
-    explicit: context.explicit,
-    textBefore: context.state.doc.sliceString(Math.max(0, context.pos - 10), context.pos),
-  });
   if (context.state.facet(readOnlyFacet)) return null;
 
   // Path A: user typed /query.
   const slashMatch = context.matchBefore(SLASH_QUERY_RE);
-  console.log('[mossmd slash] slashMatch', slashMatch?.text);
   if (slashMatch) {
     // Trigger gate: when triggerAtLineStart (default true), the slash
     // must be the first non-whitespace character on its line. Without
@@ -146,22 +151,18 @@ async function source(
     if (config.triggerAtLineStart !== false) {
       const line = context.state.doc.lineAt(slashMatch.from);
       const before = line.text.slice(0, slashMatch.from - line.from);
-      console.log('[mossmd slash] lineStart check, before=', JSON.stringify(before), 'slashFrom=', slashMatch.from, 'lineFrom=', line.from);
       if (before.trim() !== '') return null;
     }
     const query = slashMatch.text.slice(1);
     const commands = await resolveCommands(config, query);
-    console.log('[mossmd slash] resolved commands=', commands.length, 'aborted=', context.aborted);
     if (context.aborted) return null;
-    const result = {
+    return {
       // Include the `/` in the replace range so `apply` can wipe it.
       from: slashMatch.from,
       to: context.pos,
       options: commands.map((cmd) => toOption(cmd)),
       validFor: /^\/?[\w-]*$/,
     };
-    console.log('[mossmd slash] returning result, options=', result.options.length, 'from=', result.from, 'to=', result.to);
-    return result;
   }
 
   // Path B: explicit invocation via the side `+` button. CM6 sets
@@ -216,7 +217,7 @@ function toOption(cmd: MossSlashCommand): SlashCommandCompletion {
   return {
     label: cmd.label,
     detail: cmd.detail,
-    type: 'function',
+    type: 'moss-' + (cmd.icon ?? 'snippet'),
     apply: (
       view: EditorView,
       _completion: Completion,
@@ -270,7 +271,7 @@ class SidePlusWidget extends WidgetType {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'cm-moss-side-plus';
-    btn.textContent = '+';
+    btn.innerHTML = SIDE_PLUS_ICON;
     btn.title = 'Add a block (or type /)';
     btn.setAttribute('aria-label', 'Add a block');
     btn.addEventListener('mousedown', (event) => {
@@ -327,9 +328,7 @@ const sidePlusButtonPlugin = ViewPlugin.fromClass(
     decorations: DecorationSet;
 
     constructor(view: EditorView) {
-      console.log('[mossmd slash] sidePlusButtonPlugin constructor, hasFocus=', view.hasFocus, 'readOnly=', view.state.facet(readOnlyFacet));
       this.decorations = buildSidePlusDecorations(view);
-      console.log('[mossmd slash] constructor decorations size=', this.decorations.size);
     }
 
     update(update: ViewUpdate): void {
@@ -362,18 +361,20 @@ export const mossDefaultSlashCommands: MossSlashCommand[] = [
   {
     id: 'upload-image',
     label: 'Upload image',
-    detail: 'Pick from disk and insert ![alt|](url)',
+    detail: 'Pick from disk and insert ![alt](url)',
     keywords: ['picture', 'photo', 'image', 'img'],
+    icon: 'image',
     apply: async (view, from, to) => {
       const file = await pickFile('image/*');
       if (!file) return;
       const url = URL.createObjectURL(file);
-      const insert = `![${file.name}|](${url})`;
+      const insert = `![${file.name}](${url})`;
       view.dispatch({
         changes: { from, to, insert },
-        // Drop the caret on the `|caption` slot so the user can type
-        // a caption immediately. Position = after `![name|`.
-        selection: { anchor: from + 2 + file.name.length + 1 },
+        // Drop the caret right after `![name` so the user can type
+        // `|caption` to split alt and caption, or leave as-is (the
+        // name doubles as caption by default).
+        selection: { anchor: from + 2 + file.name.length },
       });
     },
   },
@@ -382,6 +383,7 @@ export const mossDefaultSlashCommands: MossSlashCommand[] = [
     label: 'Upload file',
     detail: 'Pick from disk and link [name](url)',
     keywords: ['attachment', 'file', 'link'],
+    icon: 'file',
     apply: async (view, from, to) => {
       const file = await pickFile();
       if (!file) return;

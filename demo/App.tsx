@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUp,
   Check,
+  Code2,
   Copy,
   Download,
   Moon,
+  RotateCcw,
   Sun,
 } from 'lucide-react';
 import {
@@ -24,7 +26,6 @@ import 'mossmd/editor.css';
 import {
   SAMPLE_SIZES,
   generateSampleMarkdown,
-  type SampleOptions,
   type SampleSize,
 } from './sample-content';
 import { wavyHrSyntax } from './wavy-hr';
@@ -176,20 +177,6 @@ const WIKI_SNIPPETS: Record<string, string> = {
   'search-fallback': 'Fallback result for testing content-like matching in the demo.',
 };
 
-interface ContentToggles {
-  images: boolean;
-  tables: boolean;
-  lists: boolean;
-  code: boolean;
-}
-
-const DEFAULT_TOGGLES: ContentToggles = {
-  images: true,
-  tables: true,
-  lists: true,
-  code: true,
-};
-
 const MOSS_DEMO_SYNTAX = [mossCalloutSyntax(), wavyHrSyntax()];
 
 // Compose the package's default upload skeletons with a demo-specific
@@ -224,12 +211,6 @@ const MOSS_DEMO_SLASH_COMMANDS = {
   sideButton: true,
 };
 
-function formatBytes(chars: number): string {
-  if (chars < 1024) return `${chars} B`;
-  if (chars < 1024 * 1024) return `${(chars / 1024).toFixed(1)} KB`;
-  return `${(chars / (1024 * 1024)).toFixed(2)} MB`;
-}
-
 function findWikiTarget(target: string): WikiLinkSuggestion | undefined {
   return WIKI_TARGETS.find((candidate) => candidate.target === target);
 }
@@ -253,29 +234,27 @@ function resolveWikiTarget(target: string): Promise<WikiLinkSuggestion | null> {
   return Promise.resolve(findWikiTarget(target) ?? null);
 }
 
-function togglesToOptions(t: ContentToggles): SampleOptions {
-  return {
-    mode: t.images ? 'with images' : 'imageless',
-    tables: t.tables ? 'with tables' : 'no tables',
-    lists: t.lists ? 'with lists' : 'no lists',
-    codeBlocks: t.code ? 'with code blocks' : 'no code blocks',
-  };
+function formatBytes(chars: number): string {
+  if (chars < 1024) return `${chars} B`;
+  if (chars < 1024 * 1024) return `${(chars / 1024).toFixed(1)} KB`;
+  return `${(chars / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 export function App() {
   const [sampleSize, setSampleSize] = useState<SampleSize>('1 page');
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [readOnly, setReadOnly] = useState(false);
-  const [toggles, setToggles] = useState<ContentToggles>(DEFAULT_TOGGLES);
   const [showSource, setShowSource] = useState(false);
   const [liveMarkdown, setLiveMarkdown] = useState('');
   const [copied, setCopied] = useState(false);
   const [resetNonce, setResetNonce] = useState(0);
-  const [perf, setPerf] = useState<{ rendered: number; total: number }>({
+  const [, setOpenedWikiTarget] = useState<string | null>(null);
+  const [showTopButton, setShowTopButton] = useState(false);
+  const [perf, setPerf] = useState<{ rendered: number; total: number; size: string }>({
     rendered: 0,
     total: 0,
+    size: '0 B',
   });
-  const [, setOpenedWikiTarget] = useState<string | null>(null);
 
   const editorRef = useRef<MossMDHandle | null>(null);
 
@@ -285,50 +264,55 @@ export function App() {
   }, []);
 
   const documentId = useMemo(
-    () =>
-      `${sampleSize}|${toggles.images}|${toggles.tables}|${toggles.lists}|${toggles.code}|${resetNonce}`,
-    [sampleSize, toggles, resetNonce],
+    () => `${sampleSize}|${resetNonce}`,
+    [sampleSize, resetNonce],
   );
 
   const initialMarkdown = useMemo(
     () => {
-      const md = generateSampleMarkdown(sampleSize, {
-        ...togglesToOptions(toggles),
-        title: DEMO_TITLE,
-      });
+      const md = generateSampleMarkdown(sampleSize, { title: DEMO_TITLE });
       // Always end with exactly one trailing blank line so the `+`
       // block button is reachable at the bottom of the doc on load.
       return `${md.replace(/\n+$/, '')}\n\n`;
     },
-    [sampleSize, toggles],
+    [sampleSize],
   );
 
   const measurePerf = useCallback(() => {
     const markdown = liveMarkdown || initialMarkdown;
     const total = markdown ? markdown.split('\n').length : 0;
+    const size = formatBytes(markdown.length);
     const view = editorRef.current?.getContentDOM();
     if (!view) {
-      setPerf({ rendered: 0, total });
+      setPerf({ rendered: 0, total, size });
       return;
     }
+
+    const scroller = view.closest('.cm-scroller') as HTMLElement | null;
+    const rect = scroller?.getBoundingClientRect();
+    const viewportTop = rect?.top ?? 0;
+    const viewportBottom = rect?.bottom ?? window.innerHeight;
 
     const lines = view.querySelectorAll('.cm-line');
     let rendered = 0;
     lines.forEach((line) => {
-      if (
-        line.getBoundingClientRect().top < window.innerHeight &&
-        line.getBoundingClientRect().bottom > 0
-      ) {
+      const box = line.getBoundingClientRect();
+      if (box.top < viewportBottom && box.bottom > viewportTop) {
         rendered++;
       }
     });
-    setPerf({ rendered, total: lines.length || total });
+    setPerf({ rendered, total: lines.length || total, size });
   }, [initialMarkdown, liveMarkdown]);
+
+  const measurePerfRef = useRef(measurePerf);
+  useEffect(() => {
+    measurePerfRef.current = measurePerf;
+  }, [measurePerf]);
 
   const handleMarkdownChange = useCallback((md: string) => {
     setLiveMarkdown(md);
-    measurePerf();
-  }, [measurePerf]);
+    requestAnimationFrame(() => measurePerfRef.current());
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setTheme((current) => (current === 'dark' ? 'light' : 'dark'));
@@ -370,24 +354,24 @@ export function App() {
   }, []);
 
   const copyMarkdown = useCallback(async () => {
-    if (liveMarkdown) {
-      await navigator.clipboard.writeText(liveMarkdown);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  }, [liveMarkdown]);
+    const md = liveMarkdown || initialMarkdown;
+    if (!md) return;
+    await navigator.clipboard.writeText(md);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [liveMarkdown, initialMarkdown]);
 
   const downloadMarkdown = useCallback(() => {
-    if (liveMarkdown) {
-      const blob = new Blob([liveMarkdown], { type: 'text/markdown' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `mossmd-${Date.now()}.md`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  }, [liveMarkdown]);
+    const md = liveMarkdown || initialMarkdown;
+    if (!md) return;
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mossmd-${Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [liveMarkdown, initialMarkdown]);
 
   const resetEditor = useCallback(() => {
     setResetNonce((n) => n + 1);
@@ -399,18 +383,46 @@ export function App() {
   }, [theme]);
 
   useEffect(() => {
-    let first = 0;
-    let second = 0;
-    first = window.requestAnimationFrame(() => {
-      second = window.requestAnimationFrame(() => {
-        measurePerf();
+    let scroller: HTMLElement | null = null;
+    let firstFrame = 0;
+    let secondFrame = 0;
+    let measureFrame = 0;
+
+    const scheduleMeasure = () => {
+      if (measureFrame) return;
+      measureFrame = window.requestAnimationFrame(() => {
+        measureFrame = 0;
+        measurePerfRef.current();
+      });
+    };
+
+    const handleScroll = () => {
+      if (scroller) {
+        setShowTopButton(scroller.scrollTop > 200);
+      }
+      scheduleMeasure();
+    };
+
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const content = editorRef.current?.getContentDOM();
+        scroller = content?.closest('.cm-scroller') as HTMLElement | null;
+        if (!scroller) return;
+        scroller.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll();
       });
     });
+
+    window.addEventListener('resize', handleScroll, { passive: true });
+
     return () => {
-      window.cancelAnimationFrame(first);
-      window.cancelAnimationFrame(second);
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+      window.cancelAnimationFrame(measureFrame);
+      if (scroller) scroller.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
     };
-  }, [documentId, measurePerf]);
+  }, [documentId]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -425,114 +437,100 @@ export function App() {
 
   return (
     <div className="demo-shell" data-theme={theme}>
-      <div className="demo-toolbar">
-        <div className="demo-toolbar-actions">
-          <button
-            className="demo-btn"
-            onClick={copyMarkdown}
-            disabled={!liveMarkdown}
-          >
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            <span>{copied ? 'Copied!' : 'Copy MD'}</span>
-          </button>
-          <button className="demo-btn" onClick={downloadMarkdown} disabled={!liveMarkdown}>
-            <Download size={16} />
-            Download
-          </button>
-          <button className="demo-btn" onClick={resetEditor}>
-            Reset
-          </button>
-          <button className="demo-btn primary" onClick={() => editorRef.current?.focus()}>
-            Focus
-          </button>
-        </div>
-        <div className="demo-toolbar-actions">
-          <button
-            className={`demo-btn demo-icon-btn ${theme === 'dark' ? 'is-dark' : 'is-light'}`}
-            onClick={toggleTheme}
-            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-          <button
-            className={`demo-btn demo-raw-toggle ${showSource ? 'is-active' : ''}`}
-            onClick={() => setShowSource((open) => !open)}
-            aria-pressed={showSource}
-          >
-            Raw
-          </button>
-        </div>
-      </div>
-
       <main className="demo-main">
-        <aside className="demo-float demo-float-left">
-          <section className="demo-panel demo-controls-card">
-            <div className="demo-panel-title">Controls</div>
-            <div className="demo-controls">
-              <div className="demo-control-group">
-                <span className="demo-label">Page</span>
-                <div className="demo-page-group" role="group" aria-label="Sample page size">
-                  {SAMPLE_SIZES.map((size) => (
-                    <button
-                      key={size}
-                      type="button"
-                      className={`demo-page-btn ${sampleSize === size ? 'is-active' : ''}`}
-                      onClick={() => setSampleSize(size)}
-                      aria-pressed={sampleSize === size}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="demo-control-group">
-                <label className="demo-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={readOnly}
-                    onChange={(e) => setReadOnly(e.target.checked)}
-                  />
-                  Read-only
-                </label>
-              </div>
-              <div className="demo-control-group">
-                <label className="demo-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={toggles.images}
-                    onChange={(e) => setToggles({ ...toggles, images: e.target.checked })}
-                  />
-                  Images
-                </label>
-                <label className="demo-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={toggles.tables}
-                    onChange={(e) => setToggles({ ...toggles, tables: e.target.checked })}
-                  />
-                  Tables
-                </label>
-                <label className="demo-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={toggles.lists}
-                    onChange={(e) => setToggles({ ...toggles, lists: e.target.checked })}
-                  />
-                  Lists
-                </label>
-                <label className="demo-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={toggles.code}
-                    onChange={(e) => setToggles({ ...toggles, code: e.target.checked })}
-                  />
-                  Code
-                </label>
-              </div>
-            </div>
-          </section>
-        </aside>
+        {/* Left floating cluster: pages capsule */}
+        <div className="demo-pill-cluster demo-pill-cluster-left">
+          <div className="demo-pill-card" role="group" aria-label="Sample page size">
+            <span className="demo-pill-label">Pages:</span>
+            {SAMPLE_SIZES.map((size) => {
+              const num = size.match(/\d+/)?.[0] ?? size;
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  className={`demo-pill ${sampleSize === size ? 'is-active' : ''}`}
+                  onClick={() => setSampleSize(size)}
+                  aria-pressed={sampleSize === size}
+                  title={size}
+                >
+                  {num}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right floating cluster: live/ro | actions | theme */}
+        <div className="demo-pill-cluster demo-pill-cluster-right">
+          <div className="demo-pill-card" role="group" aria-label="Edit mode">
+            <button
+              type="button"
+              className={`demo-pill ${!readOnly ? 'is-active' : ''}`}
+              onClick={() => setReadOnly(false)}
+              aria-pressed={!readOnly}
+            >
+              Live
+            </button>
+            <button
+              type="button"
+              className={`demo-pill ${readOnly ? 'is-active' : ''}`}
+              onClick={() => setReadOnly(true)}
+              aria-pressed={readOnly}
+            >
+              RO
+            </button>
+          </div>
+          <div className="demo-pill-card">
+            <button
+              type="button"
+              className="demo-pill demo-icon-pill"
+              onClick={resetEditor}
+              aria-label="Reset"
+              title="Reset"
+            >
+              <RotateCcw size={14} />
+            </button>
+            <button
+              type="button"
+              className="demo-pill demo-icon-pill"
+              onClick={copyMarkdown}
+              aria-label="Copy markdown"
+              title="Copy markdown"
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </button>
+            <button
+              type="button"
+              className="demo-pill demo-icon-pill"
+              onClick={downloadMarkdown}
+              aria-label="Download"
+              title="Download"
+            >
+              <Download size={14} />
+            </button>
+            <button
+              type="button"
+              className={`demo-pill demo-icon-pill ${showSource ? 'is-active' : ''}`}
+              onClick={() => setShowSource((open) => !open)}
+              aria-pressed={showSource}
+              aria-label="Raw markdown"
+              title="Raw markdown"
+            >
+              <Code2 size={14} />
+            </button>
+          </div>
+          <div className="demo-pill-card">
+            <button
+              type="button"
+              className="demo-pill demo-icon-pill"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+            >
+              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
+          </div>
+        </div>
 
         <div className="demo-editor-pane">
           <div className="demo-editor-wrapper">
@@ -559,52 +557,37 @@ export function App() {
           </div>
         </div>
 
-        <aside className={`demo-float demo-float-right demo-raw-panel ${showSource ? 'is-open' : ''}`} aria-hidden={!showSource}>
+        <aside className={`demo-float demo-raw-panel demo-raw-float ${showSource ? 'is-open' : ''}`} aria-hidden={!showSource}>
           <div className="demo-panel-title">Raw markdown</div>
           <div className="demo-output-content">
             {showSource ? liveMarkdown || initialMarkdown : liveMarkdown || '(start typing…)'}
           </div>
-          <div className="demo-perf">
-            <div className="demo-perf-item">
-              <span>Rendered:</span>
-              <strong>{perf.rendered}</strong>
-            </div>
-            <div className="demo-perf-item">
-              <span>Total lines:</span>
-              <strong>{perf.total}</strong>
-            </div>
-            <div className="demo-perf-item">
-              <span>Size:</span>
-              <strong>{formatBytes(liveMarkdown.length || initialMarkdown.length)}</strong>
-            </div>
-          </div>
         </aside>
+        <div className="demo-status-bar" role="status" aria-label="Document status">
+          <span className="demo-stat">
+            <span className="demo-stat-label">Rendered</span>
+            <strong>{perf.rendered}</strong>
+          </span>
+          <span className="demo-stat">
+            <span className="demo-stat-label">Total</span>
+            <strong>{perf.total}</strong>
+          </span>
+          <span className="demo-stat">
+            <span className="demo-stat-label">Size</span>
+            <strong>{perf.size}</strong>
+          </span>
+        </div>
       </main>
 
       <button
         type="button"
-        className="demo-top-button"
+        className={`demo-top-button ${showTopButton ? 'is-visible' : ''}`}
         onClick={scrollToTop}
         aria-label="Back to top"
         title="Back to top"
       >
         <ArrowUp size={18} />
       </button>
-
-      <div className="demo-statusbar" aria-label="Document status">
-        <div className="demo-status-item">
-          <span>Rendered</span>
-          <strong>{perf.rendered}</strong>
-        </div>
-        <div className="demo-status-item">
-          <span>Total lines</span>
-          <strong>{perf.total}</strong>
-        </div>
-        <div className="demo-status-item">
-          <span>Size</span>
-          <strong>{formatBytes(liveMarkdown.length || initialMarkdown.length)}</strong>
-        </div>
-      </div>
     </div>
   );
 }

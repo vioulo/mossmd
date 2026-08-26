@@ -26,6 +26,8 @@ a:hover {
   color: var(--moss-link-hover, #a5b4fc);
 }
 
+/* ---- Shell: editor fills the full viewport, no header ---- */
+
 .demo-shell {
   display: flex;
   flex-direction: column;
@@ -33,194 +35,12 @@ a:hover {
   overflow: hidden;
 }
 
-.demo-toolbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
-  padding: 14px 20px 8px;
-  flex-shrink: 0;
-}
-
-.demo-title {
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.demo-toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.demo-icon-btn {
-  width: 36px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.demo-icon-btn svg {
-  width: 18px;
-  height: 18px;
-}
-
-.demo-raw-toggle.is-active {
-  background: var(--moss-accent, #7c3aed);
-  border-color: var(--moss-accent, #7c3aed);
-}
-
-.demo-panel {
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--moss-bg-surface, #2d2d2d) 92%, transparent);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
-  overflow: hidden;
-  backdrop-filter: blur(14px);
-}
-
-.demo-panel-title {
-  padding: 14px 14px 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0;
-  color: var(--moss-fg-muted, #888);
-}
-
-.demo-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px 14px 14px;
-}
-
-.demo-control-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.demo-page-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.demo-page-btn {
-  min-width: 0;
-  flex: 1 1 calc(50% - 4px);
-  background: var(--moss-bg, #1e1e1e);
-  color: var(--moss-fg, #dcddde);
-  border: 1px solid var(--moss-border, #3d3d3d);
-  border-radius: 6px;
-  padding: 7px 10px;
-  font: inherit;
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-
-.demo-page-btn.is-active {
-  background: var(--moss-accent, #7c3aed);
-  border-color: var(--moss-accent, #7c3aed);
-  color: #fff;
-}
-
-.demo-page-btn:hover {
-  border-color: var(--moss-accent, #7c3aed);
-}
-
-.demo-label {
-  font-size: 0.8125rem;
-  color: var(--moss-fg-muted, #888);
-  text-transform: uppercase;
-  letter-spacing: 0;
-}
-
-.demo-select,
-.demo-input {
-  width: 100%;
-  min-width: 0;
-  background: var(--moss-bg, #1e1e1e);
-  color: var(--moss-fg, #dcddde);
-  border: 1px solid var(--moss-border, #3d3d3d);
-  border-radius: 6px;
-  padding: 7px 10px;
-  font: inherit;
-  font-size: 0.875rem;
-}
-
-.demo-select:focus,
-.demo-input:focus {
-  outline: none;
-  border-color: var(--moss-accent, #7c3aed);
-}
-
-.demo-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-size: 0.875rem;
-}
-
-.demo-checkbox input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--moss-accent, #7c3aed);
-}
-
-.demo-btn {
-  background: var(--moss-bg-surface, #2d2d2d);
-  color: var(--moss-fg, #dcddde);
-  border: 1px solid var(--moss-border, #3d3d3d);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font: inherit;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.demo-btn svg {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
-}
-
-.demo-btn:hover {
-  background: var(--moss-accent-soft, #3d2a5e);
-  border-color: var(--moss-accent, #7c3aed);
-}
-
-.demo-btn.primary {
-  background: var(--moss-accent, #7c3aed);
-  border-color: var(--moss-accent, #7c3aed);
-}
-
-.demo-btn.primary:hover,
-.demo-raw-toggle.is-active:hover {
-  background: var(--moss-accent-bright, #a78bfa);
-  border-color: var(--moss-accent-bright, #a78bfa);
-}
-
-.demo-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .demo-main {
   position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 4px 20px 20px;
+  padding: 52px 0 0;
 }
 
 .demo-editor-pane {
@@ -242,26 +62,171 @@ a:hover {
   height: 100%;
 }
 
+/* ---- Floating pill clusters (top-left & top-right) ----
+ * Each cluster holds two independent capsule cards.
+ * `|` in the spec = the gap between two separate capsules,
+ * not a single card with an internal divider.
+ */
+
+.demo-pill-cluster {
+  position: absolute;
+  top: 10px;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.demo-pill-cluster-left {
+  left: 16px;
+}
+
+.demo-pill-cluster-right {
+  right: 16px;
+}
+
+.demo-pill-card {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--moss-fg, #dcddde) 12%, transparent);
+  background: color-mix(in srgb, var(--moss-bg-surface, #2d2d2d) 94%, transparent);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 12px 28px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(14px);
+}
+
+.demo-pill-label {
+  padding: 0 3px 0 5px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--moss-fg-muted, #888);
+  user-select: none;
+}
+
+.demo-pill {
+  background: transparent;
+  color: var(--moss-fg-muted, #888);
+  border: none;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.demo-pill:hover {
+  color: var(--moss-fg, #dcddde);
+  background: color-mix(in srgb, var(--moss-fg, #dcddde) 10%, transparent);
+}
+
+.demo-pill.is-active {
+  background: var(--moss-accent, #7c3aed);
+  color: #fff;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.2) inset,
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.demo-pill.is-active:hover {
+  background: var(--moss-accent-bright, #a78bfa);
+  color: #fff;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.24) inset,
+    0 2px 10px rgba(0, 0, 0, 0.34);
+}
+
+.demo-icon-pill {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+}
+
+.demo-icon-pill svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---- Status bar — fixed bottom-left, small text ---- */
+
+.demo-status-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--moss-fg, #dcddde) 10%, transparent);
+  background: color-mix(in srgb, var(--moss-bg-surface, #2d2d2d) 92%, transparent);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 8px 20px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(14px);
+}
+
+.demo-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-size: 0.625rem;
+  color: var(--moss-fg-muted, #888);
+  white-space: nowrap;
+}
+
+.demo-stat-label {
+  font-weight: 500;
+  opacity: 0.65;
+}
+
+.demo-stat strong {
+  font-weight: 700;
+  color: var(--moss-fg, #dcddde);
+  font-size: 0.6875rem;
+}
+
+/* Light theme: tone down the 3D weight so pills don't look stamped on */
+[data-theme="light"] .demo-pill-card,
+[data-theme="light"] .demo-status-bar {
+  border-color: color-mix(in srgb, var(--moss-fg, #1a1a1a) 10%, transparent);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.03) inset,
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .demo-pill.is-active {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+/* ---- Raw markdown floating panel (below the right pill card) ---- */
+
 .demo-float {
   position: absolute;
-  z-index: 4;
-  max-height: calc(100% - 24px);
+  z-index: 8;
 }
 
-.demo-float-left {
-  top: 8px;
-  left: 20px;
-  width: min(316px, calc(100vw - 40px));
-}
-
-.demo-controls-card {
-  width: 100%;
-}
-
-.demo-float-right {
-  top: 8px;
-  right: 20px;
-  width: min(380px, calc(100vw - 40px));
+.demo-raw-float {
+  top: 48px;
+  right: 16px;
+  width: min(380px, calc(100vw - 32px));
+  max-height: calc(100% - 60px);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -269,7 +234,7 @@ a:hover {
   transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
 }
 
-.demo-float-right.is-open {
+.demo-raw-float.is-open {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -280,6 +245,19 @@ a:hover {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--moss-bg-surface, #2d2d2d) 92%, transparent);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
+}
+
+.demo-panel-title {
+  padding: 14px 14px 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--moss-fg-muted, #888);
 }
 
 .demo-output-content {
@@ -293,52 +271,11 @@ a:hover {
   word-wrap: break-word;
 }
 
-.demo-perf {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 0 14px 14px;
-  font-size: 0.75rem;
-  color: var(--moss-fg-muted, #888);
-}
-
-.demo-perf-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.demo-statusbar {
-  position: fixed;
-  right: 20px;
-  bottom: 16px;
-  z-index: 9;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--moss-bg-surface, #2d2d2d) 92%, transparent);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
-  backdrop-filter: blur(14px);
-  font-size: 0.75rem;
-  color: var(--moss-fg-muted, #888);
-}
-
-.demo-status-item {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.demo-status-item strong {
-  color: var(--moss-fg, #dcddde);
-  font-weight: 600;
-}
+/* ---- Back-to-top button (fixed bottom-right, appears on scroll) ---- */
 
 .demo-top-button {
   position: fixed;
-  left: 20px;
+  right: 20px;
   bottom: 16px;
   z-index: 9;
   width: 40px;
@@ -353,6 +290,18 @@ a:hover {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: scale(0.8);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+}
+
+.demo-top-button.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: scale(1);
 }
 
 .demo-top-button svg {
@@ -365,76 +314,64 @@ a:hover {
   color: var(--moss-accent-bright, #a78bfa);
 }
 
+/* ---- Responsive ---- */
+
 @media (max-width: 900px) {
-  .demo-toolbar {
-    padding-inline: 12px;
-  }
-
-  .demo-main {
-    padding-right: 12px;
-    padding-left: 12px;
-  }
-
-  .demo-float-left {
+  .demo-pill-cluster-left {
     left: 12px;
-    width: min(316px, calc(100vw - 24px));
   }
 
-  .demo-float-right {
+  .demo-pill-cluster-right {
+    right: 12px;
+  }
+
+  .demo-raw-float {
     right: 12px;
     width: min(380px, calc(100vw - 24px));
   }
 
-  .demo-statusbar {
-    right: 12px;
-  }
-
   .demo-top-button {
-    left: 12px;
+    right: 12px;
   }
 }
 
 @media (max-width: 640px) {
-  .demo-title {
-    font-size: 0.95rem;
+  .demo-pill-cluster {
+    flex-wrap: wrap;
+    max-width: calc(100vw - 24px);
   }
 
-  .demo-toolbar-actions {
-    width: 100%;
-    justify-content: space-between;
+  .demo-pill-cluster-left {
+    left: 12px;
+    right: 12px;
   }
 
-  .demo-toolbar-actions .demo-btn,
-  .demo-raw-toggle {
-    flex: 1 1 0;
+  .demo-pill-cluster-right {
+    left: 12px;
+    right: 12px;
+    justify-content: flex-end;
   }
 
-  .demo-icon-btn {
-    flex: 0 0 36px;
+  .demo-pill {
+    padding: 5px 9px;
+    font-size: 0.75rem;
   }
 
-  .demo-float-left,
-  .demo-float-right {
+  .demo-raw-float {
     left: 12px;
     right: 12px;
     width: auto;
+    max-height: min(64vh, calc(100% - 72px));
   }
 
-  .demo-float-right {
-    max-height: min(64vh, calc(100% - 24px));
-  }
-
-  .demo-page-btn {
-    flex-basis: calc(50% - 4px);
-  }
-
-  .demo-statusbar {
+  .demo-top-button {
     left: 12px;
-    right: 12px;
-    justify-content: space-between;
-    gap: 8px;
-    border-radius: 16px;
-    flex-wrap: wrap;
+    right: auto;
+    bottom: 12px;
+  }
+
+  .demo-status-bar {
+    bottom: 56px;
   }
 }
 

@@ -9,10 +9,12 @@ import {
 import {
   Decoration,
   EditorView,
+  ViewPlugin,
   WidgetType,
   type DecorationSet,
+  type ViewUpdate,
 } from '@codemirror/view';
-import { Check, MoveDiagonal2, Pencil, X } from 'lucide-react';
+import { Check, Eye, Maximize2, Pencil, X } from 'lucide-react';
 import { lucideSvg } from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
 import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
@@ -22,6 +24,8 @@ export interface MossImagesConfig {
   editable?: boolean;
   /** Show the image resize handle in editable mode. Defaults to true. */
   resizable?: boolean;
+  /** Show the image preview button. Defaults to true. */
+  previewable?: boolean;
 }
 
 export interface MossImageEdit {
@@ -32,7 +36,8 @@ export interface MossImageEdit {
 }
 
 const EDIT_ICON = lucideSvg(Pencil, { size: 16 });
-const RESIZE_ICON = lucideSvg(MoveDiagonal2, { size: 16 });
+const PREVIEW_ICON = lucideSvg(Eye, { size: 16 });
+const RESIZE_ICON = lucideSvg(Maximize2, { size: 16 });
 const SAVE_ICON = lucideSvg(Check, { size: 15 });
 const CLOSE_ICON = lucideSvg(X, { size: 15 });
 const IMAGE_WIDTH_RE = /^(?:\d+(?:\.\d+)?)(?:%|px|rem|em|vw)$/;
@@ -71,6 +76,68 @@ const MIN_IMAGE_WIDTH = 160;
 // Setting `width` and `height` attrs from this cache pins the
 // aspect ratio on mount, so there's no grow-after-mount event.
 const dimensionCache = new Map<string, { w: number; h: number }>();
+const activeImagePreviews = new WeakMap<EditorView, () => void>();
+
+function openImagePreview(view: EditorView, image: MossImageEdit): void {
+  activeImagePreviews.get(view)?.();
+
+  const previousFocus = document.activeElement;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'cm-moss-image-preview-backdrop';
+  backdrop.setAttribute('role', 'presentation');
+
+  const dialog = document.createElement('div');
+  dialog.className = 'cm-moss-image-preview-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-label', image.alt || 'Image preview');
+
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'cm-moss-image-preview-close';
+  closeButton.innerHTML = CLOSE_ICON;
+  closeButton.setAttribute('aria-label', 'Close image preview');
+  closeButton.title = 'Close preview';
+
+  const preview = document.createElement('img');
+  preview.src = image.src;
+  preview.alt = image.alt;
+  preview.decoding = 'async';
+  preview.loading = 'eager';
+
+  dialog.append(closeButton, preview);
+  if (image.caption) {
+    const caption = document.createElement('div');
+    caption.className = 'cm-moss-image-preview-caption';
+    caption.textContent = image.caption;
+    dialog.appendChild(caption);
+  }
+  backdrop.appendChild(dialog);
+
+  const close = (): void => {
+    document.removeEventListener('keydown', onKeyDown);
+    backdrop.remove();
+    if (activeImagePreviews.get(view) === close) activeImagePreviews.delete(view);
+    if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+      previousFocus.focus();
+    }
+  };
+  const onKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+    }
+  };
+
+  activeImagePreviews.set(view, close);
+  closeButton.addEventListener('click', close);
+  backdrop.addEventListener('click', (event) => {
+    if (event.target === backdrop) close();
+  });
+  document.addEventListener('keydown', onKeyDown);
+  document.body.appendChild(backdrop);
+  closeButton.focus();
+}
 
 function parseImageMarkdown(raw: string): MossImageEdit | null {
   const match = raw.match(/^!\[([^\]]*)\]\(([^\s)"']+)(?:\s+["'][^)]*["'])?\)$/);
@@ -105,10 +172,10 @@ function serializeImage(image: MossImageEdit): string {
 function imageRangeAtWidget(
   view: EditorView,
   wrap: HTMLElement,
-  expectedSrc: string,
+  expectedSrc?: string,
 ): { from: number; to: number } | null {
   const widgetPos = view.posAtDOM(wrap);
-  if (widgetPos < 0) return null;
+  if (widgetPos < 0 || widgetPos > view.state.doc.length) return null;
   const line = view.state.doc.lineAt(Math.max(0, widgetPos - 1));
   const tree =
     ensureSyntaxTree(view.state, view.state.doc.length, 200) ?? syntaxTree(view.state);
@@ -120,7 +187,9 @@ function imageRangeAtWidget(
     enter: (node) => {
       if (result || node.name !== 'Image') return;
       const parsed = parseImageMarkdown(view.state.doc.sliceString(node.from, node.to));
-      if (parsed?.src === expectedSrc) result = { from: node.from, to: node.to };
+      if (parsed && (!expectedSrc || parsed.src === expectedSrc)) {
+        result = { from: node.from, to: node.to };
+      }
     },
   });
   return result;
@@ -314,6 +383,7 @@ class ImageWidget extends WidgetType {
     readonly width: string | null,
     readonly canEdit: boolean,
     readonly canResize: boolean,
+    readonly canPreview: boolean,
   ) {
     super();
   }
@@ -325,7 +395,8 @@ class ImageWidget extends WidgetType {
       other.caption === this.caption &&
       other.width === this.width &&
       other.canEdit === this.canEdit &&
-      other.canResize === this.canResize
+      other.canResize === this.canResize &&
+      other.canPreview === this.canPreview
     );
   }
 
@@ -367,6 +438,43 @@ class ImageWidget extends WidgetType {
     }
     frame.appendChild(img);
     wrap.appendChild(frame);
+
+    wrap.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || view.state.facet(readOnlyFacet)) return;
+      const target = event.target;
+      if (target instanceof Element && target.closest('button, input, form')) return;
+
+      const range = imageRangeAtWidget(view, wrap, this.src);
+      if (!range) return;
+      event.preventDefault();
+      event.stopPropagation();
+      view.focus();
+      view.dispatch({ selection: { anchor: range.from, head: range.to } });
+    });
+
+    if (this.canPreview) {
+      const preview = document.createElement('button');
+      preview.type = 'button';
+      preview.className = 'cm-moss-image-preview';
+      preview.innerHTML = PREVIEW_ICON;
+      preview.setAttribute('aria-label', 'Preview image');
+      preview.title = 'Preview image';
+      preview.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      preview.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openImagePreview(view, {
+          src: this.src,
+          alt: this.alt,
+          caption: this.caption,
+          width: this.width,
+        });
+      });
+      frame.appendChild(preview);
+    }
 
     if (this.canEdit) {
       const edit = document.createElement('button');
@@ -445,6 +553,35 @@ class ImageWidget extends WidgetType {
   }
 }
 
+function imageRangeIsSelected(view: EditorView, wrap: HTMLElement): boolean {
+  if (!view.hasFocus || view.state.facet(readOnlyFacet)) return false;
+  const range = imageRangeAtWidget(view, wrap);
+  if (!range) return false;
+  return view.state.selection.ranges.some(
+    (selection) => selection.from === range.from && selection.to === range.to,
+  );
+}
+
+const imageSelectionPlugin = ViewPlugin.fromClass(
+  class {
+    constructor(readonly view: EditorView) {
+      this.sync();
+    }
+
+    update(update: ViewUpdate): void {
+      if (update.docChanged || update.selectionSet || update.focusChanged) {
+        this.sync();
+      }
+    }
+
+    private sync(): void {
+      for (const wrap of this.view.dom.querySelectorAll<HTMLElement>('.cm-moss-image')) {
+        wrap.classList.toggle('cm-moss-image-selected', imageRangeIsSelected(this.view, wrap));
+      }
+    }
+  },
+);
+
 function buildImageBlocks(
   state: EditorState,
   config: MossImagesConfig,
@@ -492,6 +629,7 @@ function buildImageBlocks(
             config.resizable !== false &&
               config.editable !== false &&
               !state.facet(readOnlyFacet),
+            config.previewable !== false,
           ),
           block: true,
           // side: 1 places the block widget after the line's content,
@@ -573,5 +711,5 @@ export function mossImages(config: MossImagesConfig = {}): Extension {
     provide: (f) => EditorView.decorations.from(f),
   });
 
-  return [imageBlocksField, treeProgressPlugin];
+  return [imageBlocksField, imageSelectionPlugin, treeProgressPlugin];
 }

@@ -541,8 +541,8 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   // Link children (LinkMark/URL/LinkTitle) hide unless their parent
   // Link's `from` is in this set — i.e. the cursor has entered the
   // link specifically, not merely landed on the same line. Images
-  // aren't included; they already have their own widget UX and the
-  // line-based reveal is the right fit for `![alt](url)`.
+  // aren't included; they already have their own widget UX. A complete
+  // image selection is handled specially below so its source stays hidden.
   const activeLinkStarts = new Set<number>();
 
   // Single pre-order walk. A tree walk visits a parent before its
@@ -847,7 +847,10 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       if (node.name === 'Image' && node.from < node.to) {
         const imageLine = doc.lineAt(node.from);
         const lineNum = imageLine.number;
-        if (!activeLines.has(lineNum)) {
+        const imageIsSelected = state.selection.ranges.some(
+          (range) => range.from === node.from && range.to === node.to,
+        );
+        if (!activeLines.has(lineNum) || imageIsSelected) {
           // Hide the raw `![alt](url)` on inactive lines so only the
           // rendered image block (emitted by the image feature state
           // field below the line) shows. We deliberately keep the

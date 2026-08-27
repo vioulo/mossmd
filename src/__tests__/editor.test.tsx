@@ -94,6 +94,34 @@ describe('MossMD', () => {
     expect(host.querySelector('.cm-moss-image-resize')).not.toBeNull();
   });
 
+  it('opens an image preview without changing the markdown', () => {
+    const markdown = '![MossMD|Banner](https://example.com/banner.png)';
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
+    };
+    const { host } = mount(
+      <MossMD markdownSource={markdown} editorHandleRef={handleRef} />,
+    );
+    const previewButton = host.querySelector<HTMLButtonElement>('.cm-moss-image-preview');
+    expect(previewButton).not.toBeNull();
+
+    act(() => {
+      previewButton?.click();
+    });
+
+    const backdrop = document.querySelector<HTMLElement>('.cm-moss-image-preview-backdrop');
+    const preview = backdrop?.querySelector<HTMLImageElement>('.cm-moss-image-preview-dialog > img');
+    expect(backdrop).not.toBeNull();
+    expect(preview?.src).toBe('https://example.com/banner.png');
+    expect(preview?.alt).toBe('MossMD');
+    expect(handleRef.current?.getMarkdown()).toBe(markdown);
+
+    act(() => {
+      backdrop?.querySelector<HTMLButtonElement>('.cm-moss-image-preview-close')?.click();
+    });
+    expect(document.querySelector('.cm-moss-image-preview-backdrop')).toBeNull();
+  });
+
   it('persists a dragged image width as a responsive percentage', () => {
     const markdown = '![Alt|Caption](https://example.com/image.png)';
     const { host } = mount(<MossMD markdownSource={markdown} />);
@@ -150,7 +178,7 @@ describe('MossMD', () => {
     expect(host.querySelector('.cm-moss-image-edit')).toBeNull();
   });
 
-  it('does not activate the hidden image source when the image is clicked', () => {
+  it('selects the hidden image source when the image is clicked', () => {
     const markdown = '![Alt](https://example.com/image.png)';
     const { host } = mount(<MossMD markdownSource={markdown} />);
     const editor = host.querySelector<HTMLElement>('.cm-editor');
@@ -159,15 +187,29 @@ describe('MossMD', () => {
     expect(image).not.toBeNull();
     const view = EditorView.findFromDOM(editor!);
     expect(view).not.toBeNull();
-    const before = view!.state.selection.main.from;
 
     act(() => {
       image?.dispatchEvent(
-        new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }),
+        new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }),
       );
     });
 
-    expect(view!.state.selection.main.from).toBe(before);
+    expect(view!.state.selection.main.from).toBe(0);
+    expect(view!.state.selection.main.to).toBe(markdown.length);
+    expect(host.querySelector('.cm-moss-image')?.classList.contains('cm-moss-image-selected')).toBe(
+      true,
+    );
+    expect(host.querySelector('.cm-line')?.textContent).not.toContain(markdown);
+    expect(view!.state.sliceDoc(0, markdown.length)).toBe(markdown);
+
+    act(() => {
+      view!.dispatch({
+        changes: { from: view!.state.selection.main.from, to: view!.state.selection.main.to },
+      });
+    });
+
+    expect(view!.state.doc.toString()).toBe('');
+    expect(host.querySelector('.cm-moss-image')).toBeNull();
   });
 
   it('edits a file block without revealing the raw link', () => {

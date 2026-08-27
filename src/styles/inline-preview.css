@@ -504,6 +504,12 @@
   border-radius: 0.4em;
 }
 
+.cm-moss-image.cm-moss-image-selected .cm-moss-image-frame {
+  outline: 2px solid var(--moss-accent, #7c3aed);
+  outline-offset: 3px;
+  border-radius: 0.45em;
+}
+
 /* The edit affordance is overlaid on the image so it never adds a row to
  * the document or changes the block widget's measured height. It appears
  * on hover and keyboard focus, while the image itself remains a quiet
@@ -521,7 +527,7 @@
   padding: 0;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
   border-radius: 0.35em;
-  background: var(--moss-panel-bg, rgba(30, 30, 30, 0.88));
+  background: var(--moss-bg-panel, #252525);
   color: var(--moss-fg, #dcddde);
   cursor: pointer;
   opacity: 0;
@@ -530,13 +536,39 @@
 
 .cm-moss-image-frame:hover .cm-moss-image-edit,
 .cm-moss-image-frame:focus-within .cm-moss-image-edit,
+.cm-moss-image-frame:hover .cm-moss-image-preview,
+.cm-moss-image-frame:focus-within .cm-moss-image-preview,
 .cm-moss-image-frame:hover .cm-moss-image-resize,
 .cm-moss-image-frame:focus-within .cm-moss-image-resize {
   opacity: 1;
 }
 
 .cm-moss-image-edit:hover {
-  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.24));
+  background: var(--moss-bg-surface, #2d2d2d);
+}
+
+.cm-moss-image-preview {
+  position: absolute;
+  top: 0.7em;
+  left: 0.7em;
+  z-index: 1;
+  width: 2em;
+  height: 2em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
+  border-radius: 0.35em;
+  background: var(--moss-bg-panel, #252525);
+  color: var(--moss-fg, #dcddde);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+
+.cm-moss-image-preview:hover {
+  background: var(--moss-bg-surface, #2d2d2d);
 }
 
 .cm-moss-image-resize {
@@ -552,7 +584,7 @@
   padding: 0;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
   border-radius: 0.35em;
-  background: var(--moss-panel-bg, rgba(30, 30, 30, 0.88));
+  background: var(--moss-bg-panel, #252525);
   color: var(--moss-fg, #dcddde);
   cursor: nwse-resize;
   opacity: 0;
@@ -561,11 +593,18 @@
 }
 
 .cm-moss-image-resize:hover {
-  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.24));
+  background: var(--moss-bg-surface, #2d2d2d);
+}
+
+/* Maximize2 is rotated so its diagonal reads from the image's top-left
+ * toward the bottom-right resize handle. */
+.cm-moss-image-resize svg {
+  transform: rotate(90deg);
 }
 
 @media (hover: none), (pointer: coarse) {
   .cm-moss-image-edit,
+  .cm-moss-image-preview,
   .cm-moss-image-resize {
     width: 2.75rem;
     height: 2.75rem;
@@ -574,6 +613,7 @@
 }
 
 .cm-moss-image-edit:focus-visible,
+.cm-moss-image-preview:focus-visible,
 .cm-moss-image-editor-button:focus-visible,
 .cm-moss-image-editor input:focus-visible {
   outline: 2px solid var(--moss-accent, #7c3aed);
@@ -594,7 +634,7 @@
   padding: 0.8em;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.38));
   border-radius: 0.5em;
-  background: var(--moss-panel-bg, rgba(30, 30, 30, 0.96));
+  background: var(--moss-bg-panel, #252525);
   box-shadow: 0 0.7em 2em rgba(0, 0, 0, 0.28);
 }
 
@@ -618,7 +658,7 @@
   padding: 0.45em 0.55em;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.34));
   border-radius: 0.3em;
-  background: var(--moss-input-bg, rgba(127, 127, 127, 0.12));
+  background: var(--moss-bg-surface, #2d2d2d);
   color: var(--moss-fg, #dcddde);
   font: inherit;
   font-size: 1.05em;
@@ -646,7 +686,7 @@
 }
 
 .cm-moss-image-editor-button:hover {
-  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.18));
+  background: var(--moss-bg-surface, #2d2d2d);
   color: var(--moss-fg, #dcddde);
 }
 
@@ -658,8 +698,84 @@
 
 .cm-moss-image-editor-error {
   min-height: 1.1em;
-  color: var(--moss-danger, #ef5350);
+  color: var(--moss-hl-invalid, #ff5370);
   font-size: 0.72em;
+}
+
+/* The preview is mounted on document.body, outside CodeMirror's scroller,
+ * so a large image is never clipped by the editor viewport. */
+.cm-moss-image-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5vh 5vw;
+  background: rgba(0, 0, 0, 0.78);
+  cursor: zoom-out;
+}
+
+.cm-moss-image-preview-dialog {
+  position: relative;
+  display: flex;
+  max-width: 96vw;
+  max-height: 90vh;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: default;
+}
+
+.cm-moss-image-preview-dialog > img {
+  display: block;
+  max-width: 90vw;
+  max-height: 82vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 0.35rem;
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.45);
+}
+
+.cm-moss-image-preview-close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 1;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, white 32%, transparent);
+  border-radius: var(--moss-radius, 6px);
+  background: color-mix(in srgb, var(--moss-bg-panel, #252525) 82%, transparent);
+  color: var(--moss-fg, #dcddde);
+  cursor: pointer;
+  opacity: 0.9;
+  transition: background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+}
+
+.cm-moss-image-preview-close:hover {
+  border-color: color-mix(in srgb, white 52%, transparent);
+  background: color-mix(in srgb, var(--moss-bg-surface, #2d2d2d) 92%, transparent);
+  opacity: 1;
+}
+
+.cm-moss-image-preview-caption {
+  max-width: min(90vw, 70ch);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.cm-moss-image-preview-close:focus-visible {
+  outline: 2px solid var(--moss-accent, #a78bfa);
+  outline-offset: 2px;
 }
 
 /* When a caption is present, switch the wrap to a column so the
@@ -755,7 +871,7 @@
   line-height: 1;
   padding: 0.2em 0.45em;
   border-radius: 0.3em;
-  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.32));
+  background: var(--moss-bg-surface, #2d2d2d);
   color: var(--moss-fg, #dcddde);
   text-transform: uppercase;
 }
@@ -800,7 +916,7 @@
   padding: 0;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
   border-radius: 0.35em;
-  background: var(--moss-panel-bg, rgba(30, 30, 30, 0.88));
+  background: var(--moss-bg-panel, #252525);
   color: var(--moss-fg, #dcddde);
   cursor: pointer;
   opacity: 0;
@@ -814,7 +930,7 @@
 }
 
 .cm-moss-file-block-edit:hover {
-  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.24));
+  background: var(--moss-bg-surface, #2d2d2d);
 }
 
 @media (hover: none), (pointer: coarse) {
@@ -837,7 +953,7 @@
   padding: 0.8em;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.38));
   border-radius: 0.5em;
-  background: var(--moss-panel-bg, rgba(30, 30, 30, 0.96));
+  background: var(--moss-bg-panel, #252525);
   box-shadow: 0 0.7em 2em rgba(0, 0, 0, 0.28);
 }
 
@@ -861,7 +977,7 @@
   padding: 0.45em 0.55em;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.34));
   border-radius: 0.3em;
-  background: var(--moss-input-bg, rgba(127, 127, 127, 0.12));
+  background: var(--moss-bg-surface, #2d2d2d);
   color: var(--moss-fg, #dcddde);
   font: inherit;
   font-size: 1.05em;
@@ -889,7 +1005,7 @@
 }
 
 .cm-moss-file-block-editor-button:hover {
-  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.18));
+  background: var(--moss-bg-surface, #2d2d2d);
   color: var(--moss-fg, #dcddde);
 }
 
@@ -901,7 +1017,7 @@
 
 .cm-moss-file-block-editor-error {
   min-height: 1.1em;
-  color: var(--moss-danger, #ef5350);
+  color: var(--moss-hl-invalid, #ff5370);
   font-size: 0.72em;
 }
 
@@ -942,7 +1058,7 @@
   justify-content: center;
   overflow: hidden;
   border-radius: 0.4em;
-  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.1));
+  background: var(--moss-bg-surface, #2d2d2d);
 }
 
 .cm-moss-upload-preview img {
@@ -980,7 +1096,7 @@
   line-height: 1;
   padding: 0.18em 0.4em;
   border-radius: 0.25em;
-  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.32));
+  background: var(--moss-bg-surface, #2d2d2d);
   color: var(--moss-fg, #dcddde);
   text-transform: uppercase;
 }
@@ -1005,7 +1121,7 @@
   width: 100%;
   height: 0.35em;
   border-radius: 999px;
-  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.18));
+  background: var(--moss-bg-surface, #2d2d2d);
   overflow: hidden;
 }
 
@@ -1023,7 +1139,7 @@
 }
 
 .cm-moss-upload-status.is-error {
-  color: var(--moss-danger, #ef5350);
+  color: var(--moss-hl-invalid, #ff5370);
 }
 
 .cm-moss-upload-actions {
@@ -1047,7 +1163,7 @@
 }
 
 .cm-moss-upload-btn:hover {
-  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.14));
+  background: var(--moss-bg-surface, #2d2d2d);
   color: var(--moss-fg, #dcddde);
 }
 
@@ -1111,7 +1227,7 @@
  * No accent color — keeps the affordance quiet but discoverable. */
 .cm-moss-side-plus:hover,
 .cm-moss-side-plus:focus-visible {
-  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.32));
+  background: var(--moss-bg-surface, #2d2d2d);
   border-color: var(--moss-border, rgba(127, 127, 127, 0.7));
   color: var(--moss-fg, #dcddde);
   outline: none;

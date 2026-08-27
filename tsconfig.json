@@ -23,7 +23,7 @@
       "mossmd/content.css": ["./src/styles/content.css"],
       "mossmd/tokens.css": ["./src/styles/tokens.css"],
       "mossmd/collab": ["./src/collab/index.ts"],
-      "mossmd/syntax": ["./src/core/custom-syntax.ts"],
+      "mossmd/syntax": ["./src/syntax/index.ts"],
       "mossmd/theme": ["./src/theme/index.ts"],
       "mossmd/features": ["./src/features/index.ts"],
       "mossmd/features/image": ["./src/features/image/index.ts"],

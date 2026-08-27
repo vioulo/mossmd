@@ -471,16 +471,195 @@
  * reading-width column). Smaller images render at their own size,
  * left-aligned. Aspect ratio preserved by `height: auto`. */
 .cm-moss-image {
+  position: relative;
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  overflow: visible;
   padding: 0.35em 0;
+}
+
+.cm-moss-image-frame {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-block;
+  box-sizing: border-box;
+  max-width: 100%;
+  line-height: 0;
+}
+
+/* Once a width has been chosen explicitly, keep the image usable while
+ * preserving the responsive percentage in the source. The `min()` keeps
+ * the frame from overflowing a narrow phone viewport. */
+.cm-moss-image-frame-sized {
+  min-width: min(160px, 100%);
 }
 
 .cm-moss-image img {
   display: block;
+  width: auto;
   max-width: 100%;
   height: auto;
   border-radius: 0.4em;
+}
+
+/* The edit affordance is overlaid on the image so it never adds a row to
+ * the document or changes the block widget's measured height. It appears
+ * on hover and keyboard focus, while the image itself remains a quiet
+ * reading surface. */
+.cm-moss-image-edit {
+  position: absolute;
+  top: 0.7em;
+  right: 0.7em;
+  z-index: 1;
+  width: 2em;
+  height: 2em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
+  border-radius: 0.35em;
+  background: var(--moss-panel-bg, rgba(30, 30, 30, 0.88));
+  color: var(--moss-fg, #dcddde);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+
+.cm-moss-image-frame:hover .cm-moss-image-edit,
+.cm-moss-image-frame:focus-within .cm-moss-image-edit,
+.cm-moss-image-frame:hover .cm-moss-image-resize,
+.cm-moss-image-frame:focus-within .cm-moss-image-resize {
+  opacity: 1;
+}
+
+.cm-moss-image-edit:hover {
+  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.24));
+}
+
+.cm-moss-image-resize {
+  position: absolute;
+  right: 0.55em;
+  bottom: 0.55em;
+  z-index: 1;
+  width: 2em;
+  height: 2em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
+  border-radius: 0.35em;
+  background: var(--moss-panel-bg, rgba(30, 30, 30, 0.88));
+  color: var(--moss-fg, #dcddde);
+  cursor: nwse-resize;
+  opacity: 0;
+  touch-action: none;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+
+.cm-moss-image-resize:hover {
+  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.24));
+}
+
+@media (hover: none), (pointer: coarse) {
+  .cm-moss-image-edit,
+  .cm-moss-image-resize {
+    width: 2.75rem;
+    height: 2.75rem;
+    opacity: 1;
+  }
+}
+
+.cm-moss-image-edit:focus-visible,
+.cm-moss-image-editor-button:focus-visible,
+.cm-moss-image-editor input:focus-visible {
+  outline: 2px solid var(--moss-accent, #7c3aed);
+  outline-offset: 2px;
+}
+
+/* This editor floats over the rendered image. Absolute positioning keeps
+ * opening it out of the CodeMirror heightmap and document flow. */
+.cm-moss-image-editor {
+  position: absolute;
+  top: 0.7em;
+  right: 0.7em;
+  z-index: 2;
+  box-sizing: border-box;
+  width: min(22rem, calc(100% - 1rem));
+  display: grid;
+  gap: 0.55em;
+  padding: 0.8em;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.38));
+  border-radius: 0.5em;
+  background: var(--moss-panel-bg, rgba(30, 30, 30, 0.96));
+  box-shadow: 0 0.7em 2em rgba(0, 0, 0, 0.28);
+}
+
+.cm-moss-image-editor-title {
+  color: var(--moss-fg, #dcddde);
+  font-size: 0.9em;
+  font-weight: 650;
+}
+
+.cm-moss-image-editor-field {
+  display: grid;
+  gap: 0.25em;
+  color: var(--moss-fg-muted, #9a9da4);
+  font-size: 0.72em;
+}
+
+.cm-moss-image-editor input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0.45em 0.55em;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.34));
+  border-radius: 0.3em;
+  background: var(--moss-input-bg, rgba(127, 127, 127, 0.12));
+  color: var(--moss-fg, #dcddde);
+  font: inherit;
+  font-size: 1.05em;
+}
+
+.cm-moss-image-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4em;
+  padding-top: 0.15em;
+}
+
+.cm-moss-image-editor-button {
+  width: 1.9em;
+  height: 1.9em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.34));
+  border-radius: 0.35em;
+  background: transparent;
+  color: var(--moss-fg-muted, #9a9da4);
+  cursor: pointer;
+}
+
+.cm-moss-image-editor-button:hover {
+  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.18));
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-moss-image-editor-button.is-primary {
+  border-color: var(--moss-accent, #7c3aed);
+  background: var(--moss-accent, #7c3aed);
+  color: #ffffff;
+}
+
+.cm-moss-image-editor-error {
+  min-height: 1.1em;
+  color: var(--moss-danger, #ef5350);
+  font-size: 0.72em;
 }
 
 /* When a caption is present, switch the wrap to a column so the

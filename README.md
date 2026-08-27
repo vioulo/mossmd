@@ -195,6 +195,10 @@ export const calloutSyntax = defineMossSyntax({
 
 `mossmd/tokens.css` 提供共享主题令牌，`mossmd/editor.css` 负责编辑器表面样式，`mossmd/content.css` 负责渲染后的 Markdown。
 
+图片块在编辑模式下会在图片上显示悬浮编辑和缩放按钮，可修改 alt 文本、图片标题、宽度和 URL。按钮不会增加文档布局，触摸设备上会自动使用较大的常驻触控目标；如需关闭它们，可以传入 `imagesConfig={{ editable: false, resizable: false }}`。
+
+宽度会使用 MossMD 的扩展图片语法保存，例如 `![alt|caption|width=72%](url)`。旧的 `![alt](url)` 和 `![alt|caption](url)` 格式仍然兼容。
+
 ## 底层组合
 
 如果你不想使用完整的 React 包装，可以直接把各个模块拼起来：

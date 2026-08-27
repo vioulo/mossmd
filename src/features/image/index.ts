@@ -12,7 +12,31 @@ import {
   WidgetType,
   type DecorationSet,
 } from '@codemirror/view';
+import { Check, MoveDiagonal2, Pencil, X } from 'lucide-react';
+import { lucideSvg } from '../../core/icons';
+import { readOnlyFacet } from '../../core/read-only';
 import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
+
+export interface MossImagesConfig {
+  /** Show the image edit button in editable mode. Defaults to true. */
+  editable?: boolean;
+  /** Show the image resize handle in editable mode. Defaults to true. */
+  resizable?: boolean;
+}
+
+export interface MossImageEdit {
+  src: string;
+  alt: string;
+  caption: string | null;
+  width: string | null;
+}
+
+const EDIT_ICON = lucideSvg(Pencil, { size: 16 });
+const RESIZE_ICON = lucideSvg(MoveDiagonal2, { size: 16 });
+const SAVE_ICON = lucideSvg(Check, { size: 15 });
+const CLOSE_ICON = lucideSvg(X, { size: 15 });
+const IMAGE_WIDTH_RE = /^(?:\d+(?:\.\d+)?)(?:%|px|rem|em|vw)$/;
+const MIN_IMAGE_WIDTH = 160;
 
 // Image blocks.
 //
@@ -48,11 +72,248 @@ import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
 // aspect ratio on mount, so there's no grow-after-mount event.
 const dimensionCache = new Map<string, { w: number; h: number }>();
 
+function parseImageMarkdown(raw: string): MossImageEdit | null {
+  const match = raw.match(/^!\[([^\]]*)\]\(([^\s)"']+)(?:\s+["'][^)]*["'])?\)$/);
+  if (!match) return null;
+  const [, altRaw, src] = match;
+  if (!src) return null;
+
+  const pipeIdx = altRaw.indexOf('|');
+  if (pipeIdx < 0) {
+    return { src, alt: altRaw, caption: altRaw || null, width: null };
+  }
+
+  const left = altRaw.slice(0, pipeIdx);
+  let right = altRaw.slice(pipeIdx + 1);
+  let width: string | null = null;
+  const widthMatch = right.match(/^(.*)\|width=(\d+(?:\.\d+)?(?:%|px|rem|em|vw))$/);
+  if (widthMatch) {
+    right = widthMatch[1];
+    width = widthMatch[2];
+  }
+  if (right === '') return { src, alt: left, caption: null, width };
+  if (left === '') return { src, alt: right, caption: right, width };
+  return { src, alt: left, caption: right, width };
+}
+
+function serializeImage(image: MossImageEdit): string {
+  const caption = image.caption ?? '';
+  const width = image.width ? `|width=${image.width}` : '';
+  return `![${image.alt}|${caption}${width}](${image.src})`;
+}
+
+function imageRangeAtWidget(
+  view: EditorView,
+  wrap: HTMLElement,
+  expectedSrc: string,
+): { from: number; to: number } | null {
+  const widgetPos = view.posAtDOM(wrap);
+  if (widgetPos < 0) return null;
+  const line = view.state.doc.lineAt(Math.max(0, widgetPos - 1));
+  const tree =
+    ensureSyntaxTree(view.state, view.state.doc.length, 200) ?? syntaxTree(view.state);
+  let result: { from: number; to: number } | null = null;
+
+  tree.iterate({
+    from: line.from,
+    to: line.to,
+    enter: (node) => {
+      if (result || node.name !== 'Image') return;
+      const parsed = parseImageMarkdown(view.state.doc.sliceString(node.from, node.to));
+      if (parsed?.src === expectedSrc) result = { from: node.from, to: node.to };
+    },
+  });
+  return result;
+}
+
+function startImageResize(
+  view: EditorView,
+  wrap: HTMLElement,
+  frame: HTMLElement,
+  img: HTMLImageElement,
+  image: MossImageEdit,
+  startEvent: PointerEvent,
+): void {
+  const containerWidth = wrap.getBoundingClientRect().width;
+  const startWidth = frame.getBoundingClientRect().width;
+  if (containerWidth <= 0 || startWidth <= 0) return;
+
+  const minWidth = Math.min(MIN_IMAGE_WIDTH, containerWidth);
+  let currentWidth = Math.max(startWidth, minWidth);
+  if (currentWidth !== startWidth) {
+    frame.style.width = `${currentWidth}px`;
+    img.style.width = '100%';
+  }
+  const update = (event: PointerEvent): void => {
+    event.preventDefault();
+    currentWidth = Math.max(
+      minWidth,
+      Math.min(containerWidth, startWidth + event.clientX - startEvent.clientX),
+    );
+    frame.style.width = `${currentWidth}px`;
+    img.style.width = '100%';
+  };
+  const finish = (): void => {
+    window.removeEventListener('pointermove', update);
+    window.removeEventListener('pointerup', finish);
+    window.removeEventListener('pointercancel', finish);
+    if (view.state.facet(readOnlyFacet)) return;
+
+    const percentage = Math.round((currentWidth / containerWidth) * 1000) / 10;
+    const range = imageRangeAtWidget(view, wrap, image.src);
+    if (!range) return;
+    view.dispatch({
+      changes: {
+        from: range.from,
+        to: range.to,
+        insert: serializeImage({ ...image, width: `${percentage}%` }),
+      },
+    });
+  };
+
+  window.addEventListener('pointermove', update);
+  window.addEventListener('pointerup', finish);
+  window.addEventListener('pointercancel', finish);
+}
+
+const activeImageEditors = new WeakMap<EditorView, () => void>();
+
+function addImageEditorField(
+  form: HTMLFormElement,
+  labelText: string,
+  value: string,
+  field: string,
+  type = 'text',
+): HTMLInputElement {
+  const label = document.createElement('label');
+  label.className = 'cm-moss-image-editor-field';
+  label.textContent = labelText;
+  const input = document.createElement('input');
+  input.type = type;
+  input.value = value;
+  input.dataset.imageField = field;
+  input.autocomplete = 'off';
+  label.appendChild(input);
+  form.appendChild(label);
+  return input;
+}
+
+function openImageEditor(
+  view: EditorView,
+  wrap: HTMLElement,
+  image: MossImageEdit,
+): void {
+  activeImageEditors.get(view)?.();
+
+  const form = document.createElement('form');
+  form.className = 'cm-moss-image-editor';
+  form.setAttribute('aria-label', 'Edit image');
+
+  const heading = document.createElement('div');
+  heading.className = 'cm-moss-image-editor-title';
+  heading.textContent = 'Edit image';
+  form.appendChild(heading);
+
+  const altInput = addImageEditorField(form, 'Alt text', image.alt, 'alt');
+  const captionInput = addImageEditorField(
+    form,
+    'Caption',
+    image.caption ?? '',
+    'caption',
+  );
+  const widthInput = addImageEditorField(form, 'Width', image.width ?? '', 'width');
+  const srcInput = addImageEditorField(form, 'Image URL', image.src, 'src', 'url');
+
+  const error = document.createElement('div');
+  error.className = 'cm-moss-image-editor-error';
+  error.setAttribute('role', 'alert');
+  form.appendChild(error);
+
+  const actions = document.createElement('div');
+  actions.className = 'cm-moss-image-editor-actions';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'cm-moss-image-editor-button';
+  cancel.innerHTML = CLOSE_ICON;
+  cancel.setAttribute('aria-label', 'Cancel image edit');
+  cancel.title = 'Cancel';
+  const save = document.createElement('button');
+  save.type = 'submit';
+  save.className = 'cm-moss-image-editor-button is-primary';
+  save.innerHTML = SAVE_ICON;
+  save.setAttribute('aria-label', 'Save image');
+  save.title = 'Save';
+  actions.append(cancel, save);
+  form.appendChild(actions);
+
+  const close = (): void => {
+    form.remove();
+    if (activeImageEditors.get(view) === close) activeImageEditors.delete(view);
+  };
+  activeImageEditors.set(view, close);
+
+  cancel.addEventListener('click', close);
+  form.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+    }
+  });
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (view.state.facet(readOnlyFacet)) {
+      close();
+      return;
+    }
+
+    const next: MossImageEdit = {
+      alt: altInput.value.trim(),
+      caption: captionInput.value.trim() || null,
+      src: srcInput.value.trim(),
+      width: widthInput.value.trim() || null,
+    };
+    if (!next.src) {
+      error.textContent = 'Image URL is required.';
+      srcInput.focus();
+      return;
+    }
+    if (/[^\S\r\n]|[)"']/.test(next.src)) {
+      error.textContent = 'Image URL cannot contain spaces, quotes, or ).';
+      srcInput.focus();
+      return;
+    }
+    if (/[\]|\r\n]/.test(next.alt) || /[\]\r\n]/.test(next.caption ?? '')) {
+      error.textContent = 'Alt text cannot contain ], |; fields cannot contain line breaks.';
+      return;
+    }
+    if (next.width && !IMAGE_WIDTH_RE.test(next.width)) {
+      error.textContent = 'Width must use a CSS unit such as 72%, 640px, or 24rem.';
+      widthInput.focus();
+      return;
+    }
+
+    const range = imageRangeAtWidget(view, wrap, image.src);
+    if (!range) {
+      error.textContent = 'The image is no longer available.';
+      return;
+    }
+    close();
+    view.dispatch({ changes: { from: range.from, to: range.to, insert: serializeImage(next) } });
+  });
+
+  wrap.appendChild(form);
+  altInput.focus();
+  altInput.select();
+}
+
 class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
     readonly alt: string,
     readonly caption: string | null,
+    readonly width: string | null,
+    readonly canEdit: boolean,
+    readonly canResize: boolean,
   ) {
     super();
   }
@@ -61,7 +322,10 @@ class ImageWidget extends WidgetType {
     return (
       other.src === this.src &&
       other.alt === this.alt &&
-      other.caption === this.caption
+      other.caption === this.caption &&
+      other.width === this.width &&
+      other.canEdit === this.canEdit &&
+      other.canResize === this.canResize
     );
   }
 
@@ -94,7 +358,68 @@ class ImageWidget extends WidgetType {
         }
       });
     }
-    wrap.appendChild(img);
+    const frame = document.createElement('div');
+    frame.className = 'cm-moss-image-frame';
+    if (this.width) {
+      frame.classList.add('cm-moss-image-frame-sized');
+      frame.style.width = this.width;
+      img.style.width = '100%';
+    }
+    frame.appendChild(img);
+    wrap.appendChild(frame);
+
+    if (this.canEdit) {
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'cm-moss-image-edit';
+      edit.innerHTML = EDIT_ICON;
+      edit.setAttribute('aria-label', 'Edit image');
+      edit.title = 'Edit image';
+      edit.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      edit.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!view.state.facet(readOnlyFacet)) {
+          openImageEditor(view, wrap, {
+            src: this.src,
+            alt: this.alt,
+            caption: this.caption,
+            width: this.width,
+          });
+        }
+      });
+      frame.appendChild(edit);
+    }
+
+    if (this.canResize) {
+      const resize = document.createElement('button');
+      resize.type = 'button';
+      resize.className = 'cm-moss-image-resize';
+      resize.innerHTML = RESIZE_ICON;
+      resize.setAttribute('aria-label', 'Resize image');
+      resize.title = 'Resize image';
+      resize.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        startImageResize(
+          view,
+          wrap,
+          frame,
+          img,
+          {
+            src: this.src,
+            alt: this.alt,
+            caption: this.caption,
+            width: this.width,
+          },
+          event,
+        );
+      });
+      frame.appendChild(resize);
+    }
 
     // Caption: rendered below the image. The default syntax is
     // `![alt](url)` — no pipe — and the whole alt text doubles as
@@ -109,37 +434,21 @@ class ImageWidget extends WidgetType {
       wrap.appendChild(caption);
     }
 
-    // Clicking the image should land the caret on the source line
-    // (where the `![alt](url)` markdown lives) so the reveal happens
-    // and the user can edit. CM6's default behavior for block widgets
-    // places the caret at the nearest edge, which for a side:1 widget
-    // is the START of the NEXT line — not the source line. We compute
-    // the widget's doc position via posAtDOM, step back into the
-    // preceding line (the source), and dispatch an explicit selection.
-    const onPointer = (event: MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const pos = view.posAtDOM(wrap);
-      if (pos < 0) return;
-      const target = Math.max(0, pos - 1);
-      view.focus();
-      view.dispatch({
-        selection: { anchor: target },
-        scrollIntoView: false,
-      });
-    };
-    wrap.addEventListener('mousedown', onPointer);
     return wrap;
   }
 
-  // Block CM6's own mouse handling so our listener above is the sole
-  // thing deciding where the caret goes.
-  ignoreEvent(event: Event): boolean {
-    return event.type === 'mousedown' || event.type === 'click';
+  // Block CM6's mouse handling so clicking the rendered image does not
+  // activate the hidden markdown source line. The edit button and its
+  // form own their events inside the widget.
+  ignoreEvent(): boolean {
+    return true;
   }
 }
 
-function buildImageBlocks(state: EditorState): DecorationSet {
+function buildImageBlocks(
+  state: EditorState,
+  config: MossImagesConfig,
+): DecorationSet {
   const ranges: Range<Decoration>[] = [];
   // Push the parser to cover the whole doc so image nodes in
   // regions CM6 hasn't yet parsed get widgetized. Without this, for
@@ -168,46 +477,22 @@ function buildImageBlocks(state: EditorState): DecorationSet {
       // for each piece. We don't go to heroic lengths on edge cases
       // (escaped parens etc.); the regex fails safely by skipping
       // the widget.
-      const raw = state.doc.sliceString(node.from, node.to);
-      const match = raw.match(/^!\[([^\]]*)\]\(([^\s)"']+)(?:\s+["'][^)]*["'])?\)$/);
-      if (!match) return;
-      const [, altRaw, src] = match;
-      if (!src) return;
-
-      // Extract a visible caption from the alt text.
-      //   ![alt](url)          → alt = caption = alt (default, no pipe)
-      //   ![alt|caption](url)   → alt for a11y, caption shown (complete)
-      //   ![alt|](url)          → alt only, NO caption (explicit off)
-      //   ![|caption](url)      → alt = caption = caption (incomplete)
-      // Rule of thumb: only a complete `xxx|yyy` split reuses the
-      // right side as the caption. Anything without a complete split
-      // (including no pipe at all) makes the whole text both alt and
-      // caption; a trailing pipe (`xxx|`) is the one exception that
-      // suppresses the caption.
-      let alt = altRaw;
-      let caption: string | null = null;
-      const pipeIdx = altRaw.indexOf('|');
-      if (pipeIdx < 0) {
-        caption = altRaw || null;
-      } else {
-        const left = altRaw.slice(0, pipeIdx);
-        const right = altRaw.slice(pipeIdx + 1);
-        if (right === '') {
-          alt = left;
-          caption = null;
-        } else if (left === '') {
-          alt = right;
-          caption = right;
-        } else {
-          alt = left;
-          caption = right;
-        }
-      }
+      const parsed = parseImageMarkdown(state.doc.sliceString(node.from, node.to));
+      if (!parsed) return;
 
       const line = state.doc.lineAt(node.from);
       ranges.push(
         Decoration.widget({
-          widget: new ImageWidget(src, alt, caption),
+          widget: new ImageWidget(
+            parsed.src,
+            parsed.alt,
+            parsed.caption,
+            parsed.width,
+            config.editable !== false && !state.facet(readOnlyFacet),
+            config.resizable !== false &&
+              config.editable !== false &&
+              !state.facet(readOnlyFacet),
+          ),
           block: true,
           // side: 1 places the block widget after the line's content,
           // so the image appears below its source line.
@@ -260,30 +545,33 @@ function changeAffectsImages(tr: Transaction, existing: DecorationSet): boolean 
   return affected;
 }
 
-const imageBlocksField = StateField.define<DecorationSet>({
-  create: (state) => buildImageBlocks(state),
-  update(deco, tr) {
-    // Tree-growth effect: the background parser caught up to a
-    // region that wasn't parsed when we last built. Rebuild so any
-    // newly-visible Image nodes get their widget.
-    for (const effect of tr.effects) {
-      if (effect.is(treeGrowthEffect)) return buildImageBlocks(tr.state);
-    }
-    // Selection and viewport changes don't affect the widget set
-    // (though they do affect whether the surrounding markdown is
-    // shown, which is handled by the inline-preview ViewPlugin).
-    if (!tr.docChanged) return deco;
-    // Most keystrokes on a large atom are in plain prose with no
-    // image nearby. Map existing decorations through the change and
-    // skip the full-doc walk unless the change actually touches an
-    // image.
-    const mapped = deco.map(tr.changes);
-    if (!changeAffectsImages(tr, deco)) return mapped;
-    return buildImageBlocks(tr.state);
-  },
-  provide: (f) => EditorView.decorations.from(f),
-});
+export function mossImages(config: MossImagesConfig = {}): Extension {
+  const imageBlocksField = StateField.define<DecorationSet>({
+    create: (state) => buildImageBlocks(state, config),
+    update(deco, tr) {
+      // Tree-growth effect: the background parser caught up to a
+      // region that wasn't parsed when we last built. Rebuild so any
+      // newly-visible Image nodes get their widget.
+      for (const effect of tr.effects) {
+        if (effect.is(treeGrowthEffect)) return buildImageBlocks(tr.state, config);
+      }
+      const readOnlyChanged =
+        tr.startState.facet(readOnlyFacet) !== tr.state.facet(readOnlyFacet);
+      if (readOnlyChanged) return buildImageBlocks(tr.state, config);
+      // Selection and viewport changes don't affect the widget set
+      // (though they do affect whether the surrounding markdown is
+      // shown, which is handled by the inline-preview ViewPlugin).
+      if (!tr.docChanged) return deco;
+      // Most keystrokes on a large atom are in plain prose with no
+      // image nearby. Map existing decorations through the change and
+      // skip the full-doc walk unless the change actually touches an
+      // image.
+      const mapped = deco.map(tr.changes);
+      if (!changeAffectsImages(tr, deco)) return mapped;
+      return buildImageBlocks(tr.state, config);
+    },
+    provide: (f) => EditorView.decorations.from(f),
+  });
 
-export function mossImages(): Extension {
   return [imageBlocksField, treeProgressPlugin];
 }

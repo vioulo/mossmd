@@ -55,7 +55,7 @@ import {
   normalizeDigitPunctuation,
   startAsteriskList,
 } from './core/edit-helpers';
-import { mossImages } from './features/image';
+import { mossImages, type MossImagesConfig as ImagesConfig } from './features/image';
 import { mossFileBlocks } from './features/file-blocks';
 import { highlightMarkdown } from './syntax/highlight';
 import { inlinePreview } from './core/inline-preview';
@@ -258,6 +258,8 @@ export interface MossMDProps {
   extensions?: readonly Extension[];
   customSyntax?: readonly MossCustomSyntax[];
   inlinePreviewConfig?: InlinePreviewConfig;
+  /** Configure the floating edit control rendered on image blocks. */
+  imagesConfig?: ImagesConfig;
   tablesConfig?: TablesConfig;
   wikiLinksConfig?: WikiLinksConfig;
   slashCommandsConfig?: MossSlashCommandsConfig;
@@ -288,6 +290,7 @@ export function MossMD({
   extensions = EMPTY_EXTENSIONS,
   customSyntax = [],
   inlinePreviewConfig = {},
+  imagesConfig = {},
   tablesConfig = {},
   wikiLinksConfig = {},
   slashCommandsConfig,
@@ -456,7 +459,7 @@ export function MossMD({
             onLinkClick: handleLinkClick,
             ...tablesConfig,
           }),
-          mossImages(),
+          mossImages(imagesConfig),
           mossFileBlocks(),
           inlinePreview({
             onLinkClick: handleLinkClick,

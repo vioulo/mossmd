@@ -43,6 +43,133 @@ describe('MossMD', () => {
     expect(handleRef.current?.getMarkdown()).toBe('# Hello\n\nWorld.');
   });
 
+  it('edits image metadata from the floating image editor', () => {
+    const markdown = '![Old alt|Old caption](https://example.com/old.png)\n\nAfter.';
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
+    };
+    const { host } = mount(
+      <MossMD markdownSource={markdown} editorHandleRef={handleRef} />,
+    );
+
+    const edit = host.querySelector<HTMLButtonElement>('.cm-moss-image-edit');
+    expect(edit).not.toBeNull();
+
+    act(() => {
+      edit?.click();
+    });
+
+    const editor = host.querySelector<HTMLFormElement>('.cm-moss-image-editor');
+    expect(editor).not.toBeNull();
+    expect(editor?.querySelector<HTMLInputElement>('[data-image-field="alt"]')?.value).toBe(
+      'Old alt',
+    );
+    expect(
+      editor?.querySelector<HTMLInputElement>('[data-image-field="caption"]')?.value,
+    ).toBe('Old caption');
+    expect(editor?.querySelector<HTMLInputElement>('[data-image-field="width"]')?.value).toBe('');
+
+    const alt = editor?.querySelector<HTMLInputElement>('[data-image-field="alt"]');
+    const caption = editor?.querySelector<HTMLInputElement>('[data-image-field="caption"]');
+    const src = editor?.querySelector<HTMLInputElement>('[data-image-field="src"]');
+    const save = editor?.querySelector<HTMLButtonElement>('button[type="submit"]');
+    expect(alt).not.toBeNull();
+    expect(caption).not.toBeNull();
+    expect(src).not.toBeNull();
+    expect(save).not.toBeNull();
+
+    act(() => {
+      alt!.value = 'New alt';
+      caption!.value = 'MossMD';
+      src!.value = 'https://example.com/new.png';
+      editor!.querySelector<HTMLInputElement>('[data-image-field="width"]')!.value = '72%';
+      save!.click();
+    });
+
+    expect(handleRef.current?.getMarkdown()).toBe(
+      '![New alt|MossMD|width=72%](https://example.com/new.png)\n\nAfter.',
+    );
+    expect(host.querySelector('.cm-moss-image-editor')).toBeNull();
+    expect(host.querySelector('.cm-moss-image-caption')?.textContent).toBe('MossMD');
+    expect(host.querySelector('.cm-moss-image-resize')).not.toBeNull();
+  });
+
+  it('persists a dragged image width as a responsive percentage', () => {
+    const markdown = '![Alt|Caption](https://example.com/image.png)';
+    const { host } = mount(<MossMD markdownSource={markdown} />);
+    const wrap = host.querySelector<HTMLElement>('.cm-moss-image');
+    const frame = host.querySelector<HTMLElement>('.cm-moss-image-frame');
+    const image = host.querySelector<HTMLImageElement>('.cm-moss-image img');
+    const resize = host.querySelector<HTMLButtonElement>('.cm-moss-image-resize');
+    expect(wrap).not.toBeNull();
+    expect(frame).not.toBeNull();
+    expect(image).not.toBeNull();
+    expect(resize).not.toBeNull();
+
+    const wrapRect = vi.spyOn(wrap!, 'getBoundingClientRect').mockReturnValue({
+      width: 600,
+    } as DOMRect);
+    const frameRect = vi.spyOn(frame!, 'getBoundingClientRect').mockReturnValue({
+      width: 300,
+    } as DOMRect);
+
+    try {
+      act(() => {
+        resize!.dispatchEvent(
+          new MouseEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 100,
+          }),
+        );
+        window.dispatchEvent(new MouseEvent('pointermove', { clientX: 160 }));
+        window.dispatchEvent(new MouseEvent('pointerup'));
+      });
+    } finally {
+      wrapRect.mockRestore();
+      frameRect.mockRestore();
+    }
+
+    const editor = host.querySelector<HTMLElement>('.cm-editor');
+    expect(editor).not.toBeNull();
+    expect(EditorView.findFromDOM(editor!)?.state.doc.toString()).toBe(
+      '![Alt|Caption|width=60%](https://example.com/image.png)',
+    );
+  });
+
+  it('does not render image edit controls when image editing is disabled', () => {
+    const { host } = mount(
+      <MossMD
+        markdownSource={'![Alt](https://example.com/image.png)'}
+        imagesConfig={{ editable: false }}
+      />,
+    );
+
+    expect(host.querySelector('.cm-moss-image')).not.toBeNull();
+    expect(host.querySelector('.cm-moss-image-edit')).toBeNull();
+  });
+
+  it('does not activate the hidden image source when the image is clicked', () => {
+    const markdown = '![Alt](https://example.com/image.png)';
+    const { host } = mount(<MossMD markdownSource={markdown} />);
+    const editor = host.querySelector<HTMLElement>('.cm-editor');
+    const image = host.querySelector<HTMLImageElement>('.cm-moss-image img');
+    expect(editor).not.toBeNull();
+    expect(image).not.toBeNull();
+    const view = EditorView.findFromDOM(editor!);
+    expect(view).not.toBeNull();
+    const before = view!.state.selection.main.from;
+
+    act(() => {
+      image?.dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }),
+      );
+    });
+
+    expect(view!.state.selection.main.from).toBe(before);
+  });
+
   it('renders `.cm-content` with the raw markdown visible in the DOM', () => {
     const { host } = mount(
       <MossMD markdownSource={'**bold** and *em*'} />,

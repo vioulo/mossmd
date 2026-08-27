@@ -5,6 +5,8 @@
 // paragraph length, list length, and block-type selection; the same size
 // bucket always produces the same document bytes.
 
+import bannerImageUrl from './assets/nossmd-0.png';
+
 function mulberry32(seed: number): () => number {
   let state = seed >>> 0;
   return () => {
@@ -349,9 +351,14 @@ export function generateSampleMarkdown(
     (includeCodeBlocks ? 0 : 0xc0de100);
   const rng = mulberry32(seed);
 
-  const sections: string[] = [
+  const bannerIntro = [
     `# ${title}`,
+    `![MossMD banner|MossMD](${bannerImageUrl})`,
     `_CodeMirror 6 markdown editor with Obsidian-style inline live preview — WYSIWYG tables, syntax-highlighted code, interactive checkboxes, and cursor-scoped link unfold. Showing a ${size} sample._`,
+  ].join('\n');
+
+  const sections: string[] = [
+    bannerIntro,
     // Hero section — the three features that make users go "oh nice"
     // on first load. Deterministic content so the first-visit
     // impression is stable across reloads; random / varied content

@@ -170,6 +170,45 @@ describe('MossMD', () => {
     expect(view!.state.selection.main.from).toBe(before);
   });
 
+  it('edits a file block without revealing the raw link', () => {
+    const markdown = '[old-report.pdf](https://example.com/old-report.pdf)\n\nAfter.';
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
+    };
+    const { host } = mount(
+      <MossMD markdownSource={markdown} editorHandleRef={handleRef} />,
+    );
+
+    const sourceLine = host.querySelector<HTMLElement>('.cm-line');
+    const edit = host.querySelector<HTMLButtonElement>('.cm-moss-file-block-edit');
+    expect(edit).not.toBeNull();
+    expect(sourceLine?.textContent).not.toContain('old-report.pdf');
+
+    act(() => {
+      edit?.click();
+    });
+
+    const editor = host.querySelector<HTMLFormElement>('.cm-moss-file-block-editor');
+    expect(editor).not.toBeNull();
+    const label = editor?.querySelector<HTMLInputElement>('[data-file-field="label"]');
+    const url = editor?.querySelector<HTMLInputElement>('[data-file-field="url"]');
+    const save = editor?.querySelector<HTMLButtonElement>('button[type="submit"]');
+    expect(label?.value).toBe('old-report.pdf');
+    expect(url?.value).toBe('https://example.com/old-report.pdf');
+
+    act(() => {
+      label!.value = 'new-report.pdf';
+      url!.value = 'https://example.com/new-report.pdf';
+      save!.click();
+    });
+
+    expect(handleRef.current?.getMarkdown()).toBe(
+      '[new-report.pdf](https://example.com/new-report.pdf)\n\nAfter.',
+    );
+    expect(host.querySelector('.cm-moss-file-block-editor')).toBeNull();
+    expect(host.querySelector('.cm-moss-file-block-name')?.textContent).toBe('new-report.pdf');
+  });
+
   it('renders `.cm-content` with the raw markdown visible in the DOM', () => {
     const { host } = mount(
       <MossMD markdownSource={'**bold** and *em*'} />,

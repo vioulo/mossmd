@@ -687,15 +687,15 @@
  * pop-and-replace. Left: preview (thumb for image URLs, glyph+ext
  * badge for generic files). Right: name + info row. */
 .cm-moss-file-block {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.85em;
-  padding: 0.6em 0.9em;
+  padding: 0.6em 3.5em 0.6em 0.9em;
   margin: 0.25em 0;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.22));
   border-radius: 0.55em;
   background: var(--moss-file-block-bg, rgba(127, 127, 127, 0.06));
-  cursor: pointer;
   transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
@@ -783,6 +783,133 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Keep the file action attached to the card itself. It is absolutely
+ * positioned so it never adds width or height to the block widget. */
+.cm-moss-file-block-edit {
+  position: absolute;
+  top: 50%;
+  right: 0.7em;
+  z-index: 1;
+  width: 2em;
+  height: 2em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
+  border-radius: 0.35em;
+  background: var(--moss-panel-bg, rgba(30, 30, 30, 0.88));
+  color: var(--moss-fg, #dcddde);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+
+.cm-moss-file-block:hover .cm-moss-file-block-edit,
+.cm-moss-file-block:focus-within .cm-moss-file-block-edit {
+  opacity: 1;
+}
+
+.cm-moss-file-block-edit:hover {
+  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.24));
+}
+
+@media (hover: none), (pointer: coarse) {
+  .cm-moss-file-block-edit {
+    width: 2.75rem;
+    height: 2.75rem;
+    opacity: 1;
+  }
+}
+
+.cm-moss-file-block-editor {
+  position: absolute;
+  top: 0.7em;
+  right: 0.7em;
+  z-index: 2;
+  box-sizing: border-box;
+  width: min(22rem, calc(100% - 1rem));
+  display: grid;
+  gap: 0.55em;
+  padding: 0.8em;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.38));
+  border-radius: 0.5em;
+  background: var(--moss-panel-bg, rgba(30, 30, 30, 0.96));
+  box-shadow: 0 0.7em 2em rgba(0, 0, 0, 0.28);
+}
+
+.cm-moss-file-block-editor-title {
+  color: var(--moss-fg, #dcddde);
+  font-size: 0.9em;
+  font-weight: 650;
+}
+
+.cm-moss-file-block-editor-field {
+  display: grid;
+  gap: 0.25em;
+  color: var(--moss-fg-muted, #9a9da4);
+  font-size: 0.72em;
+}
+
+.cm-moss-file-block-editor input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0.45em 0.55em;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.34));
+  border-radius: 0.3em;
+  background: var(--moss-input-bg, rgba(127, 127, 127, 0.12));
+  color: var(--moss-fg, #dcddde);
+  font: inherit;
+  font-size: 1.05em;
+}
+
+.cm-moss-file-block-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4em;
+  padding-top: 0.15em;
+}
+
+.cm-moss-file-block-editor-button {
+  width: 1.9em;
+  height: 1.9em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.34));
+  border-radius: 0.35em;
+  background: transparent;
+  color: var(--moss-fg-muted, #9a9da4);
+  cursor: pointer;
+}
+
+.cm-moss-file-block-editor-button:hover {
+  background: var(--moss-hover-bg, rgba(127, 127, 127, 0.18));
+  color: var(--moss-fg, #dcddde);
+}
+
+.cm-moss-file-block-editor-button.is-primary {
+  border-color: var(--moss-accent, #7c3aed);
+  background: var(--moss-accent, #7c3aed);
+  color: #ffffff;
+}
+
+.cm-moss-file-block-editor-error {
+  min-height: 1.1em;
+  color: var(--moss-danger, #ef5350);
+  font-size: 0.72em;
+}
+
+.cm-moss-file-block-edit:focus-visible,
+.cm-moss-file-block-editor-button:focus-visible,
+.cm-moss-file-block-editor input:focus-visible {
+  outline: 2px solid var(--moss-accent, #7c3aed);
+  outline-offset: 2px;
 }
 
 /* ------------------------------------------------------------------ */

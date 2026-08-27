@@ -1,6 +1,7 @@
 export { mossImages } from './image';
 export type { MossImageEdit, MossImagesConfig } from './image';
 export { mossFileBlocks } from './file-blocks';
+export type { MossFileBlocksConfig } from './file-blocks';
 export { mossTables } from './table';
 export type { MossTablesConfig } from './table';
 export { mossWikiLinks } from './wiki-links';

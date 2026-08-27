@@ -8,11 +8,11 @@
 // of disappearing into plain blue underlines.
 //
 // Raw markdown is the only source of truth; the widget is a read-only
-// decoration that follows the cursor reveal convention: clicking the
-// card lands the caret on the source line so the user can edit.
+// decoration. Its edit control updates the original link in the document.
 
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import {
+  Prec,
   StateField,
   type EditorState,
   type Extension,
@@ -22,14 +22,25 @@ import {
 import {
   Decoration,
   EditorView,
+  ViewPlugin,
   WidgetType,
   type DecorationSet,
+  type ViewUpdate,
 } from '@codemirror/view';
-import { File as FileIconLucide } from 'lucide-react';
+import { Check, File as FileIconLucide, Pencil, X } from 'lucide-react';
 import { lucideSvg } from '../../core/icons';
+import { readOnlyFacet } from '../../core/read-only';
 import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
 
 const FILE_ICON = lucideSvg(FileIconLucide, { size: 40 });
+const EDIT_ICON = lucideSvg(Pencil, { size: 16 });
+const SAVE_ICON = lucideSvg(Check, { size: 15 });
+const CLOSE_ICON = lucideSvg(X, { size: 15 });
+
+export interface MossFileBlocksConfig {
+  /** Show the file edit button in editable mode. Defaults to true. */
+  editable?: boolean;
+}
 
 // Non-image file extensions that we'll turn into a file card. The URL
 // regex alone isn't enough — we need to skip links that are obviously
@@ -67,13 +78,172 @@ function linkIsAloneOnLine(
   return before.trim() === '' && after.trim() === '';
 }
 
+interface FileLinkEdit {
+  label: string;
+  url: string;
+}
+
+function parseFileLink(raw: string): FileLinkEdit | null {
+  const match = raw.match(/^\[([^\]]*)\]\(([^\s)"']+)(?:\s+["'][^)]*["'])?\)$/);
+  if (!match || !match[2] || !isFileUrl(match[2])) return null;
+  return { label: match[1], url: match[2] };
+}
+
 const dimensionCache = new Map<string, { w: number; h: number }>();
+const activeFileEditors = new WeakMap<EditorView, () => void>();
+
+function serializeFileLink(file: FileLinkEdit): string {
+  return `[${file.label}](${file.url})`;
+}
+
+function fileRangeAtWidget(
+  view: EditorView,
+  wrap: HTMLElement,
+  expectedUrl: string,
+): { from: number; to: number } | null {
+  const widgetPos = view.posAtDOM(wrap);
+  if (widgetPos < 0) return null;
+  const line = view.state.doc.lineAt(Math.max(0, widgetPos - 1));
+  const tree =
+    ensureSyntaxTree(view.state, view.state.doc.length, 200) ?? syntaxTree(view.state);
+  let result: { from: number; to: number } | null = null;
+
+  tree.iterate({
+    from: line.from,
+    to: line.to,
+    enter: (node) => {
+      if (result || node.name !== 'Link') return;
+      const parsed = parseFileLink(view.state.doc.sliceString(node.from, node.to));
+      if (parsed?.url === expectedUrl && linkIsAloneOnLine(view.state, node.from, node.to)) {
+        result = { from: node.from, to: node.to };
+      }
+    },
+  });
+  return result;
+}
+
+function addFileEditorField(
+  form: HTMLFormElement,
+  labelText: string,
+  value: string,
+  field: string,
+  type = 'text',
+): HTMLInputElement {
+  const label = document.createElement('label');
+  label.className = 'cm-moss-file-block-editor-field';
+  label.textContent = labelText;
+  const input = document.createElement('input');
+  input.type = type;
+  input.value = value;
+  input.dataset.fileField = field;
+  input.autocomplete = 'off';
+  label.appendChild(input);
+  form.appendChild(label);
+  return input;
+}
+
+function openFileEditor(
+  view: EditorView,
+  wrap: HTMLElement,
+  file: FileLinkEdit,
+): void {
+  activeFileEditors.get(view)?.();
+
+  const form = document.createElement('form');
+  form.className = 'cm-moss-file-block-editor';
+  form.setAttribute('aria-label', 'Edit file');
+
+  const heading = document.createElement('div');
+  heading.className = 'cm-moss-file-block-editor-title';
+  heading.textContent = 'Edit file';
+  form.appendChild(heading);
+
+  const labelInput = addFileEditorField(form, 'File name', file.label, 'label');
+  const urlInput = addFileEditorField(form, 'File URL', file.url, 'url', 'url');
+
+  const error = document.createElement('div');
+  error.className = 'cm-moss-file-block-editor-error';
+  error.setAttribute('role', 'alert');
+  form.appendChild(error);
+
+  const actions = document.createElement('div');
+  actions.className = 'cm-moss-file-block-editor-actions';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'cm-moss-file-block-editor-button';
+  cancel.innerHTML = CLOSE_ICON;
+  cancel.setAttribute('aria-label', 'Cancel file edit');
+  cancel.title = 'Cancel';
+  const save = document.createElement('button');
+  save.type = 'submit';
+  save.className = 'cm-moss-file-block-editor-button is-primary';
+  save.innerHTML = SAVE_ICON;
+  save.setAttribute('aria-label', 'Save file');
+  save.title = 'Save';
+  actions.append(cancel, save);
+  form.appendChild(actions);
+
+  const close = (): void => {
+    form.remove();
+    if (activeFileEditors.get(view) === close) activeFileEditors.delete(view);
+  };
+  activeFileEditors.set(view, close);
+
+  cancel.addEventListener('click', close);
+  form.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+    }
+  });
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (view.state.facet(readOnlyFacet)) {
+      close();
+      return;
+    }
+
+    const next: FileLinkEdit = {
+      label: labelInput.value.trim(),
+      url: urlInput.value.trim(),
+    };
+    if (!next.label || /[\]\r\n]/.test(next.label)) {
+      error.textContent = 'File name is required and cannot contain ], or line breaks.';
+      labelInput.focus();
+      return;
+    }
+    if (!next.url) {
+      error.textContent = 'File URL is required.';
+      urlInput.focus();
+      return;
+    }
+    if (/[^\S\r\n]|[)"']/.test(next.url)) {
+      error.textContent = 'File URL cannot contain spaces, quotes, or ).';
+      urlInput.focus();
+      return;
+    }
+    const range = fileRangeAtWidget(view, wrap, file.url);
+    if (!range) {
+      error.textContent = 'The file is no longer available.';
+      return;
+    }
+    close();
+    view.dispatch({
+      changes: { from: range.from, to: range.to, insert: serializeFileLink(next) },
+    });
+  });
+
+  wrap.appendChild(form);
+  labelInput.focus();
+  labelInput.select();
+}
 
 class FileBlockWidget extends WidgetType {
   constructor(
     readonly label: string,
     readonly url: string,
     readonly ext: string,
+    readonly canEdit: boolean,
   ) {
     super();
   }
@@ -82,7 +252,8 @@ class FileBlockWidget extends WidgetType {
     return (
       other.label === this.label &&
       other.url === this.url &&
-      other.ext === this.ext
+      other.ext === this.ext &&
+      other.canEdit === this.canEdit
     );
   }
 
@@ -143,26 +314,83 @@ class FileBlockWidget extends WidgetType {
     meta.append(name, info);
     wrap.append(preview, meta);
 
-    const onPointer = (event: MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const pos = view.posAtDOM(wrap);
-      if (pos < 0) return;
-      const target = Math.max(0, pos - 1);
-      view.focus();
-      view.dispatch({
-        selection: { anchor: target },
-        scrollIntoView: false,
+    if (this.canEdit) {
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'cm-moss-file-block-edit';
+      edit.innerHTML = EDIT_ICON;
+      edit.setAttribute('aria-label', 'Edit file');
+      edit.title = 'Edit file';
+      edit.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
       });
-    };
-    wrap.addEventListener('mousedown', onPointer);
+      edit.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!view.state.facet(readOnlyFacet)) {
+          openFileEditor(view, wrap, { label: this.label, url: this.url });
+        }
+      });
+      wrap.appendChild(edit);
+    }
     return wrap;
   }
 
-  ignoreEvent(event: Event): boolean {
-    return event.type === 'mousedown' || event.type === 'click';
+  ignoreEvent(): boolean {
+    return true;
   }
 }
+
+function buildFileSourceDecorations(view: EditorView): DecorationSet {
+  const ranges: Range<Decoration>[] = [];
+  const tree =
+    ensureSyntaxTree(view.state, view.state.doc.length, 200) ?? syntaxTree(view.state);
+  const readOnly = view.state.facet(readOnlyFacet);
+
+  tree.iterate({
+    enter: (node) => {
+      if (node.name !== 'Link') return;
+      for (let p = node.node.parent; p; p = p.parent) {
+        if (p.name === 'Table' || p.name === 'Image' || p.name === 'Footnote') return;
+      }
+      const file = parseFileLink(view.state.doc.sliceString(node.from, node.to));
+      if (!file || !linkIsAloneOnLine(view.state, node.from, node.to)) return;
+      const active =
+        !readOnly &&
+        view.hasFocus &&
+        view.state.selection.ranges.some(
+          (range) => range.from <= node.to && range.to >= node.from,
+        );
+      if (!active) ranges.push(Decoration.replace({}).range(node.from, node.to));
+    },
+  });
+  return Decoration.set(ranges, true);
+}
+
+const fileSourcePreviewPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(readonly view: EditorView) {
+      this.decorations = buildFileSourceDecorations(view);
+    }
+
+    update(update: ViewUpdate): void {
+      const treeGrew = update.transactions.some((transaction) =>
+        transaction.effects.some((effect) => effect.is(treeGrowthEffect)),
+      );
+      if (update.docChanged || update.selectionSet || update.focusChanged || treeGrew) {
+        this.decorations = buildFileSourceDecorations(update.view);
+      }
+    }
+
+    destroy(): void {
+      activeFileEditors.get(this.view)?.();
+    }
+  },
+  { decorations: (plugin) => plugin.decorations },
+);
 
 function extOf(url: string, label: string): string {
   const cleanUrl = url.split('?')[0].split('#')[0];
@@ -179,7 +407,10 @@ function extOf(url: string, label: string): string {
   return '';
 }
 
-function buildFileBlocks(state: EditorState): DecorationSet {
+function buildFileBlocks(
+  state: EditorState,
+  config: MossFileBlocksConfig,
+): DecorationSet {
   const ranges: Range<Decoration>[] = [];
   const tree =
     ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
@@ -194,18 +425,20 @@ function buildFileBlocks(state: EditorState): DecorationSet {
         if (p.name === 'Footnote') return;
       }
       const raw = state.doc.sliceString(node.from, node.to);
-      const match = raw.match(/^\[([^\]]*)\]\(([^\s)"']+)(?:\s+["'][^)]*["'])?\)$/);
-      if (!match) return;
-      const [, label, url] = match;
-      if (!url) return;
-      if (!isFileUrl(url)) return;
+      const file = parseFileLink(raw);
+      if (!file) return;
       if (!linkIsAloneOnLine(state, node.from, node.to)) return;
 
-      const ext = extOf(url, label);
+      const ext = extOf(file.url, file.label);
       const line = state.doc.lineAt(node.from);
       ranges.push(
         Decoration.widget({
-          widget: new FileBlockWidget(label, url, ext),
+          widget: new FileBlockWidget(
+            file.label,
+            file.url,
+            ext,
+            config.editable !== false && !state.facet(readOnlyFacet),
+          ),
           block: true,
           side: 1,
         }).range(line.to),
@@ -245,20 +478,23 @@ function changeAffectsFileBlocks(
   return affected;
 }
 
-const fileBlocksField = StateField.define<DecorationSet>({
-  create: (state) => buildFileBlocks(state),
-  update(deco, tr) {
-    for (const effect of tr.effects) {
-      if (effect.is(treeGrowthEffect)) return buildFileBlocks(tr.state);
-    }
-    if (!tr.docChanged) return deco;
-    const mapped = deco.map(tr.changes);
-    if (!changeAffectsFileBlocks(tr, deco)) return mapped;
-    return buildFileBlocks(tr.state);
-  },
-  provide: (f) => EditorView.decorations.from(f),
-});
+export function mossFileBlocks(config: MossFileBlocksConfig = {}): Extension {
+  const fileBlocksField = StateField.define<DecorationSet>({
+    create: (state) => buildFileBlocks(state, config),
+    update(deco, tr) {
+      for (const effect of tr.effects) {
+        if (effect.is(treeGrowthEffect)) return buildFileBlocks(tr.state, config);
+      }
+      const readOnlyChanged =
+        tr.startState.facet(readOnlyFacet) !== tr.state.facet(readOnlyFacet);
+      if (readOnlyChanged) return buildFileBlocks(tr.state, config);
+      if (!tr.docChanged) return deco;
+      const mapped = deco.map(tr.changes);
+      if (!changeAffectsFileBlocks(tr, deco)) return mapped;
+      return buildFileBlocks(tr.state, config);
+    },
+    provide: (f) => EditorView.decorations.from(f),
+  });
 
-export function mossFileBlocks(): Extension {
-  return [fileBlocksField, treeProgressPlugin];
+  return [fileBlocksField, Prec.highest(fileSourcePreviewPlugin), treeProgressPlugin];
 }

@@ -23,7 +23,7 @@
 // Copy this pattern into your own app to ship custom HR visuals without
 // forking the editor.
 
-import { syntaxTree } from '@codemirror/language';
+import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { type Extension, type Range } from '@codemirror/state';
 import {
   Decoration,
@@ -47,11 +47,19 @@ const wavyHrPlugin = ViewPlugin.fromClass(
       const readOnlyChanged =
         update.startState.facet(mossReadOnlyFacet) !==
         update.state.facet(mossReadOnlyFacet);
+      // The built-in tree progress plugin reports parser growth through
+      // effect-only transactions. Rebuild for those too, so HRs that were
+      // outside the initial parse window get their custom class without
+      // waiting for focus or another document edit.
+      const parserProgressed = update.transactions.some(
+        (transaction) => transaction.effects.length > 0,
+      );
       if (
         update.docChanged ||
         update.selectionSet ||
         update.focusChanged ||
-        readOnlyChanged
+        readOnlyChanged ||
+        parserProgressed
       ) {
         this.decorations = buildDecorations(update.view);
       }
@@ -75,8 +83,10 @@ function buildDecorations(view: EditorView): DecorationSet {
     }
   }
 
-  // Walk HorizontalRule nodes only — cheap even on long docs.
-  syntaxTree(state).iterate({
+  // Ensure the initial walk sees HRs beyond the parser's default budget.
+  const tree =
+    ensureSyntaxTree(state, doc.length, 200) ?? syntaxTree(state);
+  tree.iterate({
     enter: (node) => {
       if (node.name !== 'HorizontalRule') return;
       const line = doc.lineAt(node.from);

@@ -441,7 +441,6 @@ export function generateSampleMarkdown(
     '___',
     '---',
   );
-  if (includeSeparators) sections.push('---');
   if (includeLists) sections.push(list(rng));
   if (!imageless) {
     // Seeded picsum image — deterministic (same seed → same image

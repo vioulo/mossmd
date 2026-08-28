@@ -916,13 +916,23 @@
   text-overflow: ellipsis;
 }
 
-/* Keep the file action attached to the card itself. It is absolutely
- * positioned so it never adds width or height to the block widget. */
-.cm-moss-file-block-edit {
+/* Keep file actions attached to the card itself. They are absolutely
+ * positioned so they never add width or height to the block widget. */
+.cm-moss-file-block-actions {
   position: absolute;
   top: 50%;
   right: 0.7em;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.cm-moss-file-block-download,
+.cm-moss-file-block-delete {
   width: 2em;
   height: 2em;
   display: inline-flex;
@@ -934,113 +944,44 @@
   background: var(--moss-bg-panel, #252525);
   color: var(--moss-fg, #dcddde);
   cursor: pointer;
-  opacity: 0;
-  transform: translateY(-50%);
-  transition: opacity 0.12s ease, background-color 0.12s ease;
 }
 
-.cm-moss-file-block:hover .cm-moss-file-block-edit,
-.cm-moss-file-block:focus-within .cm-moss-file-block-edit {
+.cm-moss-file-block:hover .cm-moss-file-block-actions,
+.cm-moss-file-block:focus-within .cm-moss-file-block-actions {
   opacity: 1;
 }
 
-.cm-moss-file-block-edit:hover {
+.cm-moss-file-block-download:hover,
+.cm-moss-file-block-delete:hover {
   background: var(--moss-bg-surface, #2d2d2d);
 }
 
 @media (hover: none), (pointer: coarse) {
-  .cm-moss-file-block-edit {
+  .cm-moss-file-block-actions {
+    opacity: 1;
+  }
+
+  .cm-moss-file-block-download,
+  .cm-moss-file-block-delete {
     width: 2.75rem;
     height: 2.75rem;
-    opacity: 1;
   }
 }
 
-.cm-moss-file-block-editor {
-  position: absolute;
-  top: 0.7em;
-  right: 0.7em;
-  z-index: 2;
-  box-sizing: border-box;
-  width: min(22rem, calc(100% - 1rem));
-  display: grid;
-  gap: 0.55em;
-  padding: 0.8em;
-  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.38));
-  border-radius: 0.5em;
-  background: var(--moss-bg-panel, #252525);
-  box-shadow: 0 0.7em 2em rgba(0, 0, 0, 0.28);
-}
-
-.cm-moss-file-block-editor-title {
-  color: var(--moss-fg, #dcddde);
-  font-size: 0.9em;
-  font-weight: 650;
-}
-
-.cm-moss-file-block-editor-field {
-  display: grid;
-  gap: 0.25em;
-  color: var(--moss-fg-muted, #9a9da4);
-  font-size: 0.72em;
-}
-
-.cm-moss-file-block-editor input {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  padding: 0.45em 0.55em;
-  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.34));
-  border-radius: 0.3em;
-  background: var(--moss-bg-surface, #2d2d2d);
-  color: var(--moss-fg, #dcddde);
-  font: inherit;
-  font-size: 1.05em;
-}
-
-.cm-moss-file-block-editor-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.4em;
-  padding-top: 0.15em;
-}
-
-.cm-moss-file-block-editor-button {
-  width: 1.9em;
-  height: 1.9em;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.34));
-  border-radius: 0.35em;
-  background: transparent;
-  color: var(--moss-fg-muted, #9a9da4);
-  cursor: pointer;
-}
-
-.cm-moss-file-block-editor-button:hover {
-  background: var(--moss-bg-surface, #2d2d2d);
-  color: var(--moss-fg, #dcddde);
-}
-
-.cm-moss-file-block-editor-button.is-primary {
-  border-color: var(--moss-accent, #7c3aed);
-  background: var(--moss-accent, #7c3aed);
-  color: #ffffff;
-}
-
-.cm-moss-file-block-editor-error {
-  min-height: 1.1em;
-  color: var(--moss-hl-invalid, #ff5370);
-  font-size: 0.72em;
-}
-
-.cm-moss-file-block-edit:focus-visible,
-.cm-moss-file-block-editor-button:focus-visible,
-.cm-moss-file-block-editor input:focus-visible {
+.cm-moss-file-block-download:focus-visible,
+.cm-moss-file-block-delete:focus-visible {
   outline: 2px solid var(--moss-accent, #7c3aed);
   outline-offset: 2px;
+}
+
+/* The source line remains in the document for position mapping, but its
+ * line box is removed so the rendered file card is the only visible block. */
+.cm-line.cm-moss-file-block-source-line {
+  height: 0;
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: 0;
 }
 
 /* ------------------------------------------------------------------ */

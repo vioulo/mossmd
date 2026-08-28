@@ -199,7 +199,7 @@ export const calloutSyntax = defineMossSyntax({
 
 宽度会使用 MossMD 的扩展图片语法保存，例如 `![alt|caption|width=72%](url)`。旧的 `![alt](url)` 和 `![alt|caption](url)` 格式仍然兼容。
 
-独立成行的文件链接会渲染为文件块，源码链接在非激活状态下隐藏；文件块上的编辑按钮可以修改文件名和 URL。可以通过 `fileBlocksConfig={{ editable: false }}` 关闭编辑按钮。
+独立成行的文件链接会渲染为文件块并始终隐藏源码。编辑模式下文件块提供下载和删除操作；只读模式下仅提供下载操作。
 
 ## 底层组合
 

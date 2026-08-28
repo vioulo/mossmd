@@ -56,10 +56,7 @@ import {
   startAsteriskList,
 } from './core/edit-helpers';
 import { mossImages, type MossImagesConfig as ImagesConfig } from './features/image';
-import {
-  mossFileBlocks,
-  type MossFileBlocksConfig,
-} from './features/file-blocks';
+import { mossFileBlocks } from './features/file-blocks';
 import { highlightMarkdown } from './syntax/highlight';
 import { inlinePreview } from './core/inline-preview';
 import { readOnlyExtension } from './core/read-only';
@@ -263,8 +260,6 @@ export interface MossMDProps {
   inlinePreviewConfig?: InlinePreviewConfig;
   /** Configure the floating edit control rendered on image blocks. */
   imagesConfig?: ImagesConfig;
-  /** Configure the floating edit control rendered on file blocks. */
-  fileBlocksConfig?: MossFileBlocksConfig;
   tablesConfig?: TablesConfig;
   wikiLinksConfig?: WikiLinksConfig;
   slashCommandsConfig?: MossSlashCommandsConfig;
@@ -296,7 +291,6 @@ export function MossMD({
   customSyntax = [],
   inlinePreviewConfig = {},
   imagesConfig = {},
-  fileBlocksConfig = {},
   tablesConfig = {},
   wikiLinksConfig = {},
   slashCommandsConfig,
@@ -466,7 +460,7 @@ export function MossMD({
             ...tablesConfig,
           }),
           mossImages(imagesConfig),
-          mossFileBlocks(fileBlocksConfig),
+          mossFileBlocks(),
           inlinePreview({
             onLinkClick: handleLinkClick,
             ...inlinePreviewConfig,

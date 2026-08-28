@@ -767,14 +767,23 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         }
 
         const markText = doc.sliceString(node.from, node.to);
+        const orderedMarker = /^\d{1,9}[.)]$/.test(markText);
         if (
           lineActive &&
           (taskFrom !== undefined ||
             markText === '-' ||
             markText === '*' ||
-            markText === '+' ||
-            /^\d{1,9}[.)]$/.test(markText))
+            markText === '+')
         ) {
+          ranges.push(
+            Decoration.mark({
+              class: `cm-moss-list-marker ${
+                orderedMarker
+                  ? 'cm-moss-ordered-marker'
+                  : 'cm-moss-unordered-marker'
+              }`,
+            }).range(node.from, node.to),
+          );
           return;
         }
 
@@ -807,7 +816,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             ranges.push(
               Decoration.mark({
                 class: `cm-moss-list-marker ${
-                  /^\d/.test(markText)
+                  orderedMarker
                     ? 'cm-moss-ordered-marker'
                     : 'cm-moss-unordered-marker'
                 }`,

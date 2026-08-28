@@ -52,6 +52,13 @@ export const mossTheme: Extension = EditorView.theme(
       // transient horizontal overflow on mobile.
       overflowWrap: 'anywhere',
     },
+    // List marker classes are added by inline-preview after parsing. Keep
+    // the selector in CM's theme layer so it wins over generated syntax
+    // highlight classes.
+    '.cm-line .cm-moss-list-marker, .cm-line .cm-moss-list-marker *': {
+      color: 'var(--moss-list-marker, var(--moss-accent-bright, #a78bfa))',
+      fontWeight: '600',
+    },
     '&.cm-focused': {
       outline: 'none',
     },

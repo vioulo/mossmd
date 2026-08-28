@@ -1366,13 +1366,14 @@
 /* List heads stay visually distinct from ordinary prose while the raw
  * Markdown remains the source of truth. Consumers can tune these tokens
  * independently without changing the list layout. */
-.cm-moss-ordered-marker {
-  color: var(--moss-list-ordered, var(--moss-accent-bright, #a78bfa));
+.cm-line .cm-moss-ordered-marker,
+.cm-line .cm-moss-ordered-marker * {
+  color: var(--moss-list-marker, var(--moss-list-ordered, var(--moss-accent-bright, #a78bfa)));
   font-weight: 600;
 }
 
 .cm-moss-unordered-marker {
-  color: var(--moss-list-unordered, var(--moss-fg-muted, #888));
+  color: var(--moss-list-marker, var(--moss-list-unordered, var(--moss-fg-muted, #888)));
 }
 
 /* Bullet-only visual styling on top of the shared alcove. */

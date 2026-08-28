@@ -195,6 +195,15 @@ describe('bullet list editing', () => {
 });
 
 describe('active list-line preview', () => {
+  it('marks ordered-list markers with the ordered marker class', () => {
+    const view = makeView('1. item', 0, [inlinePreview()]);
+    const marker = view.contentDOM.querySelector<HTMLElement>(
+      '.cm-moss-ordered-marker',
+    );
+
+    expect(marker).not.toBeNull();
+  });
+
   it('keeps active ordered-list markers in the fixed preview alcove', async () => {
     const doc = '1. ';
     const view = makeView(doc, doc.length, [inlinePreview()]);

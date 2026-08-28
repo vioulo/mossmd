@@ -24,8 +24,9 @@
   --moss-border: #3d3d3d;
   --moss-accent: #7c3aed;
   --moss-accent-bright: #a78bfa;
-  --moss-list-ordered: #a78bfa;
-  --moss-list-unordered: #888888;
+  --moss-list-marker: #a78bfa;
+  --moss-list-ordered: var(--moss-list-marker);
+  --moss-list-unordered: var(--moss-list-marker);
   --moss-accent-soft: color-mix(
     in srgb,
     var(--moss-accent-bright) 72%,
@@ -89,8 +90,9 @@
   --moss-border: #d0d7de;
   --moss-accent: #6639ba;
   --moss-accent-bright: #8250df;
-  --moss-list-ordered: #8250df;
-  --moss-list-unordered: #57606a;
+  --moss-list-marker: #8250df;
+  --moss-list-ordered: var(--moss-list-marker);
+  --moss-list-unordered: var(--moss-list-marker);
   --moss-accent-soft: #c4b5fd;
   --moss-link: #6d28d9;
   --moss-link-hover: #7c3aed;

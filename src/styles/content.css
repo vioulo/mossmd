@@ -219,6 +219,11 @@
   padding-inline-start: 1.5em;
 }
 
+.moss-markdown ol > li::marker {
+  color: var(--moss-list-marker, var(--moss-list-ordered, var(--moss-accent-bright, #a78bfa)));
+  font-weight: 600;
+}
+
 .moss-markdown li + li {
   margin-top: 0.35em;
 }

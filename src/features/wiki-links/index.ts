@@ -305,6 +305,7 @@ function toCompletion(suggestion: WikiLinkSuggestion, config: WikiLinksConfig): 
         changes: { from, to: replaceTo, insert },
         selection: { anchor: from + insert.length },
       });
+      view.focus();
     },
     suggestion,
   };
@@ -390,7 +391,7 @@ function buildDecorations(
   for (const link of links) {
     if (!isSingleLineRange(state, link.from, link.to)) continue;
 
-    if (!readOnly && isSelectionInsideLink(state, link)) {
+    if (!readOnly && isSelectionNearLink(state, link)) {
       builder.add(link.from, link.to, Decoration.mark({ class: 'cm-moss-wiki-link-active' }));
       continue;
     }
@@ -594,6 +595,15 @@ function isSelectionInsideLink(state: EditorState, link: ParsedWikiLink): boolea
     const to = Math.max(range.from, range.to);
     if (from === to) return from > link.from && from < link.to;
     return from < link.to && to > link.from;
+  });
+}
+
+function isSelectionNearLink(state: EditorState, link: ParsedWikiLink): boolean {
+  return state.selection.ranges.some((range) => {
+    const from = Math.min(range.from, range.to);
+    const to = Math.max(range.from, range.to);
+    if (from === to) return from >= link.from && from <= link.to;
+    return from <= link.to && to >= link.from;
   });
 }
 

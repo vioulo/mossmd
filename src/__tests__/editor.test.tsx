@@ -336,6 +336,33 @@ describe('MossMD', () => {
     expect(content?.textContent).toContain('https://example.com');
   });
 
+  it('keeps markdown link syntax hidden when only its line is focused', () => {
+    const markdown =
+      '[Render semantic vector](https://example.org/1620e) for more.';
+    const { host } = mount(<MossMD markdownSource={markdown} />);
+    const editor = host.querySelector<HTMLElement>('.cm-editor');
+    const view = editor ? EditorView.findFromDOM(editor) : null;
+    expect(view).not.toBeNull();
+
+    act(() => {
+      view!.focus();
+      view!.dispatch({ selection: { anchor: markdown.indexOf('for') } });
+    });
+
+    const focusedLineLink = host.querySelector('.cm-moss-link');
+    expect(focusedLineLink?.textContent).toBe('Render semantic vector');
+
+    act(() => {
+      view!.dispatch({
+        selection: { anchor: markdown.indexOf('semantic') },
+      });
+    });
+
+    expect(host.querySelector('.cm-moss-link')?.textContent).toContain(
+      '[Render semantic vector](https://example.org/1620e)',
+    );
+  });
+
   it.each([
     ['same-text markdown link', '[https://example.com](https://example.com)'],
     ['angle autolink', '<https://example.com>'],

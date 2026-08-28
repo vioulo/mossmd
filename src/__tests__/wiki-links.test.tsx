@@ -87,6 +87,29 @@ describe('wikiLinks', () => {
     expect(host.textContent).toContain('[[atom-123|Project Atlas]]');
   });
 
+  it('reveals only the wiki link at the caret or its boundary', () => {
+    const doc =
+      'Labeled: [[demo-project-atlas|Project Atlas]] · Bare: [[demo-meeting-notes]] · In code: `[[demo-project-atlas]]`';
+    const firstLinkFrom = doc.indexOf('[[demo-project-atlas');
+    const firstLinkTo = doc.indexOf(']]', firstLinkFrom) + 2;
+    const secondLinkFrom = doc.indexOf('[[demo-meeting-notes]]');
+    const view = makeView(doc, [wikiLinks()], { anchor: doc.indexOf('In code') });
+
+    expect(view.dom.querySelectorAll('.cm-moss-wiki-link-active')).toHaveLength(0);
+
+    view.dispatch({ selection: { anchor: firstLinkTo } });
+    expect(view.dom.querySelectorAll('.cm-moss-wiki-link-active')).toHaveLength(1);
+    expect(view.dom.querySelector('.cm-moss-wiki-link-active')?.textContent).toContain(
+      'demo-project-atlas',
+    );
+
+    view.dispatch({ selection: { anchor: secondLinkFrom } });
+    expect(view.dom.querySelectorAll('.cm-moss-wiki-link-active')).toHaveLength(1);
+    expect(view.dom.querySelector('.cm-moss-wiki-link-active')?.textContent).toContain(
+      'demo-meeting-notes',
+    );
+  });
+
   it('opens on plain click by default when an opener is configured', () => {
     const onOpen = vi.fn();
     const { host } = mount('Linked atom: [[atom-123|Project Atlas]]', {

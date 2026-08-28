@@ -350,7 +350,7 @@ export function App() {
   }, []);
 
   const handleWikiSerialize = useCallback((suggestion: WikiLinkSuggestion) => {
-    return `[[${suggestion.target}${suggestion.label && suggestion.label !== suggestion.target ? `|${suggestion.label}` : ''}}]]`;
+    return `${suggestion.target}${suggestion.label && suggestion.label !== suggestion.target ? `|${suggestion.label}` : ''}]]`;
   }, []);
 
   const copyMarkdown = useCallback(async () => {

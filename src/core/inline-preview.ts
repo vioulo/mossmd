@@ -537,9 +537,9 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
 
   // `from` positions of Link nodes whose range overlaps a selection.
   // Link children (LinkMark/URL/LinkTitle) hide unless their parent
-  // Link's `from` is in this set — i.e. the cursor has entered the
-  // link specifically, not merely landed on the same line. Images
-  // aren't included because their widget owns the source visibility.
+  // Link's `from` is in this set — i.e. the cursor has entered or is
+  // immediately beside the link, not merely landed on the same line.
+  // Images aren't included because their widget owns the source visibility.
   const activeLinkStarts = new Set<number>();
 
   // Single pre-order walk. A tree walk visits a parent before its
@@ -620,10 +620,9 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       if (HIDEABLE_SYNTAX.has(node.name) && node.from < node.to) {
         const lineNum = doc.lineAt(node.from).number;
 
-        // Link children use a link-scoped rule (cursor-inside-link)
-        // rather than the line-based rule. A LinkMark under an
-        // Image node falls through to line-based — images have
-        // their own widget UX that the line-based reveal fits.
+        // Link children use a link-scoped rule rather than the
+        // line-based rule. A LinkMark under an Image node falls
+        // through to line-based — images have their own widget UX.
         let shouldHide: boolean;
         if (LINK_CHILD_SYNTAX.has(node.name)) {
           let parent = node.node.parent;
@@ -631,7 +630,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             parent = parent.parent;
           }
           if (parent && parent.name === 'Link') {
-            shouldHide = !activeLinkStarts.has(parent.from) && !activeLines.has(lineNum);
+            shouldHide = !activeLinkStarts.has(parent.from);
           } else {
             shouldHide = !activeLines.has(lineNum);
           }
@@ -654,8 +653,8 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         const parent = node.node.parent;
         if (parent?.name === 'Link') {
           // A URL in the label is visible content. A URL after the
-          // closing `]` is destination syntax and follows the existing
-          // cursor-inside-this-link reveal rule—not whole-line activity.
+          // closing `]` is destination syntax and follows the same
+          // cursor-inside-or-beside-this-link reveal rule.
           const destination = linkDestinationUrl(parent, doc);
           if (
             destination?.from === node.from &&

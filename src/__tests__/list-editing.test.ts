@@ -279,6 +279,48 @@ describe('active list-line preview', () => {
     expect(view.contentDOM.textContent).toBe('1. ');
   });
 
+  it('focuses the editor and places the caret after a clicked ordered marker', () => {
+    const view = makeView('1. one\n2. two', '1. one\n2. two'.length, [
+      inlinePreview(),
+    ]);
+    const markers = view.contentDOM.querySelectorAll<HTMLElement>(
+      '.cm-moss-ordered-marker',
+    );
+    const marker = markers[1];
+    if (!marker) throw new Error('missing second ordered marker');
+
+    marker.dispatchEvent(
+      new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        detail: 1,
+      }),
+    );
+
+    expect(view.hasFocus).toBe(true);
+    expect(view.state.selection.main.head).toBe(9);
+  });
+
+  it('keeps upward movement inside adjacent ordered-list items', () => {
+    const doc = '1. one\n2. two\n3. three\n4. four\n5. five';
+    const view = makeView(doc, doc.length, [inlinePreview()]);
+    view.focus();
+
+    const pressArrowUp = (): void => {
+      view.contentDOM.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'ArrowUp',
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    };
+
+    pressArrowUp();
+    expect(view.state.selection.main.head).toBe('1. one\n2. two\n3. three\n4. four'.length);
+  });
+
   it('deletes an empty ordered marker one character at a time from the keyboard', () => {
     const view = makeView('1. ', 3, [inlinePreview()]);
     view.focus();

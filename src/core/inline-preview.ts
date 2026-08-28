@@ -1653,6 +1653,69 @@ export function dedentListItem(view: EditorView): boolean {
   return true;
 }
 
+function listMarkerMouseDown(event: MouseEvent, view: EditorView): boolean {
+  if (
+    event.button !== 0 ||
+    event.detail !== 1 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  ) {
+    return false;
+  }
+
+  const target = event.target;
+  if (!(target instanceof Element)) return false;
+  const marker = target.closest<HTMLElement>('.cm-moss-list-marker');
+  if (!marker || !view.contentDOM.contains(marker)) return false;
+
+  const markerFrom = view.posAtDOM(marker, 0);
+  if (markerFrom < 0) return false;
+  const markerLength = marker.textContent?.length ?? 0;
+  if (markerLength === 0) return false;
+
+  view.focus();
+  view.dispatch({
+    selection: EditorSelection.cursor(markerFrom + markerLength),
+    userEvent: 'select.pointer',
+  });
+  return true;
+}
+
+function moveOrderedListVertically(view: EditorView, forward: boolean): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const line = view.state.doc.lineAt(selection.head);
+  const prefix = parseListLine(line.text, line.from);
+  if (!prefix?.ordered) return false;
+
+  const moved = view.moveVertically(selection, forward);
+  const movedLine = view.state.doc.lineAt(moved.head);
+  const adjacentLineNumber = line.number + (forward ? 1 : -1);
+  if (
+    movedLine.number === adjacentLineNumber ||
+    adjacentLineNumber < 1 ||
+    adjacentLineNumber > view.state.doc.lines
+  ) {
+    return false;
+  }
+
+  const adjacentLine = view.state.doc.line(adjacentLineNumber);
+  const adjacentPrefix = parseListLine(adjacentLine.text, adjacentLine.from);
+  if (!adjacentPrefix?.ordered) return false;
+
+  const offset = selection.head - line.from;
+  view.dispatch({
+    selection: EditorSelection.cursor(
+      adjacentLine.from + Math.min(offset, adjacentLine.length),
+    ),
+    userEvent: 'select.pointer',
+  });
+  return true;
+}
+
 function makeLinkClickHandler(onLinkClick: (url: string) => void): Extension {
   return EditorView.domEventHandlers({
     click: (event, view) => {
@@ -1710,6 +1773,7 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
     freezeMousePlugin,
     treeProgressPlugin,
     makeLinkClickHandler(onLinkClick),
+    EditorView.domEventHandlers({ mousedown: listMarkerMouseDown }),
     // Prec.highest to beat @codemirror/lang-markdown's own Enter
     // handler, which is registered internally by the `markdown()`
     // extension (not just via the exported markdownKeymap) and
@@ -1718,6 +1782,8 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
       keymap.of([
         { key: 'Enter', run: insertTightListItem },
         { key: 'Backspace', run: deleteEmptyOrderedListMarkerBackward },
+        { key: 'ArrowUp', run: (view) => moveOrderedListVertically(view, false) },
+        { key: 'ArrowDown', run: (view) => moveOrderedListVertically(view, true) },
         { key: 'Tab', run: indentListItem },
         { key: 'Shift-Tab', run: dedentListItem },
       ]),

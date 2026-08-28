@@ -4,6 +4,7 @@ import { EditorView } from '@codemirror/view';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import {
   autoCloseCodeFenceInput,
+  deleteEmptyOrderedListMarkerBackward,
   normalizeDigitPunctuationInput,
   separateHorizontalRuleInput,
   startAsteriskListInput,
@@ -121,15 +122,24 @@ describe('normalizeDigitPunctuationInput', () => {
     const view = makeView('1', 1);
 
     expect(normalizeDigitPunctuationInput(view, 1, 1, '。')).toBe(true);
-    expect(view.state.doc.toString()).toBe('1. ');
-    expect(view.state.selection.main.head).toBe(3);
+    expect(view.state.doc.toString()).toBe('1.');
+    expect(view.state.selection.main.head).toBe(2);
   });
 
   it('normalizes a Chinese comma after a digit', () => {
     const view = makeView('1', 1);
 
     expect(normalizeDigitPunctuationInput(view, 1, 1, '，')).toBe(true);
-    expect(view.state.doc.toString()).toBe('1, ');
+    expect(view.state.doc.toString()).toBe('1,');
+  });
+
+  it('does not insert a space when Chinese text follows a normalized period', () => {
+    const view = makeView('1', 1);
+
+    expect(normalizeDigitPunctuationInput(view, 1, 1, '。')).toBe(true);
+    view.dispatch({ changes: { from: 2, insert: '中' } });
+
+    expect(view.state.doc.toString()).toBe('1.中');
   });
 
   it('does not normalize Chinese punctuation after prose', () => {
@@ -145,6 +155,29 @@ describe('normalizeDigitPunctuationInput', () => {
 
     expect(normalizeDigitPunctuationInput(view, 5, 5, '。')).toBe(false);
     expect(view.state.doc.toString()).toBe(doc);
+  });
+});
+
+describe('deleteEmptyOrderedListMarkerBackward', () => {
+  it('deletes an empty ordered marker one character at a time', () => {
+    const view = makeView('1. ', 3);
+
+    expect(deleteEmptyOrderedListMarkerBackward(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe('1.');
+    expect(view.state.selection.main.head).toBe(2);
+
+    expect(deleteEmptyOrderedListMarkerBackward(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe('1');
+
+    const middle = makeView('1. ', 2);
+    expect(deleteEmptyOrderedListMarkerBackward(middle)).toBe(true);
+    expect(middle.state.doc.toString()).toBe('1 ');
+  });
+
+  it('does not intercept Backspace when the list item has content', () => {
+    const view = makeView('1. item', 7);
+
+    expect(deleteEmptyOrderedListMarkerBackward(view)).toBe(false);
   });
 });
 

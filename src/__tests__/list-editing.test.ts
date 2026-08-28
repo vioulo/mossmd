@@ -204,6 +204,64 @@ describe('active list-line preview', () => {
     expect(marker).not.toBeNull();
   });
 
+  it('does not preview an ordered marker before its separator space', () => {
+    const view = makeView('1.', 2, [inlinePreview()]);
+    const line = view.contentDOM.querySelector<HTMLElement>('.cm-line');
+
+    expect(view.contentDOM.querySelector('.cm-moss-ordered-marker')).toBeNull();
+    expect(line?.getAttribute('style') ?? '').not.toContain('padding-left');
+  });
+
+  it('keeps an ordered item after a horizontal rule when text is entered', async () => {
+    const doc = '---\n1. ';
+    const view = makeView(doc, doc.length, [inlinePreview()]);
+
+    view.dispatch({
+      changes: { from: doc.length, insert: 'text' },
+      userEvent: 'input.type',
+    });
+    await nextTick();
+
+    expect(view.state.doc.toString()).toBe('---\n1. text');
+    expect(view.contentDOM.querySelector('.cm-moss-ordered-marker')).not.toBeNull();
+    expect(
+      view.contentDOM.querySelectorAll('.cm-line')[1]?.getAttribute('style') ?? '',
+    ).toContain('padding-left');
+  });
+
+  it('keeps an ordered item after an empty line when text is entered', async () => {
+    const doc = '---\n\n1. ';
+    const view = makeView(doc, doc.length, [inlinePreview()]);
+
+    view.dispatch({
+      changes: { from: doc.length, insert: 'text' },
+      userEvent: 'input.type',
+    });
+    await nextTick();
+
+    expect(view.state.doc.toString()).toBe('---\n\n1. text');
+    expect(view.contentDOM.querySelector('.cm-moss-ordered-marker')).not.toBeNull();
+  });
+
+  it('keeps the continuation space available for the next typed text', async () => {
+    const view = makeView('1. text', 7, [inlinePreview()]);
+    view.focus();
+
+    expect(insertTightListItem(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe('1. text\n2. ');
+
+    const cursor = view.state.selection.main.head;
+    view.dispatch({
+      changes: { from: cursor, insert: 'next' },
+      selection: { anchor: cursor + 4 },
+      userEvent: 'input.type',
+    });
+    await nextTick();
+
+    expect(view.state.doc.toString()).toBe('1. text\n2. next');
+    expect(view.contentDOM.querySelectorAll('.cm-moss-ordered-marker')).toHaveLength(2);
+  });
+
   it('keeps active ordered-list markers in the fixed preview alcove', async () => {
     const doc = '1. ';
     const view = makeView(doc, doc.length, [inlinePreview()]);
@@ -213,7 +271,35 @@ describe('active list-line preview', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(view.contentDOM.querySelector('.cm-moss-list-marker')?.textContent).toBe('1.');
-    expect(view.contentDOM.textContent).toBe('1.');
+    expect(
+      view.contentDOM
+        .querySelector('.cm-moss-list-marker')
+        ?.classList.contains('cm-moss-list-marker-active'),
+    ).toBe(true);
+    expect(view.contentDOM.textContent).toBe('1. ');
+  });
+
+  it('deletes an empty ordered marker one character at a time from the keyboard', () => {
+    const view = makeView('1. ', 3, [inlinePreview()]);
+    view.focus();
+
+    const pressBackspace = (): void => {
+      view.contentDOM.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Backspace',
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    };
+
+    pressBackspace();
+    expect(view.state.doc.toString()).toBe('1.');
+    expect(view.state.selection.main.head).toBe(2);
+
+    pressBackspace();
+    expect(view.state.doc.toString()).toBe('1');
+    expect(view.state.selection.main.head).toBe(1);
   });
 
   it('does not indent a top-level plain line after a list item', () => {

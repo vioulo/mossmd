@@ -1363,6 +1363,13 @@
   text-align: right;
 }
 
+/* Active lines keep the source separator space so the caret can map to the
+ * real Markdown position. Let that space provide the separation instead of
+ * adding the alcove margin a second time. */
+.cm-moss-list-marker-active {
+  margin-right: 0;
+}
+
 /* List heads stay visually distinct from ordinary prose while the raw
  * Markdown remains the source of truth. Consumers can tune these tokens
  * independently without changing the list layout. */

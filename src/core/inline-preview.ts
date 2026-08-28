@@ -24,6 +24,7 @@ import { Check, Copy } from 'lucide-react';
 import { treeGrowthEffect, treeProgressPlugin } from './tree-progress';
 import { readOnlyFacet } from './read-only';
 import { lucideSvg } from './icons';
+import { deleteEmptyOrderedListMarkerBackward } from './edit-helpers';
 
 // Inline preview — the Obsidian "Live Preview" model.
 //
@@ -473,11 +474,8 @@ function pushReplace(
 
 const LIST_BASE_EM = 0.8;
 const LIST_ALCOVE_EM = 1.2;
-// Visual step per nested list level. Source uses 4 spaces per level
-// (LIST_INDENT_COLUMNS + indentUnit); 1em used to undershoot that,
-// making nested lists look cramped. 2em matches the alcove width and
-// reads closer to the source intent without bloating deep nests.
-const LIST_LEVEL_EM = 2;
+// Keep the visual step aligned with the existing list indentation contract.
+const LIST_LEVEL_EM = 1;
 
 function nearestListItem(node: SyntaxNode | null): SyntaxNode | null {
   for (let current = node; current; current = current.parent) {
@@ -696,6 +694,18 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       if (node.name === 'ListMark' && node.from < node.to) {
         const line = doc.lineAt(node.from);
         const lineActive = activeLines.has(line.number);
+        const markText = doc.sliceString(node.from, node.to);
+        const orderedMarker = /^\d{1,9}[.)]$/.test(markText);
+        const markEndInLine = node.to - line.from;
+        const hasListSeparator =
+          markEndInLine < line.text.length &&
+          /\s/.test(line.text[markEndInLine] ?? '');
+
+        // Lezer accepts an empty `1.` as an OrderedList so it can parse
+        // CommonMark's optional empty item. In the editor, keep that raw
+        // punctuation as prose until the user types the separator space.
+        if (orderedMarker && !hasListSeparator) return;
+
         // Detect a task item from the line text. ListMark is visited
         // before the TaskMarker on its line, so a forward single-pass
         // walk can't look the marker position up from a map; the
@@ -766,18 +776,19 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
           }
         }
 
-        const markText = doc.sliceString(node.from, node.to);
-        const orderedMarker = /^\d{1,9}[.)]$/.test(markText);
         if (
           lineActive &&
           (taskFrom !== undefined ||
             markText === '-' ||
             markText === '*' ||
-            markText === '+')
+            markText === '+' ||
+            orderedMarker)
         ) {
           ranges.push(
             Decoration.mark({
               class: `cm-moss-list-marker ${
+                lineActive ? 'cm-moss-list-marker-active ' : ''
+              }${
                 orderedMarker
                   ? 'cm-moss-ordered-marker'
                   : 'cm-moss-unordered-marker'
@@ -811,11 +822,13 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             // Ordered list (or anything else with a non-standard
             // mark text like `1.`, `42.`): keep the text visible
             // but mark it so CSS gives it the same fixed-width
-            // alcove. Hide the trailing space separately so the
-            // total marker-plus-space footprint matches ALCOVE.
+            // alcove. On inactive lines, hide the trailing space so
+            // the total marker-plus-space footprint matches ALCOVE.
             ranges.push(
               Decoration.mark({
                 class: `cm-moss-list-marker ${
+                  lineActive ? 'cm-moss-list-marker-active ' : ''
+                }${
                   orderedMarker
                     ? 'cm-moss-ordered-marker'
                     : 'cm-moss-unordered-marker'
@@ -1704,6 +1717,7 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
     Prec.highest(
       keymap.of([
         { key: 'Enter', run: insertTightListItem },
+        { key: 'Backspace', run: deleteEmptyOrderedListMarkerBackward },
         { key: 'Tab', run: indentListItem },
         { key: 'Shift-Tab', run: dedentListItem },
       ]),

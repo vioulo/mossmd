@@ -36,4 +36,14 @@ describe('content styles', () => {
       "{ tag: t.list, color: 'var(--moss-fg, #dcddde)' }",
     );
   });
+
+  it('uses the source separator space only once on active list lines', () => {
+    const editorStyles = readFileSync(
+      resolve(process.cwd(), 'src/styles/inline-preview.css'),
+      'utf8',
+    );
+
+    expect(editorStyles).toContain('.cm-moss-list-marker-active');
+    expect(editorStyles).toContain('margin-right: 0;');
+  });
 });

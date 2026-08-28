@@ -270,6 +270,14 @@ export const normalizeDigitPunctuation = Prec.highest(
         scheduleDigitPunctuationNormalization(view);
         return false;
       },
+      compositionstart(_event, view) {
+        const timer = digitPunctuationTimers.get(view);
+        if (timer !== undefined) {
+          window.clearTimeout(timer);
+          digitPunctuationTimers.delete(view);
+        }
+        return false;
+      },
       compositionend(_event, view) {
         scheduleDigitPunctuationNormalization(view);
         return false;
@@ -279,6 +287,7 @@ export const normalizeDigitPunctuation = Prec.highest(
 );
 
 const digitPunctuationTimers = new WeakMap<EditorView, number>();
+const DIGIT_PUNCTUATION_NORMALIZE_DELAY = 120;
 
 function scheduleDigitPunctuationNormalization(view: EditorView): void {
   if (digitPunctuationTimers.has(view)) return;
@@ -292,7 +301,10 @@ function scheduleDigitPunctuationNormalization(view: EditorView): void {
     normalizeDigitPunctuationAtCursor(view);
   };
 
-  digitPunctuationTimers.set(view, window.setTimeout(retry, 0));
+  digitPunctuationTimers.set(
+    view,
+    window.setTimeout(retry, DIGIT_PUNCTUATION_NORMALIZE_DELAY),
+  );
 }
 
 function normalizeDigitPunctuationAtCursor(view: EditorView): void {
@@ -322,14 +334,9 @@ function normalizeDigitPunctuationAtCursor(view: EditorView): void {
   if (punctuationFrom < 0 || !punctuation) return;
   if (isInsideMarkdownCode(state, punctuationFrom)) return;
 
-  const after = state.doc.sliceString(
-    punctuationFrom + 1,
-    Math.min(state.doc.length, punctuationFrom + 2),
-  );
-  const insert = after === ' ' ? punctuation : `${punctuation} `;
   view.dispatch({
-    changes: { from: punctuationFrom, to: punctuationFrom + 1, insert },
-    selection: { anchor: cursor + insert.length - 1 },
+    changes: { from: punctuationFrom, to: punctuationFrom + 1, insert: punctuation },
+    selection: { anchor: cursor },
   });
 }
 
@@ -352,12 +359,33 @@ export function normalizeDigitPunctuationInput(
   if (isInsideMarkdownCode(state, from)) return false;
 
   const rest = text.slice(sourcePunctuation.length);
-  const after = state.doc.sliceString(from, Math.min(state.doc.length, from + 1));
-  const separator = rest.startsWith(' ') || after === ' ' ? '' : ' ';
-  const insert = `${punctuation}${separator}${rest}`;
+  const insert = `${punctuation}${rest}`;
   view.dispatch({
     changes: { from, insert },
     selection: { anchor: from + insert.length },
+  });
+  return true;
+}
+
+// Markdown's deleteMarkupBackward intentionally treats an empty list marker
+// as one structural unit. For a just-typed numeric marker that makes the
+// first Backspace erase `1. ` at once, so let the user remove its characters
+// one at a time and naturally leave list syntax when any character is gone.
+export function deleteEmptyOrderedListMarkerBackward(view: EditorView): boolean {
+  const { state } = view;
+  const selection = state.selection.main;
+  if (!selection.empty) return false;
+
+  const line = state.doc.lineAt(selection.head);
+  if (!/^\s*\d{1,9}[.)]\s*$/.test(line.text)) return false;
+  const markerStart = line.from + (line.text.match(/^\s*/)?.[0].length ?? 0);
+  if (selection.head <= markerStart) return false;
+
+  view.dispatch({
+    changes: { from: selection.head - 1, to: selection.head },
+    selection: { anchor: selection.head - 1 },
+    userEvent: 'delete.backward',
+    scrollIntoView: true,
   });
   return true;
 }

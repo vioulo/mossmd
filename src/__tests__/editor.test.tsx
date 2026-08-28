@@ -187,6 +187,16 @@ describe('MossMD', () => {
     expect(image).not.toBeNull();
     const view = EditorView.findFromDOM(editor!);
     expect(view).not.toBeNull();
+    expect(host.querySelector('.cm-line')?.textContent).not.toContain(markdown);
+    expect(
+      host.querySelector('.cm-line')?.classList.contains('cm-moss-image-source-line'),
+    ).toBe(true);
+
+    act(() => {
+      view!.focus();
+      view!.dispatch({ selection: { anchor: 0 } });
+    });
+    expect(host.querySelector('.cm-line')?.textContent).not.toContain(markdown);
 
     act(() => {
       image?.dispatchEvent(

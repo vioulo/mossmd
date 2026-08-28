@@ -47,9 +47,9 @@ const MIN_IMAGE_WIDTH = 160;
 //
 // When a markdown image (`![alt](url)`) appears in the doc, we render
 // the actual image as a block-level widget immediately below the line
-// that contains its source. This follows Obsidian's model: the
-// markdown text and the rendered image coexist, with the markdown
-// visible only when its line is active (cursor on the line).
+// that contains its source. The markdown source stays hidden while the
+// rendered widget owns the presentation. Its edit control and full-range
+// selection keep the source editable without adding a visible source row.
 //
 // Block widgets can't come from a ViewPlugin (CM6 requires them to
 // originate from a StateField or a mandatory facet), so this lives
@@ -193,6 +193,19 @@ function imageRangeAtWidget(
     },
   });
   return result;
+}
+
+function imageIsAloneOnLine(
+  state: EditorState,
+  imageFrom: number,
+  imageTo: number,
+): boolean {
+  const line = state.doc.lineAt(imageFrom);
+  if (state.doc.lineAt(imageTo).from !== line.from) return false;
+  return (
+    state.doc.sliceString(line.from, imageFrom).trim() === '' &&
+    state.doc.sliceString(imageTo, line.to).trim() === ''
+  );
 }
 
 function startImageResize(
@@ -618,6 +631,11 @@ function buildImageBlocks(
       if (!parsed) return;
 
       const line = state.doc.lineAt(node.from);
+      if (imageIsAloneOnLine(state, node.from, node.to)) {
+        ranges.push(
+          Decoration.line({ class: 'cm-moss-image-source-line' }).range(line.from),
+        );
+      }
       ranges.push(
         Decoration.widget({
           widget: new ImageWidget(

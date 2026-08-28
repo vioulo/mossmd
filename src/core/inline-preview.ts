@@ -541,8 +541,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   // Link children (LinkMark/URL/LinkTitle) hide unless their parent
   // Link's `from` is in this set — i.e. the cursor has entered the
   // link specifically, not merely landed on the same line. Images
-  // aren't included; they already have their own widget UX. A complete
-  // image selection is handled specially below so its source stays hidden.
+  // aren't included because their widget owns the source visibility.
   const activeLinkStarts = new Set<number>();
 
   // Single pre-order walk. A tree walk visits a parent before its
@@ -845,27 +844,16 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       }
 
       if (node.name === 'Image' && node.from < node.to) {
-        const imageLine = doc.lineAt(node.from);
-        const lineNum = imageLine.number;
-        const imageIsSelected = state.selection.ranges.some(
-          (range) => range.from === node.from && range.to === node.to,
-        );
-        if (!activeLines.has(lineNum) || imageIsSelected) {
-          // Hide the raw `![alt](url)` on inactive lines so only the
-          // rendered image block (emitted by the image feature state
-          // field below the line) shows. We deliberately keep the
-          // now-empty source `.cm-line` at its default line-height
-          // rather than collapsing it via `display: none`: on iOS
-          // Safari, toggling a line from its text-measured height
-          // to zero mid-scroll shifts every subsequent line up by
-          // that amount, which the scroll engine reads as an
-          // anchor conflict and halts kinetic momentum — visible
-          // as "scroll stops right before an image when you scroll
-          // back up." The tradeoff is one line of empty space
-          // above each rendered image, which actually reads a bit
-          // cleaner as visual separation anyway.
-          pushReplace(ranges, doc, node.from, node.to);
-        }
+        // Images stay widget-first even when the editor has focus. Their
+        // edit button and widget selection provide the editing affordance,
+        // while keeping the raw link hidden avoids a source row appearing
+        // above the rendered image.
+        //
+        // Keep the now-empty source `.cm-line` at its default line-height
+        // rather than collapsing it via `display: none`: on iOS Safari,
+        // toggling a line from its text-measured height to zero mid-scroll
+        // shifts every subsequent line and can halt kinetic momentum.
+        pushReplace(ranges, doc, node.from, node.to);
       }
 
       if (node.name === 'TaskMarker' && node.from < node.to) {

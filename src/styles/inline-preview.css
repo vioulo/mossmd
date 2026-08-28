@@ -465,6 +465,17 @@
   pointer-events: none;
 }
 
+/* The source of a standalone image is replaced visually by its block
+ * widget. Keep the source line for CM6 position mapping, but remove its
+ * line box so it does not read as an empty row above the image. */
+.cm-line.cm-moss-image-source-line {
+  height: 0;
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: 0;
+}
+
 /* Image block widget — rendered below the source line containing
  * the `![alt](url)` markdown. Natural image size up to the editor's
  * content width (`max-width: 100%` of .cm-content, which is the
@@ -505,8 +516,12 @@
 }
 
 .cm-moss-image.cm-moss-image-selected .cm-moss-image-frame {
-  outline: 2px solid var(--moss-accent, #7c3aed);
-  outline-offset: 3px;
+  outline: 1px solid color-mix(
+    in srgb,
+    var(--moss-accent, #7c3aed) 52%,
+    var(--moss-border, #3d3d3d) 48%
+  );
+  outline-offset: 2px;
   border-radius: 0.45em;
 }
 

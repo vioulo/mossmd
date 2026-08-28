@@ -94,6 +94,8 @@ src/
 
 装饰构建会调用 `ensureSyntaxTree(state, state.doc.length, 200)`，尽量保证全文解析覆盖。若解析在首次构建时没有到达文末，`treeProgressPlugin` 会在解析树增长后触发补建。
 
+源码显隐的交互规则见 [`live-preview-rules.md`](./live-preview-rules.md)。其中明确区分编辑器焦点、当前行激活和行内语法贴近；链接类语法不能直接复用整行显露条件。
+
 ## 功能模块
 
 ### 图片

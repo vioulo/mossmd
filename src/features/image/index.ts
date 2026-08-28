@@ -14,7 +14,7 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
-import { Check, Eye, Maximize2, Pencil, X } from 'lucide-react';
+import { Check, Eye, Image as ImageIcon, Maximize2, Pencil, X } from 'lucide-react';
 import { lucideSvg } from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
 import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
@@ -40,6 +40,7 @@ const PREVIEW_ICON = lucideSvg(Eye, { size: 16 });
 const RESIZE_ICON = lucideSvg(Maximize2, { size: 16 });
 const SAVE_ICON = lucideSvg(Check, { size: 15 });
 const CLOSE_ICON = lucideSvg(X, { size: 15 });
+const IMAGE_PLACEHOLDER_ICON = lucideSvg(ImageIcon, { size: 36 });
 const IMAGE_WIDTH_RE = /^(?:\d+(?:\.\d+)?)(?:%|px|rem|em|vw)$/;
 const MIN_IMAGE_WIDTH = 160;
 
@@ -417,8 +418,28 @@ class ImageWidget extends WidgetType {
     const wrap = document.createElement('div');
     wrap.className = 'cm-moss-image';
     if (this.caption) wrap.classList.add('cm-moss-image-has-caption');
+
+    const frame = document.createElement('div');
+    frame.className = 'cm-moss-image-frame';
+
+    const cached = dimensionCache.get(this.src);
+    let placeholder: HTMLElement | null = null;
+    const clearPlaceholder = (): void => {
+      frame.classList.remove('cm-moss-image-frame-placeholder');
+      placeholder?.remove();
+      placeholder = null;
+    };
+
+    if (!cached) {
+      frame.classList.add('cm-moss-image-frame-placeholder');
+      placeholder = document.createElement('div');
+      placeholder.className = 'cm-moss-image-placeholder';
+      placeholder.innerHTML = IMAGE_PLACEHOLDER_ICON;
+      placeholder.setAttribute('aria-hidden', 'true');
+      frame.appendChild(placeholder);
+    }
+
     const img = document.createElement('img');
-    img.src = this.src;
     img.alt = this.alt;
     img.loading = 'lazy';
     // Set intrinsic dims from the cache so the widget reserves the
@@ -428,7 +449,6 @@ class ImageWidget extends WidgetType {
     // the natural dims so subsequent remounts come up pre-sized.
     // CSS (`max-width: 100%; height: auto` on the img) still lets
     // the browser scale the attributes to the content column.
-    const cached = dimensionCache.get(this.src);
     if (cached) {
       img.width = cached.w;
       img.height = cached.h;
@@ -440,15 +460,15 @@ class ImageWidget extends WidgetType {
             h: img.naturalHeight,
           });
         }
+        clearPlaceholder();
       });
     }
-    const frame = document.createElement('div');
-    frame.className = 'cm-moss-image-frame';
     if (this.width) {
       frame.classList.add('cm-moss-image-frame-sized');
       frame.style.width = this.width;
       img.style.width = '100%';
     }
+    img.src = this.src;
     frame.appendChild(img);
     wrap.appendChild(frame);
 
@@ -577,7 +597,10 @@ function imageRangeIsSelected(view: EditorView, wrap: HTMLElement): boolean {
 
 const imageSelectionPlugin = ViewPlugin.fromClass(
   class {
+    private readonly editorRoot: HTMLElement | null;
+
     constructor(readonly view: EditorView) {
+      this.editorRoot = view.dom.parentElement;
       this.sync();
     }
 
@@ -588,9 +611,20 @@ const imageSelectionPlugin = ViewPlugin.fromClass(
     }
 
     private sync(): void {
+      let hasSelectedImage = false;
       for (const wrap of this.view.dom.querySelectorAll<HTMLElement>('.cm-moss-image')) {
-        wrap.classList.toggle('cm-moss-image-selected', imageRangeIsSelected(this.view, wrap));
+        const selected = imageRangeIsSelected(this.view, wrap);
+        wrap.classList.toggle('cm-moss-image-selected', selected);
+        hasSelectedImage ||= selected;
       }
+      this.editorRoot?.classList.toggle(
+        'moss-cm-image-selection-active',
+        hasSelectedImage,
+      );
+    }
+
+    destroy(): void {
+      this.editorRoot?.classList.remove('moss-cm-image-selection-active');
     }
   },
 );

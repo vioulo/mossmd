@@ -124,6 +124,25 @@ describe('MossMD', () => {
     expect(document.querySelector('.cm-moss-image-preview-backdrop')).toBeNull();
   });
 
+  it('keeps a remote image block visible while the image is loading', () => {
+    const { host } = mount(
+      <MossMD markdownSource={'![Remote](https://example.com/remote.png)'} />,
+    );
+    const frame = host.querySelector<HTMLElement>('.cm-moss-image-frame');
+    const placeholder = host.querySelector<HTMLElement>('.cm-moss-image-placeholder');
+    const image = host.querySelector<HTMLImageElement>('.cm-moss-image img');
+
+    expect(frame?.classList.contains('cm-moss-image-frame-placeholder')).toBe(true);
+    expect(placeholder?.querySelector('svg')).not.toBeNull();
+
+    act(() => {
+      image?.dispatchEvent(new Event('load'));
+    });
+
+    expect(frame?.classList.contains('cm-moss-image-frame-placeholder')).toBe(false);
+    expect(host.querySelector('.cm-moss-image-placeholder')).toBeNull();
+  });
+
   it('persists a dragged image width as a responsive percentage', () => {
     const markdown = '![Alt|Caption](https://example.com/image.png)';
     const { host } = mount(<MossMD markdownSource={markdown} />);
@@ -211,6 +230,9 @@ describe('MossMD', () => {
     expect(host.querySelector('.cm-moss-image')?.classList.contains('cm-moss-image-selected')).toBe(
       true,
     );
+    expect(host.querySelector('.moss-cm-editor')?.classList.contains('moss-cm-image-selection-active')).toBe(
+      true,
+    );
     expect(host.querySelector('.cm-line')?.textContent).not.toContain(markdown);
     expect(view!.state.sliceDoc(0, markdown.length)).toBe(markdown);
 
@@ -222,6 +244,9 @@ describe('MossMD', () => {
 
     expect(view!.state.doc.toString()).toBe('');
     expect(host.querySelector('.cm-moss-image')).toBeNull();
+    expect(host.querySelector('.moss-cm-editor')?.classList.contains('moss-cm-image-selection-active')).toBe(
+      false,
+    );
   });
 
   it('renders only file block actions and deletes the raw link', () => {

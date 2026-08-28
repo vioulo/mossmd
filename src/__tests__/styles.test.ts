@@ -46,4 +46,18 @@ describe('content styles', () => {
     expect(editorStyles).toContain('.cm-moss-list-marker-active');
     expect(editorStyles).toContain('margin-right: 0;');
   });
+
+  it('keeps image previews readable over a softly blurred backdrop', () => {
+    const editorStyles = readFileSync(
+      resolve(process.cwd(), 'src/styles/inline-preview.css'),
+      'utf8',
+    );
+
+    expect(editorStyles).toContain('.cm-moss-image-preview-backdrop');
+    expect(editorStyles).toContain('backdrop-filter: blur(2px);');
+    expect(editorStyles).toContain('.cm-moss-image-frame-placeholder');
+    expect(editorStyles).toContain(
+      '.moss-cm-editor.moss-cm-image-selection-active .cm-cursorLayer',
+    );
+  });
 });

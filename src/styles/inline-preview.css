@@ -500,6 +500,34 @@
   line-height: 0;
 }
 
+/* Remote images have no intrinsic height until they finish loading. Keep
+ * their widget measurable so inserting an image never creates a blank,
+ * zero-height block that shifts the document when the request completes. */
+.cm-moss-image-frame-placeholder {
+  width: min(28rem, 100%);
+  min-height: 10rem;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.4em;
+  background: var(--moss-bg-surface, rgba(127, 127, 127, 0.08));
+  overflow: hidden;
+}
+
+.cm-moss-image-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--moss-fg-muted, #888);
+}
+
+.cm-moss-image-placeholder svg {
+  opacity: 0.72;
+}
+
+.cm-moss-image-frame-placeholder > img {
+  opacity: 0;
+}
+
 /* Once a width has been chosen explicitly, keep the image usable while
  * preserving the responsive percentage in the source. The `min()` keeps
  * the frame from overflowing a narrow phone viewport. */
@@ -513,6 +541,13 @@
   max-width: 100%;
   height: auto;
   border-radius: 0.4em;
+}
+
+/* The source line is kept at zero height for position mapping. When its
+ * entire range is selected through the rendered widget, suppress CM6's
+ * caret layer so the caret cannot appear at the line's top-left corner. */
+.moss-cm-editor.moss-cm-image-selection-active .cm-cursorLayer {
+  visibility: hidden;
 }
 
 .cm-moss-image.cm-moss-image-selected .cm-moss-image-frame {
@@ -728,7 +763,9 @@
   align-items: center;
   justify-content: center;
   padding: 5vh 5vw;
-  background: rgba(0, 0, 0, 0.78);
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   cursor: zoom-out;
 }
 

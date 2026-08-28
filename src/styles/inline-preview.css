@@ -1132,11 +1132,8 @@
 /* Slash-commands side `+` button + popup tweaks.
  *
  * The `+` button is rendered by mossSlashCommands (sideButton: true)
- * as a non-block widget at line.from when the cursor sits on an
- * empty line. CSS pulls it into the left gutter via absolute
- * positioning. `.cm-line` gets `position: relative` scoped to this
- * editor so the absolute child resolves against the line, not the
- * scroller — keeps the button aligned with its row through scroll.
+ * as a non-block widget at line.from when the cursor sits on an empty
+ * line. It is visually pulled into the left gutter without adding a row.
  *
  * The autocomplete popup is themed by `.cm-tooltip` in the editor
  * theme; we only add small per-item layout tweaks here.
@@ -1147,8 +1144,6 @@
 
 .cm-moss-side-plus {
   position: absolute;
-  /* Pull into the left gutter but keep a gap from the caret/text
-   * on the line (right edge sits ~0.6em left of line.from). */
   left: -2.8em;
   top: 50%;
   transform: translateY(-50%);
@@ -1234,6 +1229,13 @@
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
+}
+
+.cm-tooltip-autocomplete .cm-completionIcon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
 }
 
 .cm-tooltip-autocomplete .cm-completionIcon::after {

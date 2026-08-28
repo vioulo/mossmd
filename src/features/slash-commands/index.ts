@@ -39,12 +39,34 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
-import { Plus } from 'lucide-react';
+import {
+  Code2,
+  File,
+  FileImage,
+  FileText,
+  List,
+  MessageSquare,
+  Minus,
+  Plus,
+  Table2,
+  type LucideIcon,
+} from 'lucide-react';
 import { lucideSvg } from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
 import { mossUploadBlocks } from '../upload';
 
 const SIDE_PLUS_ICON = lucideSvg(Plus, { size: 18, strokeWidth: 2 });
+
+const SLASH_COMMAND_ICONS: Record<string, LucideIcon> = {
+  image: FileImage,
+  file: File,
+  snippet: FileText,
+  list: List,
+  code: Code2,
+  table: Table2,
+  rule: Minus,
+  callout: MessageSquare,
+};
 
 export interface MossSlashCommand {
   /** Stable id; used for dedupe and React keys if a consumer renders
@@ -90,7 +112,30 @@ interface SlashCommandCompletion extends Completion {
   command: MossSlashCommand;
 }
 
-const SLASH_QUERY_RE = /^\/[\w-]*$/;
+function isSlashCommandCompletion(
+  completion: Completion,
+): completion is SlashCommandCompletion {
+  return 'command' in completion;
+}
+
+function renderSlashCommandIcon(completion: Completion): Node | null {
+  if (!isSlashCommandCompletion(completion)) return null;
+
+  const iconKey = /^[\w-]+$/.test(completion.command.icon ?? '')
+    ? completion.command.icon ?? 'snippet'
+    : 'snippet';
+  const Icon = SLASH_COMMAND_ICONS[iconKey] ?? FileText;
+  const icon = document.createElement('span');
+  icon.className = `cm-completionIcon cm-completionIcon-moss-${iconKey}`;
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = lucideSvg(Icon, { size: 16, strokeWidth: 1.8 });
+  return icon;
+}
+
+// `matchBefore` searches within the current line. Do not anchor this
+// expression at the start, otherwise an indented line such as `  /` can
+// never match; the line-start policy is checked separately below.
+const SLASH_QUERY_RE = /\/[\w-]*$/;
 
 export function mossSlashCommands(config: MossSlashCommandsConfig): Extension {
   // Register the source via `EditorState.languageData` (additive,
@@ -118,7 +163,16 @@ export function mossSlashCommands(config: MossSlashCommandsConfig): Extension {
     // must agree or CM6 throws "Config merge conflict".
     autocompletion({
       activateOnTyping: true,
-      icons: true,
+      // Wiki-link completion may disable CodeMirror's shared icon
+      // renderer. Slash commands render their own Lucide icon below,
+      // so they remain visible when both completion features are enabled.
+      icons: false,
+      addToOptions: [
+        {
+          position: 20,
+          render: renderSlashCommandIcon,
+        },
+      ],
       closeOnBlur: true,
     }),
   ];
@@ -152,16 +206,22 @@ async function source(
       const line = context.state.doc.lineAt(slashMatch.from);
       const before = line.text.slice(0, slashMatch.from - line.from);
       if (before.trim() !== '') return null;
+    } else {
+      const line = context.state.doc.lineAt(slashMatch.from);
+      const before = line.text.slice(0, slashMatch.from - line.from);
+      if (before !== '' && !/\s$/.test(before)) return null;
     }
     const query = slashMatch.text.slice(1);
     const commands = await resolveCommands(config, query);
     if (context.aborted) return null;
     return {
-      // Include the `/` in the replace range so `apply` can wipe it.
-      from: slashMatch.from,
+      // Let CodeMirror filter the command query without treating `/` as
+      // part of the completion text. `toOption` expands the apply range
+      // back over the trigger when a command is accepted.
+      from: slashMatch.from + 1,
       to: context.pos,
       options: commands.map((cmd) => toOption(cmd)),
-      validFor: /^\/?[\w-]*$/,
+      validFor: config.suggest ? () => false : /^[\w-]*$/,
     };
   }
 
@@ -228,7 +288,11 @@ function toOption(cmd: MossSlashCommand): SlashCommandCompletion {
       // expect apply to return a promise, but async side effects (file
       // upload, network) are fine since they dispatch their own
       // transactions when ready.
-      void cmd.apply(view, from, to);
+      const triggerFrom =
+        from > 0 && view.state.sliceDoc(from - 1, from) === '/'
+          ? from - 1
+          : from;
+      void cmd.apply(view, triggerFrom, to);
     },
     command: cmd,
   };
@@ -252,10 +316,9 @@ function isCursorOnEmptyLine(
 // and matches Notion's "discoverable on the active empty line" UX
 // rather than rendering buttons for every empty line in the viewport.
 //
-// Non-block widgets can come straight from a ViewPlugin (unlike block
-// widgets, which CM6 requires to originate from a StateField). CSS
-// positions the button absolutely so it lives in the left gutter
-// without shifting the empty line's text.
+// The button is a non-block decoration at the start of the active line.
+// CSS moves it visually into the left gutter without changing the row's
+// document layout.
 // ---------------------------------------------------------------------------
 
 class SidePlusWidget extends WidgetType {
@@ -285,6 +348,12 @@ class SidePlusWidget extends WidgetType {
         scrollIntoView: false,
       });
       startCompletion(view);
+    });
+    btn.addEventListener('click', (event) => {
+      // Keep the follow-up click from being handled by the editor after
+      // the mousedown handler has placed the caret on this line.
+      event.preventDefault();
+      event.stopPropagation();
     });
     return btn;
   }

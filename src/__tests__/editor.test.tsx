@@ -1,6 +1,8 @@
 import { describe, expect, it, afterEach, vi } from 'vitest';
 import { act, createRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import { acceptCompletion, setSelectedCompletion } from '@codemirror/autocomplete';
+import { Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import {
   MossMD,
@@ -260,6 +262,98 @@ describe('MossMD', () => {
 
     expect(handleRef.current?.getMarkdown()).toBe('After.');
     expect(host.querySelector('.cm-moss-file-block')).toBeNull();
+  });
+
+  it('opens slash commands after an indented slash and shows command icons', async () => {
+    const { host } = mount(
+      <MossMD
+        markdownSource="  /upl"
+        slashCommandsConfig={{
+          commands: [
+            {
+              id: 'upload-file',
+              label: 'Upload file',
+              icon: 'file',
+              apply: (editorView, from, to) =>
+                editorView.dispatch({
+                  changes: { from, to, insert: '# ' },
+                }),
+            },
+          ],
+        }}
+        wikiLinksConfig={{
+          suggest: () => Promise.resolve([]),
+        }}
+      />,
+    );
+    const view = EditorView.findFromDOM(host.querySelector('.cm-editor')!);
+    expect(view).not.toBeNull();
+
+    act(() =>
+      view!.dispatch({
+        annotations: Transaction.userEvent.of('input.type'),
+        selection: { anchor: 6 },
+      }),
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    });
+
+    expect(host.querySelector('.cm-tooltip-autocomplete')).not.toBeNull();
+    expect(host.querySelector('.cm-completionIcon-moss-file')).not.toBeNull();
+    expect(host.querySelector('.cm-completionIcon-moss-file svg')).not.toBeNull();
+
+    act(() => {
+      view!.dispatch({ effects: setSelectedCompletion(0) });
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(acceptCompletion(view!)).toBe(true);
+    expect(view!.state.doc.toString()).toBe('  # ');
+  });
+
+  it('renders icons in the popup opened from the side plus button', async () => {
+    const { host } = mount(
+      <MossMD
+        markdownSource=""
+        slashCommandsConfig={{
+          commands: [
+            {
+              id: 'heading',
+              label: 'Heading',
+              icon: 'snippet',
+              apply: () => undefined,
+            },
+          ],
+          sideButton: true,
+        }}
+        wikiLinksConfig={{
+          suggest: () => Promise.resolve([]),
+        }}
+      />,
+    );
+    const view = EditorView.findFromDOM(host.querySelector('.cm-editor')!);
+    expect(view).not.toBeNull();
+
+    act(() => {
+      view!.focus();
+      view!.dispatch({ selection: { anchor: 0 } });
+    });
+    const plus = host.querySelector<HTMLButtonElement>('.cm-moss-side-plus');
+    expect(plus).not.toBeNull();
+    expect(plus!.closest('.cm-content')).not.toBeNull();
+    act(() => plus!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+
+    expect(host.querySelector('.cm-tooltip-autocomplete')).not.toBeNull();
+    expect(host.querySelector('.cm-completionIcon-moss-snippet')).not.toBeNull();
+    expect(host.querySelector('.cm-completionIcon-moss-snippet svg')).not.toBeNull();
+
+    act(() => plus!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })));
+    expect(view!.state.selection.main.head).toBe(0);
   });
 
   it('renders `.cm-content` with the raw markdown visible in the DOM', () => {

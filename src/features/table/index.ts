@@ -17,9 +17,37 @@ import {
   type DecorationSet,
 } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
+import {
+  ArrowDownFromLine,
+  ArrowLeftFromLine,
+  ArrowRightFromLine,
+  ArrowUpFromLine,
+  MoreHorizontal,
+  Trash2,
+} from 'lucide-react';
+import { lucideSvg } from '../../core/icons';
 import { matchHighlight } from '../../syntax/highlight';
 import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
 import { readOnlyFacet } from '../../core/read-only';
+
+const TABLE_MENU_ICON = lucideSvg(MoreHorizontal, { size: 16, strokeWidth: 2 });
+const TABLE_MENU_ROW_ABOVE_ICON = lucideSvg(ArrowUpFromLine, {
+  size: 16,
+  strokeWidth: 1.9,
+});
+const TABLE_MENU_ROW_BELOW_ICON = lucideSvg(ArrowDownFromLine, {
+  size: 16,
+  strokeWidth: 1.9,
+});
+const TABLE_MENU_COLUMN_LEFT_ICON = lucideSvg(ArrowLeftFromLine, {
+  size: 16,
+  strokeWidth: 1.9,
+});
+const TABLE_MENU_COLUMN_RIGHT_ICON = lucideSvg(ArrowRightFromLine, {
+  size: 16,
+  strokeWidth: 1.9,
+});
+const TABLE_MENU_DELETE_ICON = lucideSvg(Trash2, { size: 16, strokeWidth: 1.9 });
 
 // GFM tables as a WYSIWYG block widget.
 //
@@ -45,7 +73,7 @@ import { readOnlyFacet } from '../../core/read-only';
 //   - Column alignment (`:---`, `---:`, `:---:`) — parsed but dropped;
 //     all cells render left-aligned.
 //   - Rich content inside cells (markdown marks, links, etc.).
-//   - Context-menu operations (add/remove row/column, sort).
+//   - Table operations beyond the cell actions menu (for example sort).
 //   - Multi-line cell content.
 // These are incremental, non-architectural adds; they can land later
 // without changing the widget's core shape.
@@ -739,7 +767,7 @@ function makeCell(
   renderCellSourceDecorated(source);
 
   // All write paths (typing, paste, IME, Tab/Enter navigation, the
-  // context menu, focus-routing) live in `attachCellEditing` and are
+  // cell actions menu, focus-routing) live in `attachCellEditing` and are
   // wired only when the cell is editable. Read-only cells keep just the
   // link-open handlers below.
   if (!readOnly) attachCellEditing(view, cell, source);
@@ -782,12 +810,32 @@ function makeCell(
 
   refreshCellPreview(cell);
 
+  if (!readOnly) {
+    const menuTrigger = document.createElement('button');
+    menuTrigger.type = 'button';
+    menuTrigger.className = 'cm-moss-table-menu-trigger';
+    menuTrigger.innerHTML = TABLE_MENU_ICON;
+    menuTrigger.setAttribute('aria-label', 'Table actions');
+    menuTrigger.title = 'Table actions';
+    menuTrigger.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    menuTrigger.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = menuTrigger.getBoundingClientRect();
+      openCellMenu(view, cell, rect.right, rect.bottom + 4);
+    });
+    cell.appendChild(menuTrigger);
+  }
+
   return cell;
 }
 
 // Wire every write path for an editable cell: typing / paste / IME
 // commits, caret-driven mark reveal, Tab/Enter cell navigation, the
-// right-click context menu, and focus-routing for clicks that land
+// cell actions menu, and focus-routing for clicks that land
 // outside the inner source element. Skipped wholesale for read-only
 // cells, which keep only the link-open handlers in `makeCell`.
 function attachCellEditing(
@@ -875,12 +923,6 @@ function attachCellEditing(
     }
   });
 
-  cell.addEventListener('contextmenu', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    openCellMenu(view, cell, event.clientX, event.clientY);
-  });
-
   // When the cell has an image and the source is visually hidden,
   // clicks land on the cell/image/empty space but not on the source
   // itself. Route every pointerdown inside the cell to a focus on
@@ -896,6 +938,12 @@ function attachCellEditing(
     // intercept clicks that land OUTSIDE the source (cell padding, the
     // image preview, the cell box itself) to route focus into it.
     const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest('.cm-moss-table-menu-trigger')
+    ) {
+      return;
+    }
     if (target instanceof Node && source.contains(target)) return;
     event.preventDefault();
     source.focus();
@@ -903,11 +951,11 @@ function attachCellEditing(
   });
 }
 
-// ---- context menu -------------------------------------------------
+// ---- table actions menu -------------------------------------------
 
 function cellRowIndex(cell: HTMLElement): number {
   // Rows are indexed within tbody (header isn't a "row" we can
-  // insert-above; header context items are column-only).
+  // insert above; header actions are column-only).
   const tr = cell.closest<HTMLElement>('tr');
   const tbody = tr?.closest<HTMLElement>('tbody');
   if (!tr || !tbody) return -1;
@@ -955,12 +1003,20 @@ function openCellMenu(
   menu.style.left = `${x}px`;
   menu.style.top = `${y}px`;
 
-  type MenuItem = { label: string; action: () => void } | 'separator';
+  type MenuItem =
+    | {
+        label: string;
+        icon: string;
+        destructive?: boolean;
+        action: () => void;
+      }
+    | 'separator';
   const items: MenuItem[] = [];
 
   if (!isHeader) {
     items.push({
       label: 'Insert row above',
+      icon: TABLE_MENU_ROW_ABOVE_ICON,
       action: () => {
         const m = readModelFromDom(wrap);
         m.rows.splice(row, 0, m.header.map(() => ''));
@@ -969,17 +1025,10 @@ function openCellMenu(
     });
     items.push({
       label: 'Insert row below',
+      icon: TABLE_MENU_ROW_BELOW_ICON,
       action: () => {
         const m = readModelFromDom(wrap);
         m.rows.splice(row + 1, 0, m.header.map(() => ''));
-        dispatchModel(view, wrap, m);
-      },
-    });
-    items.push({
-      label: 'Delete row',
-      action: () => {
-        const m = readModelFromDom(wrap);
-        if (row >= 0 && row < m.rows.length) m.rows.splice(row, 1);
         dispatchModel(view, wrap, m);
       },
     });
@@ -988,6 +1037,7 @@ function openCellMenu(
 
   items.push({
     label: 'Insert column left',
+    icon: TABLE_MENU_COLUMN_LEFT_ICON,
     action: () => {
       const m = readModelFromDom(wrap);
       m.header.splice(col, 0, '');
@@ -997,6 +1047,7 @@ function openCellMenu(
   });
   items.push({
     label: 'Insert column right',
+    icon: TABLE_MENU_COLUMN_RIGHT_ICON,
     action: () => {
       const m = readModelFromDom(wrap);
       m.header.splice(col + 1, 0, '');
@@ -1004,8 +1055,23 @@ function openCellMenu(
       dispatchModel(view, wrap, m);
     },
   });
+  items.push('separator');
+  if (!isHeader) {
+    items.push({
+      label: 'Delete row',
+      icon: TABLE_MENU_DELETE_ICON,
+      destructive: true,
+      action: () => {
+        const m = readModelFromDom(wrap);
+        if (row >= 0 && row < m.rows.length) m.rows.splice(row, 1);
+        dispatchModel(view, wrap, m);
+      },
+    });
+  }
   items.push({
     label: 'Delete column',
+    icon: TABLE_MENU_DELETE_ICON,
+    destructive: true,
     action: () => {
       const m = readModelFromDom(wrap);
       // Guard: don't leave the table with zero columns — lezer
@@ -1044,7 +1110,15 @@ function openCellMenu(
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'cm-moss-table-menu-item';
-    btn.textContent = item.label;
+    if (item.destructive) btn.classList.add('is-destructive');
+    const icon = document.createElement('span');
+    icon.className = 'cm-moss-table-menu-item-icon';
+    icon.innerHTML = item.icon;
+    icon.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.className = 'cm-moss-table-menu-item-label';
+    label.textContent = item.label;
+    btn.append(icon, label);
     btn.addEventListener('click', () => {
       item.action();
       dismiss();
@@ -1063,8 +1137,8 @@ function openCellMenu(
     menu.style.top = `${Math.max(4, window.innerHeight - rect.height - 4)}px`;
   }
 
-  // Deferred listener attach so the current contextmenu→document
-  // mousedown cycle doesn't immediately dismiss us.
+  // Deferred listener attach so the trigger click's document mousedown
+  // cycle doesn't immediately dismiss the new menu.
   setTimeout(() => {
     if (dismissed) return;
     document.addEventListener('mousedown', onDocDown, true);

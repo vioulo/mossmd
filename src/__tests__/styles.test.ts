@@ -64,5 +64,11 @@ describe('content styles', () => {
     );
     expect(editorStyles).toContain('width: min(11rem, calc(100vw - 1rem));');
     expect(editorStyles).toContain('.cm-tooltip-autocomplete > ul > li:hover');
+    expect(editorStyles).toContain('.cm-moss-table-menu-trigger');
+    expect(editorStyles).toContain(
+      '.cm-moss-table td:focus-within .cm-moss-table-menu-trigger',
+    );
+    expect(editorStyles).toContain('.cm-moss-table-menu-item-icon');
+    expect(editorStyles).toContain('.cm-moss-table-menu-item.is-destructive');
   });
 });

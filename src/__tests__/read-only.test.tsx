@@ -212,19 +212,12 @@ describe('read-only mode', () => {
     expect(onMarkdownChange).toHaveBeenCalledWith('- [x] buy milk');
   });
 
-  it('blocks a stale table menu action after switching to read-only', () => {
-    const onMarkdownChange = vi.fn();
-    const handleRef = createRef<MossMDHandle | null>() as {
-      current: MossMDHandle | null;
-    };
-    const { host, rerender } = mount({
-      markdownSource: TABLE,
-      onMarkdownChange,
-      editorHandleRef: handleRef,
-    });
-
+  it('does not open a custom table menu from the context menu gesture', () => {
+    const { host } = mount({ markdownSource: TABLE });
+    const cell = host.querySelector<HTMLElement>('tbody td');
+    expect(cell).not.toBeNull();
     act(() => {
-      host.querySelector<HTMLElement>('tbody td')?.dispatchEvent(
+      cell?.dispatchEvent(
         new MouseEvent('contextmenu', {
           bubbles: true,
           cancelable: true,
@@ -233,20 +226,6 @@ describe('read-only mode', () => {
         }),
       );
     });
-    const menuAction = Array.from(
-      document.querySelectorAll<HTMLButtonElement>('.cm-moss-table-menu-item'),
-    ).find((button) => button.textContent === 'Insert row above');
-    expect(menuAction).toBeDefined();
-
-    rerender({
-      markdownSource: TABLE,
-      readOnly: true,
-      onMarkdownChange,
-      editorHandleRef: handleRef,
-    });
-    act(() => menuAction?.click());
-
-    expect(handleRef.current?.getMarkdown()).toBe(TABLE);
-    expect(onMarkdownChange).not.toHaveBeenCalled();
+    expect(document.querySelector('.cm-moss-table-menu')).toBeNull();
   });
 });

@@ -1534,6 +1534,7 @@
 
 .cm-moss-table th,
 .cm-moss-table td {
+  position: relative;
   border: 1px solid var(--moss-border, #3d3d3d);
   padding: 0.35em 0.6em;
   text-align: left;
@@ -1554,6 +1555,54 @@
 .cm-moss-table td:focus-within {
   outline: 2px solid var(--moss-accent, #7c3aed);
   outline-offset: -2px;
+}
+
+/* The action button sits on the upper-right border intersection of the
+ * focused cell. It is absolute so it never changes table sizing or row
+ * height. */
+.cm-moss-table-menu-trigger {
+  position: absolute;
+  top: -0.7em;
+  right: -0.7em;
+  z-index: 2;
+  width: 1.6em;
+  height: 1.6em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--moss-border, #3d3d3d);
+  border-radius: 0.35em;
+  background: var(--moss-bg-panel, #252525);
+  color: var(--moss-fg-muted, #888);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, background-color 0.12s ease,
+    color 0.12s ease, transform 0.12s ease;
+}
+
+.cm-moss-table th:focus-within .cm-moss-table-menu-trigger,
+.cm-moss-table td:focus-within .cm-moss-table-menu-trigger {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cm-moss-table-menu-trigger:hover,
+.cm-moss-table-menu-trigger:focus-visible {
+  background: var(--moss-bg-surface, #2d2d2d);
+  color: var(--moss-fg, #dcddde);
+  transform: scale(1.05);
+}
+
+.cm-moss-table-menu-trigger:focus-visible {
+  outline: 2px solid var(--moss-accent, #7c3aed);
+  outline-offset: 2px;
+}
+
+.cm-moss-table-menu-trigger svg {
+  width: 1em;
+  height: 1em;
 }
 
 /* The editable source inside a cell — always shows the raw markdown
@@ -1655,9 +1704,9 @@
   cursor: pointer;
 }
 
-/* Table context menu — right-click a cell to insert / delete rows
- * and columns. Mounted on document.body so positioning isn't
- * affected by CM6's overflow scroll. */
+/* Table actions menu — opened from the focused cell's upper-right trigger.
+ * Mounted on document.body so positioning isn't affected by CM6's overflow
+ * scroll. */
 .cm-moss-table-menu {
   position: fixed;
   z-index: 1000;
@@ -1673,19 +1722,63 @@
 }
 
 .cm-moss-table-menu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  box-sizing: border-box;
   width: 100%;
   text-align: left;
-  padding: 0.35rem 0.75rem;
+  min-height: 2rem;
+  padding: 0.38rem 0.7rem;
   background: transparent;
   border: 0;
   color: inherit;
   font: inherit;
   cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.cm-moss-table-menu-item:hover {
+.cm-moss-table-menu-item:hover,
+.cm-moss-table-menu-item:focus-visible {
   background: var(--moss-bg-surface, #2d2d2d);
+  outline: none;
+}
+
+.cm-moss-table-menu-item.is-destructive {
+  color: var(--moss-hl-invalid, #ff5370);
+}
+
+.cm-moss-table-menu-item.is-destructive:hover,
+.cm-moss-table-menu-item.is-destructive:focus-visible {
+  background: color-mix(
+    in srgb,
+    var(--moss-hl-invalid, #ff5370) 12%,
+    var(--moss-bg-surface, #2d2d2d) 88%
+  );
+}
+
+.cm-moss-table-menu-item-icon {
+  display: inline-flex;
+  flex: 0 0 1rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--moss-fg-muted, #888);
+}
+
+.cm-moss-table-menu-item.is-destructive .cm-moss-table-menu-item-icon {
+  color: currentColor;
+}
+
+.cm-moss-table-menu-item-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.cm-moss-table-menu-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cm-moss-table-menu-sep {

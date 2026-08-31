@@ -554,6 +554,39 @@ describe('MossMD', () => {
     expect(highlight?.textContent).toContain('highlighted text');
   });
 
+  it('opens table actions from the focused cell corner button', () => {
+    const markdown = '| A | B |\n| --- | --- |\n| 1 | 2 |';
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
+    };
+    const { host } = mount(
+      <MossMD markdownSource={markdown} editorHandleRef={handleRef} />,
+    );
+    const cell = host.querySelector<HTMLElement>('tbody td');
+    const source = cell?.querySelector<HTMLElement>('.cm-moss-table-cell-source');
+    const trigger = cell?.querySelector<HTMLButtonElement>('.cm-moss-table-menu-trigger');
+    expect(cell).not.toBeNull();
+    expect(source).not.toBeNull();
+    expect(trigger).not.toBeNull();
+
+    act(() => source?.focus());
+    expect(cell?.matches(':focus-within')).toBe(true);
+
+    act(() => trigger?.click());
+    expect(document.querySelector('.cm-moss-table-menu')).not.toBeNull();
+
+    const insertAbove = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.cm-moss-table-menu-item'),
+    ).find((button) => button.textContent === 'Insert row above');
+    expect(insertAbove).not.toBeNull();
+    expect(insertAbove?.querySelector('svg')).not.toBeNull();
+    act(() => insertAbove?.click());
+
+    expect(handleRef.current?.getMarkdown()).toBe(
+      '| A | B |\n| --- | --- |\n|  |  |\n| 1 | 2 |',
+    );
+  });
+
   it('does not partially highlight a triple-equals span', () => {
     const { host } = mount(
       <MossMD markdownSource={'This is ===not highlighted===.'} />,

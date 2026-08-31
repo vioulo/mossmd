@@ -5,7 +5,10 @@ export type {
 } from './editor';
 
 export { mossInlinePreview } from './core/inline-preview';
-export type { MossInlinePreviewConfig } from './core/inline-preview';
+export type {
+  MossInlinePreviewConfig,
+  MossTaskCheckboxStatus,
+} from './core/inline-preview';
 export { mossHighlightMarkdown } from './syntax/highlight';
 export { mossTheme, mossSyntax } from './theme';
 export {

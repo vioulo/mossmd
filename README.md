@@ -201,6 +201,25 @@ export const calloutSyntax = defineMossSyntax({
 
 独立成行的文件链接会渲染为文件块并始终隐藏源码。编辑模式下文件块提供下载和删除操作；只读模式下仅提供下载操作。
 
+任务列表支持扩展状态，例如 `- [/] In Progress`、`- [!] Important` 和
+`- [\\*] Star`。内置状态会直接渲染为对应图标；也可以通过
+`inlinePreviewConfig.taskCheckboxes` 覆盖图标、名称、是否填充，或增加自定义状态：
+
+```tsx
+import { CircleAlert } from 'lucide-react';
+
+<MossMD
+  markdownSource={'- [!] Important'}
+  inlinePreviewConfig={{
+    taskCheckboxes: {
+      '!': { icon: CircleAlert, label: 'Important' },
+    },
+  }}
+/>
+```
+
+标准 `[ ]`/`[x]` 会互相切换；自定义状态使用状态字符和带 `-` 前缀的状态字符表示填充态与空白态，例如 `[A]` 和 `[-A]`。用户也可以通过 `toggleTo` 自定义两个状态之间的切换。
+
 ## 底层组合
 
 如果你不想使用完整的 React 包装，可以直接把各个模块拼起来：

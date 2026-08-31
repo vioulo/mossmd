@@ -1416,12 +1416,12 @@
 }
 
 /* GFM task-list checkbox widget — replaces `[ ]` / `[x]` in a task
- * item. Styled as a small custom square rather than the platform's
- * native checkbox so it reads closer to Obsidian across browsers.
+ * item. Styled as a small custom circle rather than the platform's
+ * native checkbox so it reads consistently across browsers.
  * Width+margin still total 1.2em to match ALCOVE_EM in
  * inline-preview.ts. The trailing space after `[ ]` in the source is
  * swallowed by the replace decoration. */
-.cm-moss-task-checkbox {
+input.cm-moss-task-checkbox {
   width: 1.05em;
   height: 1.05em;
   margin: 0 0.31em 0 -0.16em;
@@ -1430,17 +1430,18 @@
   appearance: none;
   -webkit-appearance: none;
   box-sizing: border-box;
-  border: 1.5px solid var(--moss-fg-muted, #888);
-  border-radius: 0.22em;
+  border: 1px solid var(--moss-fg-muted, #888);
+  border-radius: 50%;
   background: transparent;
   cursor: pointer;
   position: relative;
   display: inline-grid;
   place-content: center;
   transform: translateY(-0.04em);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
-.cm-moss-task-checkbox::after {
+input.cm-moss-task-checkbox::after {
   content: "";
   width: 0.26em;
   height: 0.5em;
@@ -1450,16 +1451,22 @@
   opacity: 0;
 }
 
-.cm-moss-task-checkbox:checked {
+input.cm-moss-task-checkbox:checked {
   background: var(--moss-accent, #7c3aed);
   border-color: var(--moss-accent, #7c3aed);
 }
 
-.cm-moss-task-checkbox:checked::after {
+input.cm-moss-task-checkbox:checked::after {
   opacity: 1;
 }
 
-.cm-moss-task-checkbox:focus-visible {
+input.cm-moss-task-checkbox:hover,
+.cm-moss-task-status:hover {
+  border-color: var(--moss-accent-bright, var(--moss-accent, #7c3aed));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--moss-accent, #7c3aed) 16%, transparent 84%);
+}
+
+input.cm-moss-task-checkbox:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--moss-accent, #7c3aed) 28%, transparent 72%);
 }
@@ -1467,11 +1474,55 @@
 /* Forced-colors mode removes box shadows, so retain a visible keyboard
  * focus indicator using system colors instead. */
 @media (forced-colors: active) {
-  .cm-moss-task-checkbox:focus-visible {
+  input.cm-moss-task-checkbox:focus-visible {
     outline: 2px solid Highlight;
     outline-offset: 2px;
     box-shadow: none;
   }
+}
+
+/* Custom task statuses use their assigned Lucide icon in the same marker
+ * alcove. A button keeps the status keyboard and pointer accessible without
+ * pretending that every state is a binary checkbox. */
+.cm-moss-task-status {
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0 0.31em 0 -0.16em;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-sizing: border-box;
+  color: var(--moss-fg-muted, #888);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1em;
+  line-height: 1;
+  vertical-align: -0.08em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  place-content: center;
+  border-radius: 50%;
+  transition: color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.cm-moss-task-status-empty {
+  border: 1px solid var(--moss-fg-muted, #888);
+}
+
+.cm-moss-task-status svg {
+  width: 1em;
+  height: 1em;
+  stroke-width: 2.5;
+}
+
+.cm-moss-task-status:hover {
+  color: var(--moss-accent-bright, var(--moss-accent, #7c3aed));
+}
+
+.cm-moss-task-status:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--moss-accent, #7c3aed) 42%, transparent 58%);
+  outline-offset: 2px;
 }
 
 /* Whole-line strike for completed task items. */

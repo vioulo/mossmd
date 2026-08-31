@@ -3,6 +3,7 @@ import type { SyntaxNode } from '@lezer/common';
 import {
   Annotation,
   EditorSelection,
+  Facet,
   Prec,
   StateEffect,
   StateField,
@@ -20,7 +21,30 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
-import { Check, Copy } from 'lucide-react';
+import {
+  BadgeDollarSign,
+  Bookmark,
+  CalendarCheck,
+  Check,
+  Circle,
+  CircleAlert,
+  CircleQuestionMark,
+  Copy,
+  Info,
+  Lightbulb,
+  LoaderCircle,
+  MapPin,
+  Minus,
+  Quote,
+  Square,
+  Star,
+  StickyNote,
+  ThumbsDown,
+  ThumbsUp,
+  TrendingDown,
+  TrendingUp,
+  type LucideIcon,
+} from 'lucide-react';
 import { treeGrowthEffect, treeProgressPlugin } from './tree-progress';
 import { readOnlyFacet } from './read-only';
 import { lucideSvg } from './icons';
@@ -51,6 +75,20 @@ export interface InlinePreviewConfig {
    * mechanism.
    */
   onLinkClick?: (url: string) => void;
+  /**
+   * Maps the status inside a task marker to its rendered icon and label.
+   * The built-in statuses can be overridden, and additional statuses can be
+   * added by consumers.
+   */
+  taskCheckboxes?: Partial<Record<string, MossTaskCheckboxStatus>>;
+}
+
+export interface MossTaskCheckboxStatus {
+  icon?: LucideIcon;
+  label?: string;
+  completed?: boolean;
+  filled?: boolean;
+  toggleTo?: string;
 }
 
 export type MossInlinePreviewConfig = InlinePreviewConfig;
@@ -65,6 +103,163 @@ export function defaultOnLinkClick(url: string): void {
 }
 
 const FREEZE_TAIL_MS = 100;
+
+interface ResolvedTaskCheckboxStatus {
+  icon: LucideIcon;
+  label: string;
+  completed: boolean;
+  filled: boolean;
+  toggleTo: string | null;
+}
+
+const DEFAULT_TASK_CHECKBOXES: Record<string, ResolvedTaskCheckboxStatus> = {
+  ' ': { icon: Square, label: 'To Do', completed: false, filled: false, toggleTo: 'x' },
+  '/': { icon: LoaderCircle, label: 'In Progress', completed: false, filled: false, toggleTo: null },
+  x: { icon: Check, label: 'Done', completed: true, filled: false, toggleTo: ' ' },
+  '-': { icon: Minus, label: 'Cancelled', completed: false, filled: false, toggleTo: null },
+  '<': { icon: CalendarCheck, label: 'Scheduled', completed: false, filled: false, toggleTo: null },
+  '!': { icon: CircleAlert, label: 'Important', completed: false, filled: false, toggleTo: null },
+  '?': { icon: CircleQuestionMark, label: 'Question', completed: false, filled: false, toggleTo: null },
+  i: { icon: Info, label: 'Information', completed: false, filled: false, toggleTo: null },
+  S: { icon: BadgeDollarSign, label: 'Amount', completed: false, filled: false, toggleTo: null },
+  '*': { icon: Star, label: 'Star', completed: false, filled: true, toggleTo: null },
+  b: { icon: Bookmark, label: 'Bookmark', completed: false, filled: true, toggleTo: null },
+  '"': { icon: Quote, label: 'Quote', completed: false, filled: false, toggleTo: null },
+  n: { icon: StickyNote, label: 'Note', completed: false, filled: false, toggleTo: null },
+  l: { icon: MapPin, label: 'Location', completed: false, filled: false, toggleTo: null },
+  I: { icon: Lightbulb, label: 'Idea', completed: false, filled: false, toggleTo: null },
+  p: { icon: ThumbsUp, label: 'Pro', completed: false, filled: false, toggleTo: null },
+  c: { icon: ThumbsDown, label: 'Con', completed: false, filled: false, toggleTo: null },
+  u: { icon: TrendingUp, label: 'Up', completed: false, filled: false, toggleTo: null },
+  d: { icon: TrendingDown, label: 'Down', completed: false, filled: false, toggleTo: null },
+};
+
+const taskCheckboxConfigFacet = Facet.define<
+  Partial<Record<string, MossTaskCheckboxStatus>>,
+  Partial<Record<string, MossTaskCheckboxStatus>>
+>({
+  combine: (values) => values[0] ?? {},
+});
+
+function normalizeTaskStatusKey(raw: string): string | null {
+  if (raw === '\\*' || raw === '*') return '*';
+  if (raw === 'X' || raw === 'x') return 'x';
+  if (raw.length === 1 || (raw.length === 2 && raw.startsWith('-'))) {
+    return raw;
+  }
+  return null;
+}
+
+function resolveTaskCheckboxStatus(
+  key: string,
+  config: Partial<Record<string, MossTaskCheckboxStatus>>,
+): ResolvedTaskCheckboxStatus | null {
+  const emptyVariant = key.startsWith('-') && key.length > 1;
+  const baseKey = emptyVariant ? key.slice(1) : key;
+  const defaults = DEFAULT_TASK_CHECKBOXES[key] ?? DEFAULT_TASK_CHECKBOXES[baseKey];
+  const override = config[key];
+  const baseOverride = emptyVariant ? config[baseKey] : undefined;
+  if (!defaults && !override && !baseOverride) return null;
+  const fallbackToggleTo =
+    key === ' ' ? 'x' : key === 'x' ? ' ' : emptyVariant ? baseKey : `-${key}`;
+  const toggleTo =
+    override?.toggleTo ??
+    (emptyVariant
+      ? baseOverride?.toggleTo ?? fallbackToggleTo
+      : defaults?.toggleTo ?? fallbackToggleTo);
+  return {
+    icon:
+      override?.icon ??
+      (emptyVariant ? Circle : undefined) ??
+      defaults?.icon ??
+      baseOverride?.icon ??
+      Circle,
+    label:
+      override?.label ??
+      baseOverride?.label ??
+      defaults?.label ??
+      `Task: ${baseKey}`,
+    completed: emptyVariant
+      ? false
+      : override?.completed ?? defaults?.completed ?? false,
+    filled: emptyVariant
+      ? false
+      : override?.filled ?? defaults?.filled ?? false,
+    toggleTo,
+  };
+}
+
+function shouldUseNativeTaskCheckbox(
+  key: string,
+  config: Partial<Record<string, MossTaskCheckboxStatus>>,
+): boolean {
+  return (key === ' ' || key === 'x') && config[key]?.icon == null;
+}
+
+interface ParsedTaskMarker {
+  key: string;
+  raw: string;
+  markerFrom: number;
+  markerTo: number;
+  listFrom: number;
+  separator: string;
+  status: ResolvedTaskCheckboxStatus;
+}
+
+function parseTaskMarker(
+  lineText: string,
+  markerFrom: number,
+  listFrom: number,
+  config: Partial<Record<string, MossTaskCheckboxStatus>>,
+): ParsedTaskMarker | null {
+  const match = lineText.slice(markerFrom).match(/^\[([^\]]+)\]/);
+  if (!match) return null;
+  const key = normalizeTaskStatusKey(match[1]);
+  if (key == null) return null;
+  const markerTo = markerFrom + match[0].length;
+  const separator = lineText.slice(markerTo).match(/^\s/)?.[0] ?? '';
+  if (markerTo < lineText.length && separator === '') return null;
+  const status = resolveTaskCheckboxStatus(key, config);
+  if (!status) return null;
+  return {
+    key,
+    raw: match[0],
+    markerFrom,
+    markerTo,
+    listFrom,
+    separator,
+    status,
+  };
+}
+
+function parseListTaskMarker(
+  lineText: string,
+  config: Partial<Record<string, MossTaskCheckboxStatus>>,
+): ParsedTaskMarker | null {
+  const listMatch = lineText.match(/^(\s*)([-*+])(\s+)/);
+  if (!listMatch) return null;
+  const [, indent] = listMatch;
+  const markerFrom = listMatch[0].length;
+  return parseTaskMarker(lineText, markerFrom, indent.length, config);
+}
+
+function shouldRevealTaskSource(
+  view: EditorView,
+  lineFrom: number,
+  taskInfo: ParsedTaskMarker,
+): boolean {
+  if (!view.hasFocus || view.state.facet(readOnlyFacet)) return false;
+  const from = lineFrom + taskInfo.listFrom;
+  const to = lineFrom + taskInfo.markerTo;
+  for (const range of view.state.selection.ranges) {
+    if (range.empty) {
+      if (range.head >= from && range.head <= to) return true;
+    } else if (range.from <= to && range.to >= from) {
+      return true;
+    }
+  }
+  return false;
+}
 
 // freeze plumbing
 
@@ -388,15 +583,53 @@ class CodeCopyWidget extends WidgetType {
 }
 
 class TaskCheckboxWidget extends WidgetType {
-  constructor(readonly checked: boolean) {
+  constructor(
+    readonly key: string,
+    readonly raw: string,
+    readonly status: ResolvedTaskCheckboxStatus,
+    readonly markerFrom: number,
+    readonly native = key === ' ' || key === 'x',
+  ) {
     super();
   }
 
   eq(other: TaskCheckboxWidget): boolean {
-    return other.checked === this.checked;
+    return (
+      other.key === this.key &&
+      other.raw === this.raw &&
+      other.status.icon === this.status.icon &&
+      other.status.label === this.status.label &&
+      other.status.completed === this.status.completed &&
+      other.status.filled === this.status.filled &&
+      other.markerFrom === this.markerFrom &&
+      other.native === this.native
+    );
   }
 
   toDOM(view: EditorView): HTMLElement {
+    if (!this.native) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className =
+        `cm-moss-list-marker cm-moss-unordered-marker cm-moss-task-status${
+          this.key.startsWith('-') ? ' cm-moss-task-status-empty' : ''
+        }`;
+      button.setAttribute('contenteditable', 'false');
+      button.setAttribute('aria-label', this.status.label);
+      button.title = this.status.label;
+      button.dataset.status = this.key;
+      if (this.status.icon !== Circle) {
+        button.innerHTML = lucideSvg(this.status.icon, {
+          size: 17,
+          strokeWidth: 2.5,
+          fill: this.status.filled ? 'currentColor' : 'none',
+          'aria-hidden': 'true',
+        });
+      }
+      this.bindToggle(button, view);
+      return button;
+    }
+
     // The `.cm-moss-list-marker` class provides the uniform
     // inline-block alcove shared by bullets, checkboxes, and
     // ordered numbers. We apply it directly to the `<input>` so
@@ -405,25 +638,43 @@ class TaskCheckboxWidget extends WidgetType {
     // input by its class).
     const input = document.createElement('input');
     input.type = 'checkbox';
-    input.checked = this.checked;
+    input.checked = this.status.completed;
     input.className =
       'cm-moss-list-marker cm-moss-unordered-marker cm-moss-task-checkbox';
     input.setAttribute('contenteditable', 'false');
-    input.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    });
-    input.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const pos = view.posAtDOM(input);
-      if (pos < 0) return;
-      const current = view.state.doc.sliceString(pos, pos + 3);
-      const next = /\[x\]/i.test(current) ? '[ ]' : '[x]';
-      if (current === next) return;
-      view.dispatch({ changes: { from: pos, to: pos + 3, insert: next } });
-    });
+    input.setAttribute('aria-label', this.status.label);
+    input.title = this.status.label;
+    input.dataset.status = this.key;
+    this.bindToggle(input, view);
     return input;
+  }
+
+  private bindToggle(element: HTMLElement, view: EditorView): void {
+    element.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    element.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const current = view.state.doc.sliceString(
+        this.markerFrom,
+        this.markerFrom + this.raw.length,
+      );
+      if (current !== this.raw) return;
+
+      const config = view.state.facet(taskCheckboxConfigFacet);
+      const nextKey = this.status.toggleTo;
+      if (!nextKey || !resolveTaskCheckboxStatus(nextKey, config)) return;
+      const nextRaw = `[${nextKey}]`;
+      view.dispatch({
+        changes: {
+          from: this.markerFrom,
+          to: this.markerFrom + this.raw.length,
+          insert: nextRaw,
+        },
+      });
+    });
   }
 
   ignoreEvent(event: Event): boolean {
@@ -534,6 +785,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   // tree reaches the target.
   const tree =
     ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
+  const taskConfig = state.facet(taskCheckboxConfigFacet);
 
   // `from` positions of Link nodes whose range overlaps a selection.
   // Link children (LinkMark/URL/LinkTitle) hide unless their parent
@@ -558,6 +810,22 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   // its cost scales with document size.)
   tree.iterate({
     enter: (node) => {
+      // GFM parses custom task markers such as `[!]` and `[/]` as
+      // shortcut links. They are task UI, not links: skip the synthetic
+      // Link node so it cannot add a link icon or hide its source using
+      // link-scoped reveal rules.
+      if (node.name === 'Link') {
+        const line = doc.lineAt(node.from);
+        const taskInfo = parseListTaskMarker(line.text, taskConfig);
+        if (
+          taskInfo &&
+          !isLineInsideMarkdownCode(state, line.number) &&
+          node.from === line.from + taskInfo.markerFrom &&
+          node.to === line.from + taskInfo.markerTo
+        ) {
+          return false;
+        }
+      }
       if (node.name === 'FencedCode') {
         const firstLine = doc.lineAt(node.from).number;
         const lastLine = doc.lineAt(node.to).number;
@@ -705,14 +973,15 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         // punctuation as prose until the user types the separator space.
         if (orderedMarker && !hasListSeparator) return;
 
-        // Detect a task item from the line text. ListMark is visited
-        // before the TaskMarker on its line, so a forward single-pass
-        // walk can't look the marker position up from a map; the
-        // capture group is the `- ` lead-in and its length lands
-        // taskFrom exactly on the `[` (matching TaskMarker.from).
-        const taskLead = line.text.match(/^(\s*[-*+]\s+)\[[ xX]\]/);
-        const taskFrom =
-          taskLead != null ? line.from + taskLead[1].length : undefined;
+        // Detect task status from the raw line because the Markdown parser
+        // only knows the standard `[ ]` / `[x]` pair. This also lets the
+        // widget replace custom statuses before their source reaches the
+        // normal inline decoration pass.
+        const taskInfo = parseListTaskMarker(line.text, taskConfig);
+        const standardTask =
+          taskInfo != null && (taskInfo.key === ' ' || taskInfo.key === 'x');
+        const revealTaskSource =
+          taskInfo != null && shouldRevealTaskSource(view, line.from, taskInfo);
 
         // Hanging-indent every physical line owned by this list item.
         // Ownership and depth come from the parsed tree, not raw source
@@ -777,7 +1046,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
 
         if (
           lineActive &&
-          (taskFrom !== undefined ||
+          (revealTaskSource ||
             markText === '-' ||
             markText === '*' ||
             markText === '+' ||
@@ -798,9 +1067,10 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         }
 
         // Figure out how far past node.to the mark's trailing
-        // space lives. For tasks, CM6 pre-computed taskFrom as
-        // the start of the `[ ]`; the `- ` span runs from
-        // node.from to taskFrom, which already covers the space.
+        // space lives. For standard tasks, the `- ` span runs from
+        // node.from to the task marker, which is handled by the
+        // TaskMarker node below. Custom statuses are handled here
+        // because they are not represented by a parser TaskMarker.
         // For bullets / ordered, include a single trailing space
         // if present so text flows from padding-left without a
         // spurious leading space.
@@ -808,9 +1078,26 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
           doc.sliceString(node.to, node.to + 1) === ' ';
         const markEnd = hasTrailingSpace ? node.to + 1 : node.to;
 
-        if (taskFrom !== undefined) {
+        if (taskInfo != null && !standardTask) {
+          const replaceTo =
+            line.from + taskInfo.markerTo + taskInfo.separator.length;
+          pushReplace(ranges, doc, node.from, replaceTo, {
+            widget: new TaskCheckboxWidget(
+              taskInfo.key,
+              taskInfo.raw,
+              taskInfo.status,
+              line.from + taskInfo.markerFrom,
+              false,
+            ),
+          });
+          if (taskInfo.status.completed) {
+            ranges.push(
+              Decoration.line({ class: 'cm-moss-task-done' }).range(line.from),
+            );
+          }
+        } else if (taskInfo != null) {
           // Hide `- ` (ListMark through the space before `[`).
-          pushReplace(ranges, doc, node.from, taskFrom);
+          pushReplace(ranges, doc, node.from, line.from + taskInfo.markerFrom);
         } else {
           if (markText === '-' || markText === '*' || markText === '+') {
             // Bullet: substitute with the fixed-width marker
@@ -878,10 +1165,11 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       }
 
       if (node.name === 'TaskMarker' && node.from < node.to) {
-        const markText = doc.sliceString(node.from, node.to);
-        const checked = /\[x\]/i.test(markText);
         const lineNum = doc.lineAt(node.from).number;
-        if (activeLines.has(lineNum)) return;
+        const line = doc.line(lineNum);
+        const taskInfo = parseListTaskMarker(line.text, taskConfig);
+        if (!taskInfo) return;
+        if (shouldRevealTaskSource(view, line.from, taskInfo)) return;
         // Swallow the single trailing space after `[ ]` / `[x]` so the
         // checkbox widget owns the alcove exactly (mirrors how bullet
         // markers also swallow their trailing space). Without this the
@@ -892,10 +1180,15 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
           doc.sliceString(node.to, node.to + 1) === ' ';
         const replaceTo = hasTrailingSpace ? node.to + 1 : node.to;
         pushReplace(ranges, doc, node.from, replaceTo, {
-          widget: new TaskCheckboxWidget(checked),
+          widget: new TaskCheckboxWidget(
+            taskInfo.key,
+            taskInfo.raw,
+            taskInfo.status,
+            node.from,
+            shouldUseNativeTaskCheckbox(taskInfo.key, taskConfig),
+          ),
         });
-        if (checked) {
-          const line = doc.line(lineNum);
+        if (taskInfo.status.completed) {
           ranges.push(
             Decoration.line({ class: 'cm-moss-task-done' }).range(line.from),
           );
@@ -1239,7 +1532,8 @@ function parseListLine(lineText: string, lineFrom: number): ListLinePrefix | nul
   const [, indent, marker] = match;
   const orderedMatch = marker.match(/^(\d{1,9})([.)])$/);
   const rest = lineText.slice(match[0].length);
-  const taskMatch = rest.match(/^(\[[ xX]\]\s*)/);
+  const taskMatch = rest.match(/^\[(\\\*|-[^\]]|[^\]])\](\s*)/);
+  const taskPrefix = taskMatch?.[0] ?? null;
 
   return {
     indent,
@@ -1249,8 +1543,8 @@ function parseListLine(lineText: string, lineFrom: number): ListLinePrefix | nul
     ordered: orderedMatch != null,
     number: orderedMatch ? Number.parseInt(orderedMatch[1], 10) : null,
     delimiter: orderedMatch ? (orderedMatch[2] as '.' | ')') : null,
-    taskPrefix: taskMatch?.[0] ?? null,
-    content: rest.slice(taskMatch?.[0].length ?? 0),
+    taskPrefix,
+    content: rest.slice(taskPrefix?.length ?? 0),
   };
 }
 
@@ -1765,6 +2059,7 @@ function makeLinkClickHandler(onLinkClick: (url: string) => void): Extension {
 export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
   const { onLinkClick = defaultOnLinkClick } = config;
   return [
+    taskCheckboxConfigFacet.of(config.taskCheckboxes ?? {}),
     previewFrozenField,
     inlinePreviewPlugin,
     fencedCodeSelectionPlugin,

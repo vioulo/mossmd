@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { acceptCompletion, setSelectedCompletion } from '@codemirror/autocomplete';
 import { Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { Star } from 'lucide-react';
 import {
   MossMD,
   type MossMDHandle,
@@ -43,6 +44,115 @@ describe('MossMD', () => {
 
     expect(handleRef.current).not.toBeNull();
     expect(handleRef.current?.getMarkdown()).toBe('# Hello\n\nWorld.');
+  });
+
+  it('renders custom task statuses as icons and toggles configured pairs', () => {
+    const markdown = [
+      '- [ ] To Do',
+      '- [/] In Progress',
+      '- [!] Important',
+      '- [*] Star',
+      '- [x] Done',
+      '- [A] Active',
+      '- [-A] Active (empty)',
+      '```md',
+      '- [!] Code content',
+      '```',
+    ].join('\n');
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
+    };
+    const { host } = mount(
+      <MossMD
+        markdownSource={markdown}
+        editorHandleRef={handleRef}
+        inlinePreviewConfig={{
+          taskCheckboxes: {
+            '!': { icon: Star, label: 'Priority' },
+            A: { icon: Star, label: 'Active', filled: true },
+          },
+        }}
+      />,
+    );
+
+    const statuses = host.querySelectorAll<HTMLButtonElement>(
+      '.cm-moss-task-status',
+    );
+    expect(statuses).toHaveLength(5);
+    expect(statuses[0]?.dataset.status).toBe('/');
+    expect(statuses[0]?.querySelector('svg')).not.toBeNull();
+    expect(statuses[1]?.getAttribute('aria-label')).toBe('Priority');
+    expect(statuses[2]?.dataset.status).toBe('*');
+    expect(statuses[2]?.querySelector('svg')?.getAttribute('fill')).toBe(
+      'currentColor',
+    );
+    expect(statuses[3]?.dataset.status).toBe('A');
+    expect(statuses[4]?.dataset.status).toBe('-A');
+    expect(statuses[3]?.querySelector('svg')?.getAttribute('fill')).toBe(
+      'currentColor',
+    );
+    expect(statuses[4]?.classList.contains('cm-moss-task-status-empty')).toBe(
+      true,
+    );
+    expect(statuses[4]?.querySelector('svg')).toBeNull();
+    expect(host.querySelectorAll('.cm-moss-link')).toHaveLength(0);
+    expect(host.querySelectorAll('input.cm-moss-task-checkbox')).toHaveLength(2);
+
+    act(() => {
+      statuses[1]?.click();
+    });
+    expect(handleRef.current?.getMarkdown()).toContain('- [-!] Important');
+
+    act(() => {
+      Array.from(
+        host.querySelectorAll<HTMLButtonElement>('.cm-moss-task-status'),
+      )
+        .find((button) => button.dataset.status === 'A')
+        ?.click();
+    });
+    expect(handleRef.current?.getMarkdown()).toContain('- [-A] Active');
+
+    act(() => {
+      Array.from(
+        host.querySelectorAll<HTMLButtonElement>('.cm-moss-task-status'),
+      )
+        .find((button) => button.dataset.status === '-A')
+        ?.click();
+    });
+    expect(handleRef.current?.getMarkdown()).toContain('- [A] Active');
+    expect(handleRef.current?.getMarkdown()).toContain('- [!] Code content');
+  });
+
+  it('reveals a task marker only when the cursor is beside its structure', () => {
+    const markdown = '- [x] First task\n- [ ] Second task';
+    const { host } = mount(<MossMD markdownSource={markdown} />);
+    const editor = host.querySelector<HTMLElement>('.cm-editor');
+    const view = editor ? EditorView.findFromDOM(editor) : null;
+    expect(view).not.toBeNull();
+    expect(host.querySelectorAll('input.cm-moss-task-checkbox')).toHaveLength(2);
+    expect(host.querySelector('.cm-content')?.textContent).not.toContain('[x]');
+
+    act(() => {
+      view!.focus();
+      view!.dispatch({ selection: { anchor: markdown.indexOf('First') } });
+    });
+    expect(host.querySelectorAll('input.cm-moss-task-checkbox')).toHaveLength(2);
+    expect(host.querySelector('.cm-content')?.textContent).not.toContain('[x]');
+
+    act(() => {
+      const markerFrom = markdown.indexOf('[x]');
+      view!.dispatch({ selection: { anchor: markerFrom + 3 } });
+    });
+    expect(host.querySelector('.cm-content')?.textContent).toContain(
+      '- [x] First task',
+    );
+    expect(host.querySelectorAll('input.cm-moss-task-checkbox')).toHaveLength(1);
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: markdown.indexOf('First') } });
+    });
+    expect(host.querySelectorAll('input.cm-moss-task-checkbox')).toHaveLength(2);
+    expect(host.querySelector('.cm-content')?.textContent).not.toContain('[x]');
   });
 
   it('edits image metadata from the floating image editor', () => {

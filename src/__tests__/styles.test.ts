@@ -70,5 +70,9 @@ describe('content styles', () => {
     );
     expect(editorStyles).toContain('.cm-moss-table-menu-item-icon');
     expect(editorStyles).toContain('.cm-moss-table-menu-item.is-destructive');
+    expect(editorStyles).toContain('input.cm-moss-task-checkbox');
+    expect(editorStyles).toContain('border-radius: 50%;');
+    expect(editorStyles).toContain('.cm-moss-task-status-empty');
+    expect(editorStyles).toContain('box-shadow: 0 0 0 3px');
   });
 });

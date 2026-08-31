@@ -410,11 +410,27 @@ export function generateSampleMarkdown(
   // something and feel the editor respond.
   if (includeLists) {
     sections.push(
-      'Task lists are real checkboxes — click any of them to toggle. Pressing Enter on a task continues the list; Enter on an empty item dedents.',
+      'Task lists support custom status icons. A custom marker and its `-` prefixed form represent filled and empty states; pressing Enter on a task continues the list; Enter on an empty item dedents.',
       [
-        '- [ ] Click me to toggle',
-        '- [x] This one is already done',
-        '- [ ] Tap at the end of this line and press Enter to continue the list',
+        '- [ ] To Do',
+        '- [/] In Progress',
+        '- [x] Done',
+        '- [-] Cancelled',
+        '- [<] Scheduled',
+        '- [!] Important',
+        '- [?] Question',
+        '- [i] Information',
+        '- [S] Amount',
+        '- [*] Star',
+        '- [b] Bookmark',
+        '- ["] Quote',
+        '- [n] Note',
+        '- [l] Location',
+        '- [I] Idea',
+        '- [p] Pro',
+        '- [c] Con',
+        '- [u] Up',
+        '- [d] Down',
       ].join('\n'),
     );
   }

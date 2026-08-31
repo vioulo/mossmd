@@ -1172,8 +1172,9 @@
  * as a non-block widget at line.from when the cursor sits on an empty
  * line. It is visually pulled into the left gutter without adding a row.
  *
- * The autocomplete popup is themed by `.cm-tooltip` in the editor
- * theme; we only add small per-item layout tweaks here.
+ * The autocomplete popup keeps the editor's panel tokens but gets its own
+ * compact menu geometry: content-sized width, comfortable hit rows, and a
+ * little more separation from the document below it.
  * ------------------------------------------------------------------- */
 .moss-cm-editor .cm-line {
   position: relative;
@@ -1221,20 +1222,64 @@
   outline: none;
 }
 
-.cm-tooltip-autocomplete {
+.moss-cm-editor .cm-tooltip.cm-tooltip-autocomplete {
+  box-sizing: border-box;
+  width: min(11rem, calc(100vw - 1rem));
+  min-width: 0;
+  max-width: min(16rem, calc(100vw - 1rem));
   font-family: var(--moss-font, system-ui, sans-serif);
   font-size: 0.875rem;
-  padding: 4px;
+  padding: 0.3rem;
+  border-radius: var(--moss-radius, 6px);
+  box-shadow: 0 0.7rem 1.8rem rgba(0, 0, 0, 0.28);
+}
+
+.moss-cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul {
+  min-width: 0;
+  width: 100%;
+  max-height: min(22rem, 46vh);
+  margin: 0;
+  padding: 0;
+}
+
+.moss-cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.1rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.35rem;
+  line-height: 1.25;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.moss-cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li:hover {
+  background: color-mix(
+    in srgb,
+    var(--moss-accent, #7c3aed) 10%,
+    var(--moss-bg-surface, #2d2d2d) 90%
+  );
+  color: var(--moss-fg, #dcddde);
 }
 
 .cm-tooltip-autocomplete li[aria-selected] {
-  background: var(--moss-accent-bg, rgba(79, 172, 254, 0.14));
+  background: var(
+    --moss-accent-bg,
+    color-mix(in srgb, var(--moss-accent, #7c3aed) 16%, transparent)
+  );
   color: var(--moss-fg, #dcddde);
 }
 
 .cm-tooltip-autocomplete .cm-completionLabel {
-  display: inline-block;
-  min-width: 8em;
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* "icon + title" layout: drop the secondary detail text and render a
@@ -1257,9 +1302,10 @@
   width: 1.2em;
   min-width: 1.2em;
   height: 1.2em;
-  margin-right: 0.5em;
+  flex: 0 0 1.2em;
+  margin-right: 0;
   padding: 0;
-  vertical-align: text-bottom;
+  vertical-align: middle;
   display: inline-block;
   box-sizing: border-box;
   opacity: 1;

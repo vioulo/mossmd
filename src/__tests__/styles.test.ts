@@ -59,5 +59,10 @@ describe('content styles', () => {
     expect(editorStyles).toContain(
       '.moss-cm-editor.moss-cm-image-selection-active .cm-cursorLayer',
     );
+    expect(editorStyles).toContain(
+      '.moss-cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul {\n  min-width: 0;',
+    );
+    expect(editorStyles).toContain('width: min(11rem, calc(100vw - 1rem));');
+    expect(editorStyles).toContain('.cm-tooltip-autocomplete > ul > li:hover');
   });
 });

@@ -110,7 +110,7 @@ const DEMO_SNIPPET_COMMANDS: MossSlashCommand[] = [
   },
   {
     id: 'hr',
-    label: 'Horizontal rule',
+    label: 'Horizontal',
     detail: '--- solid / *** wavy / ___ glyph',
     keywords: ['divider', 'rule', 'separator'],
     icon: 'rule',

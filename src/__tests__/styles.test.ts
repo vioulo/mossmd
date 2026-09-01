@@ -37,6 +37,16 @@ describe('content styles', () => {
     );
   });
 
+  it('keeps blank editor lines aligned with their line boxes', () => {
+    const themeSource = readFileSync(
+      resolve(process.cwd(), 'src/theme/index.ts'),
+      'utf8',
+    );
+
+    expect(themeSource).toContain("lineHeight: 'var(--moss-body-leading, 1.7)'");
+    expect(themeSource).toContain("minHeight: '1lh'");
+  });
+
   it('uses the source separator space only once on active list lines', () => {
     const editorStyles = readFileSync(
       resolve(process.cwd(), 'src/styles/inline-preview.css'),

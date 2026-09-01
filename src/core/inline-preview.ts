@@ -1046,11 +1046,16 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
 
         if (
           lineActive &&
-          (revealTaskSource ||
-            markText === '-' ||
+          (markText === '-' ||
             markText === '*' ||
             markText === '+' ||
-            orderedMarker)
+            orderedMarker) &&
+          // Task markers are rendered by the task-specific branches below.
+          // Only keep the raw list marker when the task source is actually
+          // being revealed; otherwise replacing just TaskMarker would leave
+          // the default `- ` visible while custom statuses replace the full
+          // list prefix and marker together.
+          (taskInfo == null || revealTaskSource)
         ) {
           ranges.push(
             Decoration.mark({
@@ -1079,9 +1084,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         const markEnd = hasTrailingSpace ? node.to + 1 : node.to;
 
         if (taskInfo != null && !standardTask) {
-          const replaceTo =
-            line.from + taskInfo.markerTo + taskInfo.separator.length;
-          pushReplace(ranges, doc, node.from, replaceTo, {
+          pushReplace(ranges, doc, node.from, line.from + taskInfo.markerTo, {
             widget: new TaskCheckboxWidget(
               taskInfo.key,
               taskInfo.raw,
@@ -1090,6 +1093,14 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
               false,
             ),
           });
+          if (taskInfo.separator.length > 0) {
+            pushReplace(
+              ranges,
+              doc,
+              line.from + taskInfo.markerTo,
+              line.from + taskInfo.markerTo + taskInfo.separator.length,
+            );
+          }
           if (taskInfo.status.completed) {
             ranges.push(
               Decoration.line({ class: 'cm-moss-task-done' }).range(line.from),
@@ -1170,16 +1181,17 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         const taskInfo = parseListTaskMarker(line.text, taskConfig);
         if (!taskInfo) return;
         if (shouldRevealTaskSource(view, line.from, taskInfo)) return;
-        // Swallow the single trailing space after `[ ]` / `[x]` so the
-        // checkbox widget owns the alcove exactly (mirrors how bullet
-        // markers also swallow their trailing space). Without this the
-        // space stays visible, pushing first-line content to the right
-        // of where wrapped lines start — visible as a 0.3em hang.
+        // Keep the marker and its separator as separate atomic ranges. If
+        // they are combined, ArrowLeft from the first body character skips
+        // to the start of the whole widget; after the source is revealed the
+        // caret then appears before `[x]` instead of after it. A separate
+        // hidden separator lets the caret stop at markerTo, which is the
+        // `- [x]| text` editing position, while preserving the fixed alcove
+        // width in preview mode.
         const hasTrailingSpace =
           node.to < doc.length &&
           doc.sliceString(node.to, node.to + 1) === ' ';
-        const replaceTo = hasTrailingSpace ? node.to + 1 : node.to;
-        pushReplace(ranges, doc, node.from, replaceTo, {
+        pushReplace(ranges, doc, node.from, node.to, {
           widget: new TaskCheckboxWidget(
             taskInfo.key,
             taskInfo.raw,
@@ -1188,6 +1200,9 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             shouldUseNativeTaskCheckbox(taskInfo.key, taskConfig),
           ),
         });
+        if (hasTrailingSpace) {
+          pushReplace(ranges, doc, node.to, node.to + 1);
+        }
         if (taskInfo.status.completed) {
           ranges.push(
             Decoration.line({ class: 'cm-moss-task-done' }).range(line.from),

@@ -98,6 +98,28 @@ describe('MossMD', () => {
     expect(host.querySelectorAll('.cm-moss-link')).toHaveLength(0);
     expect(host.querySelectorAll('input.cm-moss-task-checkbox')).toHaveLength(2);
 
+    const editor = host.querySelector<HTMLElement>('.cm-editor');
+    const view = editor ? EditorView.findFromDOM(editor) : null;
+    expect(view).not.toBeNull();
+    act(() => {
+      view!.focus();
+      view!.dispatch({ selection: { anchor: markdown.indexOf('Important') } });
+    });
+    expect(host.querySelectorAll('.cm-moss-task-status')).toHaveLength(5);
+    const importantLine = Array.from(
+      host.querySelectorAll<HTMLElement>('.cm-line'),
+    ).find((line) => line.textContent?.includes('Important'));
+    expect(importantLine?.textContent).not.toContain('[!]');
+
+    act(() => {
+      const markerFrom = markdown.indexOf('[!]');
+      view!.dispatch({ selection: { anchor: markerFrom + 3 } });
+    });
+    expect(host.querySelectorAll('.cm-moss-task-status')).toHaveLength(4);
+    expect(host.querySelector('.cm-content')?.textContent).toContain(
+      '- [!] Important',
+    );
+
     act(() => {
       statuses[1]?.click();
     });
@@ -138,10 +160,15 @@ describe('MossMD', () => {
     });
     expect(host.querySelectorAll('input.cm-moss-task-checkbox')).toHaveLength(2);
     expect(host.querySelector('.cm-content')?.textContent).not.toContain('[x]');
+    const firstTaskLine = Array.from(
+      host.querySelectorAll<HTMLElement>('.cm-line'),
+    ).find((line) => line.textContent?.includes('First task'));
+    expect(firstTaskLine?.textContent).not.toContain('- ');
 
     act(() => {
-      const markerFrom = markdown.indexOf('[x]');
-      view!.dispatch({ selection: { anchor: markerFrom + 3 } });
+      view!.dispatch({
+        selection: view!.moveByChar(view!.state.selection.main, false),
+      });
     });
     expect(host.querySelector('.cm-content')?.textContent).toContain(
       '- [x] First task',
@@ -149,10 +176,13 @@ describe('MossMD', () => {
     expect(host.querySelectorAll('input.cm-moss-task-checkbox')).toHaveLength(1);
 
     act(() => {
-      view!.dispatch({ selection: { anchor: markdown.indexOf('First') } });
+      view!.dispatch({
+        selection: view!.moveByChar(view!.state.selection.main, true),
+      });
     });
     expect(host.querySelectorAll('input.cm-moss-task-checkbox')).toHaveLength(2);
     expect(host.querySelector('.cm-content')?.textContent).not.toContain('[x]');
+    expect(firstTaskLine?.textContent).not.toContain('- ');
   });
 
   it('edits image metadata from the floating image editor', () => {

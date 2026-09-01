@@ -426,6 +426,25 @@ const HIDEABLE_SYNTAX = new Set([
 // on the line-based rule because images are a different UX surface.
 const LINK_CHILD_SYNTAX = new Set(['LinkMark', 'URL', 'LinkTitle']);
 
+function isWikiLinkNode(
+  node: { name: string; from: number; to: number },
+  doc: Text,
+): boolean {
+  // Wiki links are parsed by the Markdown grammar as ordinary Link nodes
+  // whose range starts at the second `[` and ends at the first `]`. Their
+  // feature decoration owns both brackets and the cursor-scoped reveal.
+  // Letting this generic link pass also makes hidden wiki syntax participate
+  // in the DOM position mapping twice, which can map a click in following
+  // prose to the previous link's `]|]` boundary.
+  return (
+    node.name === 'Link' &&
+    node.from > 0 &&
+    node.to < doc.length &&
+    doc.sliceString(node.from - 1, node.from + 1) === '[[' &&
+    doc.sliceString(node.to - 1, node.to + 1) === ']]'
+  );
+}
+
 const INLINE_MARK_CLASS: Record<string, string> = {
   StrongEmphasis: 'cm-moss-strong',
   Emphasis: 'cm-moss-em',
@@ -815,6 +834,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       // Link node so it cannot add a link icon or hide its source using
       // link-scoped reveal rules.
       if (node.name === 'Link') {
+        if (isWikiLinkNode(node, doc)) return false;
         const line = doc.lineAt(node.from);
         const taskInfo = parseListTaskMarker(line.text, taskConfig);
         if (

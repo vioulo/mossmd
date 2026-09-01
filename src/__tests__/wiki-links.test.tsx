@@ -76,8 +76,8 @@ describe('wikiLinks', () => {
     expect(link?.dataset.wikiLinkTarget).toBe('atom-123');
     expect(link?.textContent).toBe('Project Atlas');
 
-    const hiddenSyntax = host.querySelector('.cm-moss-wiki-link-hidden-syntax');
-    expect(hiddenSyntax?.textContent).toContain('atom-123');
+    expect(host.querySelector('.cm-moss-wiki-link-hidden-syntax')).toBeNull();
+    expect(host.textContent).not.toContain('atom-123');
   });
 
   it('leaves inline-code wiki-link text untouched', () => {
@@ -108,6 +108,35 @@ describe('wikiLinks', () => {
     expect(view.dom.querySelector('.cm-moss-wiki-link-active')?.textContent).toContain(
       'demo-meeting-notes',
     );
+  });
+
+  it('does not reveal a preceding wiki link from following prose', () => {
+    const doc =
+      'Labeled: [[demo-project-atlas|Project Atlas]] · Bare: [[demo-meeting-notes]] · In code: `[[demo-project-atlas]]`';
+    const { host } = mount(doc);
+    const editor = host.querySelector<HTMLElement>('.cm-editor');
+    const view = editor ? EditorView.findFromDOM(editor) : null;
+    expect(view).not.toBeNull();
+
+    const followingProsePositions = [
+      doc.indexOf('Bare'),
+      doc.indexOf('In code') + 'In c'.length,
+    ];
+
+    for (const anchor of followingProsePositions) {
+      act(() => {
+        view!.focus();
+        view!.dispatch({ selection: { anchor } });
+      });
+
+      expect(host.querySelectorAll('.cm-moss-wiki-link-active')).toHaveLength(0);
+      expect(host.querySelector('.cm-content')?.textContent).not.toContain(
+        'demo-project-atlas|Project Atlas',
+      );
+      expect(host.querySelector('.cm-content')?.textContent).toContain(
+        'In code: `[[demo-project-atlas]]`',
+      );
+    }
   });
 
   it('opens on plain click by default when an opener is configured', () => {

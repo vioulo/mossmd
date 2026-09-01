@@ -397,7 +397,11 @@ function buildDecorations(
     }
 
     if (link.label && link.labelFrom != null && link.labelTo != null && link.labelFrom < link.labelTo) {
-      builder.add(link.from, link.labelFrom, Decoration.mark({ class: 'cm-moss-wiki-link-hidden-syntax' }));
+      // Remove syntax from the DOM instead of shrinking it to zero-sized
+      // marked text. The latter leaves invisible text nodes in the browser's
+      // caret map, so clicking prose after a link can resolve to the previous
+      // link's closing `]|]` boundary and reveal the wrong source.
+      builder.add(link.from, link.labelFrom, Decoration.replace({}));
       builder.add(
         link.labelFrom,
         link.labelTo,
@@ -406,7 +410,7 @@ function buildDecorations(
           attributes: { 'data-wiki-link-target': link.target },
         }),
       );
-      builder.add(link.labelTo, link.to, Decoration.mark({ class: 'cm-moss-wiki-link-hidden-syntax' }));
+      builder.add(link.labelTo, link.to, Decoration.replace({}));
       continue;
     }
 
@@ -422,7 +426,7 @@ function buildDecorations(
         ? target.status ?? 'resolved'
         : 'missing';
 
-    builder.add(link.from, link.to, Decoration.mark({ class: 'cm-moss-wiki-link-hidden-syntax' }));
+    builder.add(link.from, link.to, Decoration.replace({}));
     builder.add(
       link.to,
       link.to,

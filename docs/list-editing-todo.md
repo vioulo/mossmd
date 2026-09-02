@@ -293,16 +293,16 @@ interface ListLineInfo {
 - [ ] 定义 `editorFocused`、`activeLines`、`nearInlineRanges`、`frozen` 四种独立状态。
 - [ ] 把标准链接和 Wiki 链接从 `activeLines` 规则中排除。
 - [ ] 统一标准链接与 Wiki 链接的范围相交、边界和相邻链接判定。
-- [ ] 让失焦、阅读模式和鼠标冻结在所有装饰模块中使用一致的生命周期。
+- [x] 让失焦、阅读模式和鼠标冻结在核心实时预览装饰中使用一致的生命周期。
 - [ ] 为标题、列表、链接、Wiki、图片和表格建立语法归属表测试。
 
 ### P2：统一列表源码模型
 
-- [ ] 将 `parseListLine()` 从 `inline-preview.ts` 移到独立的 `list-model.ts`。
-- [ ] 明确有序列表的合法条件：数字、`.` 或 `)`、至少一个空白分隔符。
+- [x] 将 `parseListLine()` 从 `inline-preview.ts` 移到独立的 `list-model.ts`。
+- [x] 明确有序列表的合法条件：数字、`.` 或 `)`、至少一个空白分隔符。
 - [ ] 明确空列表项、空行、引用、缩进和代码块的优先级。
-- [ ] 让 Enter、Tab、Shift-Tab、Backspace 和 renumber 共用模型。
-- [ ] 删除重复的列表正则和重复的编号推导逻辑。
+- [x] 让 Enter、Tab、Shift-Tab、Backspace 和 renumber 共用模型。
+- [x] 删除重复的列表正则和重复的编号推导逻辑。
 - [ ] 为 `1.`、`1) `、`1. `、缩进、引用、代码块建立表格化单元测试。
 
 ### P3：稳定列表装饰几何
@@ -341,7 +341,7 @@ interface ListLineInfo {
 - [ ] 测量列表装饰重建的耗时和触发范围。
 - [ ] 验证普通段落输入不会触发整篇列表装饰重建。
 - [ ] 验证大文档滚动不会因列表装饰产生额外刷新。
-- [ ] 为列表模块补充简短架构说明，说明源码位置与 DOM 位置的边界。
+- [x] 为列表模块补充简短架构说明，说明源码位置与 DOM 位置的边界。
 - [ ] 将列表相关 CSS 变量和布局常量集中命名，避免 TS/CSS 中出现隐含的重复数值。
 - [ ] 评估 `preview-activity.ts` 和 `decoration-policy.ts` 是否已消除跨 feature 的重复状态判断。
 

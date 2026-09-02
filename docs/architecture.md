@@ -40,9 +40,16 @@ src/
   editor.tsx
   core/
     code-languages.ts
+    decoration-utils.ts
     edit-helpers.ts
     icons.ts
     inline-preview.ts
+    list-editing.ts
+    list-model.ts
+    list-navigation.ts
+    markdown-context.ts
+    preview-activity.ts
+    preview-widgets.ts
     read-only.ts
     tree-progress.ts
   features/
@@ -84,13 +91,15 @@ src/
 
 ## 实时预览
 
-`inline-preview.ts` 是主装饰引擎，负责：
+`inline-preview.ts` 是主装饰协调层，负责：
 
 - 为标题、引用、代码块、任务列表等添加行类。
 - 为强调、行内代码、删除线、高亮、链接等添加内容标记。
 - 在非激活行隐藏 Markdown 语法令牌。
 - 把列表符号、任务复选框、水平线等渲染为更接近阅读状态的表现。
-- 处理鼠标冻结和紧凑列表 Enter 行为。
+- 遍历语法树并组装实时预览装饰。
+
+列表编辑和导航位于 `list-editing.ts`、`list-navigation.ts`，列表源码模型位于 `list-model.ts`；任务和代码块 Widget 位于 `preview-widgets.ts`，焦点与鼠标冻结位于 `preview-activity.ts`。详细边界见 [`inline-preview-architecture.md`](./inline-preview-architecture.md)。
 
 装饰构建会调用 `ensureSyntaxTree(state, state.doc.length, 200)`，尽量保证全文解析覆盖。若解析在首次构建时没有到达文末，`treeProgressPlugin` 会在解析树增长后触发补建。
 

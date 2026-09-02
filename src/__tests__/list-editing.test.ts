@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { EditorState, type Extension } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { EditorView, keymap } from '@codemirror/view';
+import { defaultKeymap } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import {
   dedentListItem,
@@ -30,7 +31,11 @@ function makeView(
     state: EditorState.create({
       doc,
       selection: { anchor: cursor },
-      extensions: [markdown({ base: markdownLanguage }), extensions],
+      extensions: [
+        markdown({ base: markdownLanguage }),
+        keymap.of(defaultKeymap),
+        extensions,
+      ],
     }),
   });
   views.push(view);
@@ -204,6 +209,15 @@ describe('active list-line preview', () => {
     expect(marker).not.toBeNull();
   });
 
+  it('keeps the ordered separator visible on inactive lines', () => {
+    const doc = '1. item\nparagraph';
+    const view = makeView(doc, doc.length, [inlinePreview()]);
+    const firstLine = view.contentDOM.querySelector<HTMLElement>('.cm-line');
+
+    expect(firstLine?.textContent).toContain('1. item');
+    expect(firstLine?.querySelector('.cm-moss-list-marker-active')).toBeNull();
+  });
+
   it('does not preview an ordered marker before its separator space', () => {
     const view = makeView('1.', 2, [inlinePreview()]);
     const line = view.contentDOM.querySelector<HTMLElement>('.cm-line');
@@ -319,6 +333,32 @@ describe('active list-line preview', () => {
 
     pressArrowUp();
     expect(view.state.selection.main.head).toBe('1. one\n2. two\n3. three\n4. four'.length);
+  });
+
+  it('skips hidden nested-list indentation when moving left', () => {
+    const doc = '1. parent\n    2. child';
+    const childMarkerEnd = doc.indexOf('2.') + 2;
+    const view = makeView(doc, childMarkerEnd, [inlinePreview()]);
+    view.focus();
+
+    const positions: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      view.contentDOM.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'ArrowLeft',
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      positions.push(view.state.selection.main.head);
+    }
+
+    expect(positions).toEqual([
+      childMarkerEnd - 1,
+      childMarkerEnd - 2,
+      doc.indexOf('    '),
+      '1. parent'.length,
+    ]);
   });
 
   it('deletes an empty ordered marker one character at a time from the keyboard', () => {

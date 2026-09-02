@@ -47,14 +47,15 @@ describe('content styles', () => {
     expect(themeSource).toContain("minHeight: '1lh'");
   });
 
-  it('uses the source separator space only once on active list lines', () => {
+  it('uses the source separator space only once for ordered markers', () => {
     const editorStyles = readFileSync(
       resolve(process.cwd(), 'src/styles/inline-preview.css'),
       'utf8',
     );
 
-    expect(editorStyles).toContain('.cm-moss-list-marker-active');
-    expect(editorStyles).toContain('margin-right: 0;');
+    expect(editorStyles).toContain(
+      '.cm-moss-ordered-marker {\n  margin-right: 0;\n}',
+    );
   });
 
   it('keeps image previews readable over a softly blurred backdrop', () => {

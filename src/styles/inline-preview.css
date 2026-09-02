@@ -1389,6 +1389,12 @@
   margin-right: 0;
 }
 
+/* Ordered markers keep their real source separator in the DOM on every
+ * line, so their alcove must not add a second separator via margin. */
+.cm-moss-ordered-marker {
+  margin-right: 0;
+}
+
 /* List heads stay visually distinct from ordinary prose while the raw
  * Markdown remains the source of truth. Consumers can tune these tokens
  * independently without changing the list layout. */

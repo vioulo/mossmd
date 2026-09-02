@@ -5,6 +5,7 @@ import {
   EditorSelection,
   Facet,
   Prec,
+  RangeSet,
   StateEffect,
   StateField,
   type ChangeSpec,
@@ -14,6 +15,7 @@ import {
 } from '@codemirror/state';
 import {
   Decoration,
+  Direction,
   EditorView,
   ViewPlugin,
   WidgetType,
@@ -747,6 +749,8 @@ const LIST_ALCOVE_EM = 1.2;
 // Keep the visual step aligned with the existing list indentation contract.
 const LIST_LEVEL_EM = 1;
 
+const LIST_STRUCTURE_DECORATION = Decoration.replace({});
+
 function nearestListItem(node: SyntaxNode | null): SyntaxNode | null {
   for (let current = node; current; current = current.parent) {
     if (current.name === 'ListItem') return current;
@@ -1137,10 +1141,11 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             pushReplace(ranges, doc, node.from, markEnd, { widget: BULLET_WIDGET });
           } else {
             // Ordered list (or anything else with a non-standard
-            // mark text like `1.`, `42.`): keep the text visible
-            // but mark it so CSS gives it the same fixed-width
-            // alcove. On inactive lines, hide the trailing space so
-            // the total marker-plus-space footprint matches ALCOVE.
+            // mark text like `1.`, `42.`): keep both the marker and
+            // its source separator visible. The separator is part of
+            // the editable Markdown geometry and must not be replaced
+            // on inactive lines, otherwise activating the line changes
+            // the content column by a sub-pixel amount.
             ranges.push(
               Decoration.mark({
                 class: `cm-moss-list-marker ${
@@ -1148,16 +1153,10 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
                 }${
                   orderedMarker
                     ? 'cm-moss-ordered-marker'
-                    : 'cm-moss-unordered-marker'
-                }`,
-              }).range(
-                node.from,
-                node.to,
-              ),
+                  : 'cm-moss-unordered-marker'
+              }`,
+              }).range(node.from, node.to),
             );
-            if (hasTrailingSpace) {
-              pushReplace(ranges, doc, node.to, markEnd);
-            }
           }
         }
       }
@@ -1478,6 +1477,125 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
     },
   },
 );
+
+function buildListStructureAtoms(view: EditorView) {
+  const { state } = view;
+  const { doc } = state;
+  const tree =
+    ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
+  const ranges: Range<typeof LIST_STRUCTURE_DECORATION>[] = [];
+
+  tree.iterate({
+    enter: (node) => {
+      if (node.name !== 'ListMark' || node.from >= node.to) return;
+
+      const listItem = nearestListItem(node.node);
+      if (!listItem) return;
+
+      const firstLine = doc.lineAt(listItem.from);
+      const lastLine = doc.lineAt(listItem.to);
+      for (
+        let number = firstLine.number;
+        number <= lastLine.number;
+        number++
+      ) {
+        const line = doc.line(number);
+        const contentOffset = line.text.search(/\S/);
+        if (contentOffset <= 0) continue;
+
+        const contentFrom = line.from + contentOffset;
+        const owner = nearestListItem(tree.resolve(contentFrom, 1));
+        if (!sameListItem(owner, listItem)) continue;
+
+        ranges.push(
+          LIST_STRUCTURE_DECORATION.range(line.from, contentFrom),
+        );
+      }
+    },
+  });
+
+  return RangeSet.of(ranges, true);
+}
+
+const listStructurePlugin = ViewPlugin.fromClass(
+  class {
+    ranges: ReturnType<typeof buildListStructureAtoms>;
+
+    constructor(view: EditorView) {
+      this.ranges = buildListStructureAtoms(view);
+    }
+
+    update(update: ViewUpdate) {
+      let treeGrew = false;
+      for (const tr of update.transactions) {
+        if (tr.effects.some((effect) => effect.is(treeGrowthEffect))) {
+          treeGrew = true;
+          break;
+        }
+      }
+      if (update.docChanged || treeGrew) {
+        this.ranges = buildListStructureAtoms(update.view);
+      }
+    }
+  },
+);
+
+function skipListStructure(
+  view: EditorView,
+  position: number,
+  forward: boolean,
+): number {
+  const plugin = view.plugin(listStructurePlugin);
+  if (!plugin) return position;
+
+  let result = position;
+  plugin.ranges.between(
+    Math.max(0, position - 1),
+    Math.min(view.state.doc.length, position + 1),
+    (from, to) => {
+      if (result > from && result < to) result = forward ? to : from;
+    },
+  );
+  return result;
+}
+
+function moveOrderedListHorizontally(
+  view: EditorView,
+  right: boolean,
+  extend: boolean,
+): boolean {
+  const { state } = view;
+  let needsCustomMovement = false;
+  const nextRanges = state.selection.ranges.map((range) => {
+    const forward =
+      right === (view.textDirectionAt(range.head) === Direction.LTR);
+
+    if (!extend && !range.empty) {
+      return EditorSelection.cursor(forward ? range.to : range.from);
+    }
+
+    const moved = view.moveByChar(
+      EditorSelection.cursor(range.head, range.assoc),
+      forward,
+    );
+    const head = skipListStructure(view, moved.head, forward);
+    if (head !== moved.head) needsCustomMovement = true;
+    const movedRange = EditorSelection.cursor(
+      head,
+      head < range.head ? 1 : -1,
+    );
+    return extend
+      ? EditorSelection.range(range.anchor, movedRange.head)
+      : movedRange;
+  });
+  if (!needsCustomMovement) return false;
+
+  const next = EditorSelection.create(nextRanges, state.selection.mainIndex);
+  if (next.eq(state.selection)) return false;
+
+  view.dispatch({ selection: next, userEvent: 'select' });
+  return true;
+}
 
 // CM6's drawSelection layer intentionally sits behind `.cm-content`. That is
 // normally ideal—the rectangle is behind the glyphs—but an opaque fenced-code
@@ -2097,6 +2215,7 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
     taskCheckboxConfigFacet.of(config.taskCheckboxes ?? {}),
     previewFrozenField,
     inlinePreviewPlugin,
+    listStructurePlugin,
     fencedCodeSelectionPlugin,
     orderedListRenumberPlugin,
     freezeMousePlugin,
@@ -2113,6 +2232,16 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
         { key: 'Backspace', run: deleteEmptyOrderedListMarkerBackward },
         { key: 'ArrowUp', run: (view) => moveOrderedListVertically(view, false) },
         { key: 'ArrowDown', run: (view) => moveOrderedListVertically(view, true) },
+        {
+          key: 'ArrowLeft',
+          run: (view) => moveOrderedListHorizontally(view, false, false),
+          shift: (view) => moveOrderedListHorizontally(view, false, true),
+        },
+        {
+          key: 'ArrowRight',
+          run: (view) => moveOrderedListHorizontally(view, true, false),
+          shift: (view) => moveOrderedListHorizontally(view, true, true),
+        },
         { key: 'Tab', run: indentListItem },
         { key: 'Shift-Tab', run: dedentListItem },
       ]),

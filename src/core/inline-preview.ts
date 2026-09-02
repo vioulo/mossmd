@@ -1553,10 +1553,76 @@ function skipListStructure(
     Math.max(0, position - 1),
     Math.min(view.state.doc.length, position + 1),
     (from, to) => {
-      if (result > from && result < to) result = forward ? to : from;
+      // A replace decoration collapses the entire structural indent to one
+      // visual point. Treat entering it from the preceding line as entering
+      // the atom, otherwise rightward movement still visits invisible indent
+      // positions one keypress at a time.
+      if (
+        (forward && result >= from && result < to) ||
+        (!forward && result > from && result < to)
+      ) {
+        // The left boundary is the zero-width DOM anchor of the hidden
+        // indentation. Leaving the caret there makes it share the marker's
+        // visual x-coordinate. Continue across the line break so a leftward
+        // move from the marker start lands at the previous line's end.
+        result = forward ? to : Math.max(0, from - 1);
+      }
     },
   );
   return result;
+}
+
+function listContentStart(
+  line: ReturnType<Text['lineAt']>,
+): { markerFrom: number; contentFrom: number } | null {
+  const prefix = parseListLine(line.text, line.from);
+  if (!prefix) return null;
+
+  const contentOffset = line.text
+    .slice(prefix.markerTo - line.from)
+    .search(/\S/);
+  return {
+    markerFrom: prefix.markerFrom,
+    contentFrom:
+      contentOffset < 0 ? line.to : prefix.markerTo + contentOffset,
+  };
+}
+
+function moveListLineBoundary(
+  view: EditorView,
+  toStart: boolean,
+  extend: boolean,
+): boolean {
+  const { state } = view;
+  let handled = false;
+  const ranges = state.selection.ranges.map((range) => {
+    if (!extend && !range.empty) {
+      return EditorSelection.cursor(toStart ? range.from : range.to);
+    }
+
+    const line = state.doc.lineAt(range.head);
+    const content = listContentStart(line);
+    if (!content) return range;
+    handled = true;
+
+    // Match CodeMirror's normal indentation behavior: Home first reaches
+    // editable content, then a second press reaches the list marker.
+    const target = toStart
+      ? range.head === content.contentFrom
+        ? content.markerFrom
+        : content.contentFrom
+      : line.to;
+    return extend
+      ? EditorSelection.range(range.anchor, target)
+      : EditorSelection.cursor(target, toStart ? 1 : -1);
+  });
+
+  if (!handled) return false;
+  const selection = EditorSelection.create(ranges, state.selection.mainIndex);
+  if (!selection.eq(state.selection)) {
+    view.dispatch({ selection, userEvent: 'select' });
+  }
+  return true;
 }
 
 function moveOrderedListHorizontally(
@@ -2134,30 +2200,32 @@ function moveOrderedListVertically(view: EditorView, forward: boolean): boolean 
   if (!selection.empty) return false;
 
   const line = view.state.doc.lineAt(selection.head);
-  const prefix = parseListLine(line.text, line.from);
-  if (!prefix?.ordered) return false;
+  const source = listContentStart(line);
+  if (!source || selection.head < source.contentFrom) return false;
 
   const moved = view.moveVertically(selection, forward);
   const movedLine = view.state.doc.lineAt(moved.head);
+  if (movedLine.number === line.number) return false;
+
   const adjacentLineNumber = line.number + (forward ? 1 : -1);
-  if (
-    movedLine.number === adjacentLineNumber ||
-    adjacentLineNumber < 1 ||
-    adjacentLineNumber > view.state.doc.lines
-  ) {
+  if (adjacentLineNumber < 1 || adjacentLineNumber > view.state.doc.lines) {
     return false;
   }
 
   const adjacentLine = view.state.doc.line(adjacentLineNumber);
-  const adjacentPrefix = parseListLine(adjacentLine.text, adjacentLine.from);
-  if (!adjacentPrefix?.ordered) return false;
+  const target = listContentStart(adjacentLine);
+  if (!target) return false;
 
-  const offset = selection.head - line.from;
+  // Source indentation and marker widths are hidden/relaid out by live
+  // preview, so document columns no longer represent visual content columns.
+  // Preserve the offset within the item body when crossing to an adjacent
+  // list item instead of letting position mapping settle on its number.
+  const offset = selection.head - source.contentFrom;
   view.dispatch({
     selection: EditorSelection.cursor(
-      adjacentLine.from + Math.min(offset, adjacentLine.length),
+      Math.min(adjacentLine.to, target.contentFrom + offset),
     ),
-    userEvent: 'select.pointer',
+    userEvent: 'select',
   });
   return true;
 }
@@ -2232,6 +2300,16 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
         { key: 'Backspace', run: deleteEmptyOrderedListMarkerBackward },
         { key: 'ArrowUp', run: (view) => moveOrderedListVertically(view, false) },
         { key: 'ArrowDown', run: (view) => moveOrderedListVertically(view, true) },
+        {
+          key: 'Home',
+          run: (view) => moveListLineBoundary(view, true, false),
+          shift: (view) => moveListLineBoundary(view, true, true),
+        },
+        {
+          key: 'End',
+          run: (view) => moveListLineBoundary(view, false, false),
+          shift: (view) => moveListLineBoundary(view, false, true),
+        },
         {
           key: 'ArrowLeft',
           run: (view) => moveOrderedListHorizontally(view, false, false),

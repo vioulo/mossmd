@@ -335,6 +335,47 @@ describe('active list-line preview', () => {
     expect(view.state.selection.main.head).toBe('1. one\n2. two\n3. three\n4. four'.length);
   });
 
+  it('moves Home and End within the current ordered-list source line', () => {
+    const doc = '1. parent\n    1. child';
+    const childContent = doc.indexOf('child');
+    const view = makeView(doc, childContent + 2, [inlinePreview()]);
+    view.focus();
+
+    const press = (key: string): void => {
+      view.contentDOM.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    };
+
+    press('Home');
+    expect(view.state.selection.main.head).toBe(childContent);
+
+    press('End');
+    expect(view.state.selection.main.head).toBe(doc.length);
+  });
+
+  it('keeps vertical movement in the body column of nested ordered items', () => {
+    const doc = '1. parent\n    1. child\n    2. sibling';
+    const childContent = doc.indexOf('child');
+    const siblingContent = doc.indexOf('sibling');
+    const view = makeView(doc, childContent + 2, [inlinePreview()]);
+    view.focus();
+
+    view.contentDOM.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+
+    expect(view.state.selection.main.head).toBe(siblingContent + 2);
+  });
+
   it('skips hidden nested-list indentation when moving left', () => {
     const doc = '1. parent\n    2. child';
     const childMarkerEnd = doc.indexOf('2.') + 2;
@@ -356,9 +397,42 @@ describe('active list-line preview', () => {
     expect(positions).toEqual([
       childMarkerEnd - 1,
       childMarkerEnd - 2,
-      doc.indexOf('    '),
       '1. parent'.length,
+      '1. parent'.length - 1,
     ]);
+  });
+
+  it('moves left from a nested marker start to the previous line end', () => {
+    const doc = '1. parent\n    2. child';
+    const markerFrom = doc.indexOf('2.');
+    const view = makeView(doc, markerFrom, [inlinePreview()]);
+    view.focus();
+
+    view.contentDOM.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowLeft',
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+
+    expect(view.state.selection.main.head).toBe('1. parent'.length);
+  });
+
+  it('enters nested ordered-item text without stopping in hidden indentation', () => {
+    const doc = '1. parent\n    1. child';
+    const view = makeView(doc, '1. parent'.length, [inlinePreview()]);
+    view.focus();
+
+    view.contentDOM.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+
+    expect(view.state.selection.main.head).toBe(doc.indexOf('1. child'));
   });
 
   it('deletes an empty ordered marker one character at a time from the keyboard', () => {

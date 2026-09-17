@@ -56,6 +56,47 @@ describe('MossMD', () => {
     expect(lines[2]?.classList.contains('cm-moss-empty-line')).toBe(false);
   });
 
+  it('can render the search panel at the bottom of the editor', () => {
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
+    };
+    const { host } = mount(
+      <MossMD
+        markdownSource="find me"
+        editorHandleRef={handleRef}
+        searchPanelPosition="bottom"
+      />,
+    );
+
+    act(() => handleRef.current?.openSearch('find'));
+
+    const panel = host.querySelector<HTMLElement>('.moss-search-panel');
+    expect(panel).not.toBeNull();
+    expect(panel?.classList.contains('moss-search-panel-bottom')).toBe(true);
+    expect(panel?.querySelector('.cm-moss-search-input-pill')).not.toBeNull();
+    expect(panel?.querySelector('.cm-moss-search-actions-pill')).not.toBeNull();
+    expect(panel?.querySelectorAll('.cm-moss-search-btn svg')).toHaveLength(3);
+  });
+
+  it('can render the search panel at the center of the editor', () => {
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
+    };
+    const { host } = mount(
+      <MossMD
+        markdownSource="find me"
+        editorHandleRef={handleRef}
+        searchPanelPosition="center"
+      />,
+    );
+
+    act(() => handleRef.current?.openSearch('find'));
+
+    const panel = host.querySelector<HTMLElement>('.moss-search-panel');
+    expect(panel).not.toBeNull();
+    expect(panel?.classList.contains('moss-search-panel-center')).toBe(true);
+  });
+
   it('renders custom task statuses as icons and toggles configured pairs', () => {
     const markdown = [
       '- [ ] To Do',

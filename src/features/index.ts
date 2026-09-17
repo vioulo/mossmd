@@ -20,6 +20,8 @@ export type {
   MossSlashCommand,
   MossSlashCommandsConfig,
 } from './slash-commands';
+export { mossSearch } from './search';
+export type { MossSearchPanelPosition } from './search';
 export {
   mossUploadBlocks,
   mossUploadCommands,

@@ -85,7 +85,32 @@ describe('content styles', () => {
       '.moss-cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul {\n  min-width: 0;',
     );
     expect(editorStyles).toContain('width: min(11rem, calc(100vw - 1rem));');
+    expect(editorStyles).toContain('max-height: min(17rem, 40vh);');
     expect(editorStyles).toContain('.cm-tooltip-autocomplete > ul > li:hover');
+    expect(editorStyles).toContain(
+      'max-width: min(var(--moss-measure, 70ch), calc(100% - 1rem));',
+    );
+    expect(editorStyles).toContain(
+      '.moss-cm-editor .cm-panels:has(.moss-search-panel)',
+    );
+    expect(editorStyles).toContain(
+      '.moss-cm-editor .cm-panels-top:has(.moss-search-panel-center)',
+    );
+    expect(editorStyles).toContain(
+      '.cm-panel.moss-search-panel .cm-moss-search-input-pill',
+    );
+    expect(editorStyles).toContain(
+      '.cm-panel.moss-search-panel .cm-moss-search-actions-pill',
+    );
+    expect(editorStyles).toContain(
+      '.cm-panel.cm-search.moss-search-panel input.cm-moss-search-input[type="text"]',
+    );
+    expect(editorStyles).toContain('.cm-panel.moss-search-panel-bottom');
+    expect(editorStyles).toContain('border: 0;');
+    expect(editorStyles).toContain('stroke: currentColor;');
+    expect(editorStyles).toContain(
+      '.cm-panel.cm-search.moss-search-panel button.cm-moss-search-btn',
+    );
     expect(editorStyles).toContain('.cm-moss-table-menu-trigger');
     expect(editorStyles).toContain(
       '.cm-moss-table td:focus-within .cm-moss-table-menu-trigger',

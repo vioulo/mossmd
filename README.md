@@ -129,6 +129,13 @@ const uploadCommands = mossUploadCommands(uploader);
 
 两者都接受 `string | null`。`revealText(query)` 也可以在挂载后通过句柄触发。
 
+搜索面板默认显示在编辑器顶部，也可以放到中间或底部：
+
+```tsx
+<MossMD markdownSource={'…'} searchPanelPosition="center" />
+<MossMD markdownSource={'…'} searchPanelPosition="bottom" />
+```
+
 ## 语法高亮
 
 围栏代码块默认只是等宽文本。要启用高亮，传入 `codeLanguages` 数组。

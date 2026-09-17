@@ -208,6 +208,15 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
     ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
   const taskConfig = state.facet(taskCheckboxConfigFacet);
 
+  for (let number = 1; number <= doc.lines; number++) {
+    const line = doc.line(number);
+    if (line.length === 0) {
+      ranges.push(
+        Decoration.line({ class: 'cm-moss-empty-line' }).range(line.from),
+      );
+    }
+  }
+
   // `from` positions of Link nodes whose range overlaps a selection.
   // Link children (LinkMark/URL/LinkTitle) hide unless their parent
   // Link's `from` is in this set — i.e. the cursor has entered or is

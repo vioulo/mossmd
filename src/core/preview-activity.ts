@@ -116,19 +116,7 @@ const freezeMousePlugin = ViewPlugin.fromClass(
   class {
     private down = false;
     private releaseTimer: number | null = null;
-    private readonly onDown = (event: PointerEvent) => {
-      if (event.button !== 0) return;
-      if (this.view.state.facet(readOnlyFacet)) return;
-
-      const target = event.target;
-      if (!(target instanceof Node) || !this.view.contentDOM.contains(target)) {
-        return;
-      }
-      if (linkIconHitTarget(event, this.view.contentDOM)) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return;
-      }
+    private freezeDuringPointer() {
       this.down = true;
       if (this.releaseTimer != null) {
         window.clearTimeout(this.releaseTimer);
@@ -137,6 +125,49 @@ const freezeMousePlugin = ViewPlugin.fromClass(
       if (!this.view.state.field(previewFrozenField)) {
         this.view.dispatch({ effects: setFrozen.of(true) });
       }
+    }
+
+    private selectFromScrollerSpace(event: PointerEvent) {
+      const contentRect = this.view.contentDOM.getBoundingClientRect();
+      if (contentRect.width <= 0 || contentRect.height <= 0) return;
+
+      const x = Math.min(
+        Math.max(event.clientX, contentRect.left + 1),
+        contentRect.right - 1,
+      );
+      const pos = this.view.posAtCoords({ x, y: event.clientY });
+      if (pos == null) return;
+
+      event.preventDefault();
+      this.freezeDuringPointer();
+      this.view.focus();
+      this.view.dispatch({
+        selection: { anchor: pos },
+        userEvent: 'select.pointer',
+      });
+    }
+
+    private readonly onDown = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      if (this.view.state.facet(readOnlyFacet)) return;
+
+      const target = event.target;
+      if (!(target instanceof Node) || !this.view.dom.contains(target)) {
+        return;
+      }
+      if (!this.view.contentDOM.contains(target)) {
+        if (this.view.scrollDOM.contains(target)) {
+          this.selectFromScrollerSpace(event);
+        }
+        return;
+      }
+
+      if (linkIconHitTarget(event, this.view.contentDOM)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
+      this.freezeDuringPointer();
     };
     private readonly onUp = () => {
       if (!this.down) return;

@@ -42,9 +42,20 @@ describe('content styles', () => {
       resolve(process.cwd(), 'src/theme/index.ts'),
       'utf8',
     );
+    const editorStyles = readFileSync(
+      resolve(process.cwd(), 'src/styles/inline-preview.css'),
+      'utf8',
+    );
 
     expect(themeSource).toContain("lineHeight: 'var(--moss-body-leading, 1.7)'");
     expect(themeSource).toContain("minHeight: '1lh'");
+    expect(editorStyles).toContain('.cm-line.cm-moss-empty-line');
+    expect(editorStyles).toContain(
+      'min-height: calc(var(--moss-body-size, 1.0625rem) * var(--moss-body-leading, 1.7));',
+    );
+    expect(editorStyles).toContain(
+      'padding-top: max(0px, calc(var(--moss-body-size, 1.0625rem) * (var(--moss-body-leading, 1.7) - 1.25) / 2));',
+    );
   });
 
   it('uses the source separator space only once for ordered markers', () => {

@@ -46,6 +46,16 @@ describe('MossMD', () => {
     expect(handleRef.current?.getMarkdown()).toBe('# Hello\n\nWorld.');
   });
 
+  it('marks blank source lines with the body-height empty-line class', () => {
+    const { host } = mount(<MossMD markdownSource={'First\n\nSecond'} />);
+
+    const lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines).toHaveLength(3);
+    expect(lines[1]?.classList.contains('cm-moss-empty-line')).toBe(true);
+    expect(lines[0]?.classList.contains('cm-moss-empty-line')).toBe(false);
+    expect(lines[2]?.classList.contains('cm-moss-empty-line')).toBe(false);
+  });
+
   it('renders custom task statuses as icons and toggles configured pairs', () => {
     const markdown = [
       '- [ ] To Do',

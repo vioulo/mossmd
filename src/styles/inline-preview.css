@@ -49,6 +49,14 @@
   text-wrap: pretty;
 }
 
+.cm-line.cm-moss-empty-line {
+  font-size: var(--moss-body-size, 1.0625rem);
+  line-height: 1.25;
+  min-height: calc(var(--moss-body-size, 1.0625rem) * var(--moss-body-leading, 1.7));
+  padding-top: max(0px, calc(var(--moss-body-size, 1.0625rem) * (var(--moss-body-leading, 1.7) - 1.25) / 2));
+  padding-bottom: max(0px, calc(var(--moss-body-size, 1.0625rem) * (var(--moss-body-leading, 1.7) - 1.25) / 2));
+}
+
 /* Heading lines. Padding-top (not margin-top) creates the rhythm so
  * CM6's line-height measurement stays correct.
  *

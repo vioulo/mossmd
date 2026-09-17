@@ -498,8 +498,6 @@ export function MossMD({
       }),
     });
     viewRef.current = view;
-    // DEBUG: expose view for inspection
-    (window as unknown as { __mossView?: EditorView }).__mossView = view;
 
     void attachCollabAdapter(collabAdapter, view).catch(() => {});
 

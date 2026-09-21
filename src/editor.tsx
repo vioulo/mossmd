@@ -188,6 +188,14 @@ export interface MossMDProps {
   onMarkdownChange?: (markdown: string) => void;
 
   /**
+   * Called when an IME composition session starts or ends. `true` means
+   * composition is active; `false` is sent for both normal completion and
+   * cancellation. The callback observes the input lifecycle and does not
+   * change the editor's composition handling.
+   */
+  onCompositionChange?: (composing: boolean) => void;
+
+  /**
    * Called when the user plain-clicks a rendered link in the
    * inline-preview output. Receives the link's URL as written in the
    * source markdown. Defaults to `window.open(url, '_blank',
@@ -288,6 +296,7 @@ export function MossMD({
   blurEditorOnMount,
   readOnly = false,
   onMarkdownChange,
+  onCompositionChange,
   onLinkClick,
   editorHandleRef,
   codeLanguages = EMPTY_CODE_LANGUAGES,
@@ -304,6 +313,7 @@ export function MossMD({
   const viewRef = useRef<EditorView | null>(null);
   const clearRevealTimerRef = useRef<number | null>(null);
   const onMarkdownChangeRef = useRef(onMarkdownChange);
+  const onCompositionChangeRef = useRef(onCompositionChange);
   const onLinkClickRef = useRef(onLinkClick);
   const collabAdapterRef = useRef<CollabAdapter>(noopCollabAdapter);
   const collabUnsubscribeRef = useRef<(() => void) | null>(null);
@@ -332,6 +342,10 @@ export function MossMD({
   useEffect(() => {
     onMarkdownChangeRef.current = onMarkdownChange;
   }, [onMarkdownChange]);
+
+  useEffect(() => {
+    onCompositionChangeRef.current = onCompositionChange;
+  }, [onCompositionChange]);
 
   useEffect(() => {
     onLinkClickRef.current = onLinkClick;
@@ -418,6 +432,20 @@ export function MossMD({
           // Obsidian-style bracket pairing.
           closeBrackets(),
           imeCompositionGuard,
+          EditorView.domEventHandlers({
+            compositionstart() {
+              onCompositionChangeRef.current?.(true);
+              return false;
+            },
+            compositionend() {
+              onCompositionChangeRef.current?.(false);
+              return false;
+            },
+            compositioncancel() {
+              onCompositionChangeRef.current?.(false);
+              return false;
+            },
+          }),
           startAsteriskList,
           extendEmphasisPair,
           autoCloseCodeFence,

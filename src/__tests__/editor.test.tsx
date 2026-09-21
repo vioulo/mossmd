@@ -46,6 +46,67 @@ describe('MossMD', () => {
     expect(handleRef.current?.getMarkdown()).toBe('# Hello\n\nWorld.');
   });
 
+  it('reports IME composition start, end, and cancellation', () => {
+    const onCompositionChange = vi.fn();
+    const { host } = mount(
+      <MossMD
+        markdownSource="中文"
+        onCompositionChange={onCompositionChange}
+      />,
+    );
+    const content = host.querySelector<HTMLElement>('.cm-content');
+    expect(content).not.toBeNull();
+
+    act(() => {
+      content!.dispatchEvent(new Event('compositionstart', { bubbles: true }));
+      content!.dispatchEvent(new Event('compositionend', { bubbles: true }));
+      content!.dispatchEvent(new Event('compositioncancel', { bubbles: true }));
+    });
+
+    expect(onCompositionChange.mock.calls).toEqual([[true], [false], [false]]);
+  });
+
+  it('uses the latest IME composition callback without rebuilding the editor', () => {
+    const firstCallback = vi.fn();
+    const secondCallback = vi.fn();
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    hosts.push(host);
+    const root = createRoot(host);
+
+    act(() => {
+      root.render(
+        <MossMD
+          markdownSource="中文"
+          onCompositionChange={firstCallback}
+        />,
+      );
+    });
+
+    const editor = host.querySelector<HTMLElement>('.cm-editor');
+    const content = host.querySelector<HTMLElement>('.cm-content');
+    expect(editor).not.toBeNull();
+    expect(content).not.toBeNull();
+
+    act(() => {
+      root.render(
+        <MossMD
+          markdownSource="中文"
+          onCompositionChange={secondCallback}
+        />,
+      );
+    });
+
+    expect(host.querySelector('.cm-editor')).toBe(editor);
+
+    act(() => {
+      content!.dispatchEvent(new Event('compositionstart', { bubbles: true }));
+    });
+
+    expect(firstCallback).not.toHaveBeenCalled();
+    expect(secondCallback).toHaveBeenCalledWith(true);
+  });
+
   it('marks blank source lines with the body-height empty-line class', () => {
     const { host } = mount(<MossMD markdownSource={'First\n\nSecond'} />);
 

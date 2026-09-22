@@ -29,7 +29,8 @@
       "mossmd/features/image": ["./src/features/image/index.ts"],
       "mossmd/features/table": ["./src/features/table/index.ts"],
       "mossmd/features/wiki-links": ["./src/features/wiki-links/index.ts"],
-      "mossmd/features/callout": ["./src/features/callout/index.ts"]
+      "mossmd/features/callout": ["./src/features/callout/index.ts"],
+      "mossmd/features/upload": ["./src/features/upload/index.ts"]
     },
     "types": ["node"]
   },

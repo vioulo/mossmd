@@ -71,6 +71,10 @@ import {
 } from './features/search';
 import type { InlinePreviewConfig } from './core/inline-preview';
 import type { MossTablesConfig as TablesConfig } from './features/table';
+import {
+  mossFileUpload,
+  type MossFileUploadConfig,
+} from './features/upload';
 
 // Stable references so consumers that don't pass `codeLanguages` or
 // `extensions` don't force-remount the editor on every render.
@@ -274,6 +278,7 @@ export interface MossMDProps {
   tablesConfig?: TablesConfig;
   wikiLinksConfig?: WikiLinksConfig;
   slashCommandsConfig?: MossSlashCommandsConfig;
+  fileUpload?: MossFileUploadConfig;
   collabAdapter?: CollabAdapter;
 }
 
@@ -307,6 +312,7 @@ export function MossMD({
   tablesConfig = {},
   wikiLinksConfig = {},
   slashCommandsConfig,
+  fileUpload,
   collabAdapter = noopCollabAdapter,
 }: MossMDProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -503,8 +509,13 @@ export function MossMD({
               ]
             : []),
           ...(slashCommandsConfig
-            ? [mossSlashCommands(slashCommandsConfig)]
+            ? [
+                mossSlashCommands(slashCommandsConfig, {
+                  includeUploadBlocks: !fileUpload,
+                }),
+              ]
             : []),
+          ...(fileUpload ? [mossFileUpload(fileUpload)] : []),
           EditorView.updateListener.of((update) => {
             if (!update.docChanged) return;
             onMarkdownChangeRef.current?.(update.state.doc.toString());

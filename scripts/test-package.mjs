@@ -36,6 +36,9 @@ async function run() {
     name: 'mossmd-test-consumer',
     version: '0.0.0',
     type: 'module',
+    scripts: {
+      build: 'vite build',
+    },
     dependencies: {
       'mossmd': `file:${pkgDir}`,
       '@codemirror/state': '^6.5.2',

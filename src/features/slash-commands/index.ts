@@ -137,7 +137,18 @@ function renderSlashCommandIcon(completion: Completion): Node | null {
 // never match; the line-start policy is checked separately below.
 const SLASH_QUERY_RE = /\/[\w-]*$/;
 
-export function mossSlashCommands(config: MossSlashCommandsConfig): Extension {
+export interface MossSlashCommandsOptions {
+  /**
+   * Include the upload progress state field. Set to false when a separate
+   * `mossFileUpload` extension owns file input and the field.
+   */
+  includeUploadBlocks?: boolean;
+}
+
+export function mossSlashCommands(
+  config: MossSlashCommandsConfig,
+  options: MossSlashCommandsOptions = {},
+): Extension {
   // Register the source via `EditorState.languageData` (additive,
   // mergeable) rather than `autocompletion({ override: [...] })`
   // (single-valued, conflicts on merge). Multiple features can each
@@ -181,11 +192,12 @@ export function mossSlashCommands(config: MossSlashCommandsConfig): Extension {
     extensions.push(sidePlusButtonPlugin);
   }
 
-  // Upload progress widgets. Always included — cheap no-op when no
-  // pending-upload markers exist in the doc. The orchestration lives
-  // in `mossUploadCommands(uploader)`'s `apply` callbacks; this field
-  // only renders state + dispatches effects.
-  extensions.push(mossUploadBlocks());
+  // Upload progress widgets are included by default for backwards
+  // compatibility. A dedicated file-upload extension can own the field
+  // instead, avoiding duplicate StateField registration.
+  if (options.includeUploadBlocks !== false) {
+    extensions.push(mossUploadBlocks());
+  }
 
   return extensions;
 }
@@ -434,16 +446,17 @@ export const mossDefaultSlashCommands: MossSlashCommand[] = [
     keywords: ['picture', 'photo', 'image', 'img'],
     icon: 'image',
     apply: async (view, from, to) => {
-      const file = await pickFile('image/*');
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      const insert = `![${file.name}](${url})`;
+      const files = await pickFiles('image/*');
+      if (files.length === 0) return;
+      const insert = files
+        .map((file) => `![${file.name}](${URL.createObjectURL(file)})`)
+        .join('\n\n');
       view.dispatch({
         changes: { from, to, insert },
         // Drop the caret right after `![name` so the user can type
         // `|caption` to split alt and caption, or leave as-is (the
         // name doubles as caption by default).
-        selection: { anchor: from + 2 + file.name.length },
+        selection: { anchor: from + 2 + files[0]!.name.length },
       });
     },
   },
@@ -454,20 +467,26 @@ export const mossDefaultSlashCommands: MossSlashCommand[] = [
     keywords: ['attachment', 'file', 'link'],
     icon: 'file',
     apply: async (view, from, to) => {
-      const file = await pickFile();
-      if (!file) return;
-      const url = URL.createObjectURL(file);
+      const files = await pickFiles();
+      if (files.length === 0) return;
       view.dispatch({
-        changes: { from, to, insert: `[${file.name}](${url})` },
+        changes: {
+          from,
+          to,
+          insert: files
+            .map((file) => `[${file.name}](${URL.createObjectURL(file)})`)
+            .join('\n\n'),
+        },
       });
     },
   },
 ];
 
-function pickFile(accept?: string): Promise<File | null> {
+function pickFiles(accept?: string): Promise<File[]> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
+    input.multiple = true;
     if (accept) input.accept = accept;
     input.style.position = 'fixed';
     input.style.top = '-9999px';
@@ -486,14 +505,14 @@ function pickFile(accept?: string): Promise<File | null> {
       window.setTimeout(() => {
         if (!settled && !input.files?.length) {
           cleanup();
-          resolve(null);
+          resolve([]);
         }
       }, 300);
     };
     input.addEventListener('change', () => {
-      const file = input.files?.[0] ?? null;
+      const files = Array.from(input.files ?? []);
       cleanup();
-      resolve(file);
+      resolve(files);
     });
     window.addEventListener('focus', onFocus, true);
     document.body.appendChild(input);

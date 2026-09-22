@@ -17,7 +17,9 @@
 //   2. Compose it with the package's `mossUploadCommands(uploader)`
 //      to get upload-image / upload-file slash commands that render
 //      the progress widget, retry on failure, and land the final
-//      `![alt|](url)` / `[name](url)` markdown on success.
+//      `![name](url)` / `[name](url)` markdown on success. Users can
+//      type `|caption` after an inserted image name to opt into the
+//      project's extended image syntax.
 //
 //   3. Pass them to `mossSlashCommands({ commands: [...] })`,
 //      replacing the package's stub uploads via
@@ -108,7 +110,8 @@ export function createUploader(options: UploaderOptions): MossUploader {
 //      - register a pending-upload widget (preview + progress bar)
 //      - call your uploader (reporting progress to the widget)
 //      - on success replace the anchor line with the final markdown
-//        (`![name|](url)` for image, `[name](url)` for file)
+//        (`![name](url)` for image, `[name](url)` for file; image
+//        captions can be added later with `|caption`)
 //      - on failure show a Failed status with retry / cancel buttons
 //
 //    For most consumers this is all you need. If you want a custom

@@ -15,22 +15,33 @@ export type {
   MossCalloutsConfig,
   MossCalloutType,
 } from './callout';
-export { mossSlashCommands, mossDefaultSlashCommands } from './slash-commands';
+export {
+  mossSlashCommands,
+  mossDefaultSlashCommands,
+} from './slash-commands';
 export type {
   MossSlashCommand,
   MossSlashCommandsConfig,
+  MossSlashCommandsOptions,
 } from './slash-commands';
 export { mossSearch } from './search';
 export type { MossSearchPanelPosition } from './search';
 export {
   mossUploadBlocks,
+  mossFileUpload,
   mossUploadCommands,
   beginUpload,
+  beginUploads,
   retryUpload,
   cancelUpload,
+  filesFromDataTransfer,
 } from './upload';
 export type {
+  MossFileUploadConfig,
   MossUploader,
+  MossUploadItem,
   MossUploadKind,
+  MossUploadOptions,
+  MossUploadRejectReason,
   MossUploadResult,
 } from './upload';

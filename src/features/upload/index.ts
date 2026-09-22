@@ -1,25 +1,11 @@
-// Upload progress blocks + commands.
+// File input, upload progress blocks, and upload commands.
 //
-// Slash commands that upload a resource (image / file) don't insert
-// the final markdown immediately — they register a pending upload
-// here, which renders a block widget below the cursor's line while
-// the uploader runs. The widget shows a local preview on the left
-// and progress / status on the right; on success the orchestrator
-// replaces the anchor line with the final markdown and the widget
-// disappears. On failure the widget shows retry / cancel controls.
-//
-// Pending uploads live entirely in editor state (no doc marker), so
-// they don't pollute raw markdown — copy / save / collab only ever
-// see real text. The trade-off: reloading the page mid-upload drops
-// the in-flight widget (the network request may still complete, but
-// the editor no longer has a place to land the result). Acceptable
-// for a transient affordance.
-//
-// The uploader is supplied by the consumer via
-// `mossUploadCommands(uploader)`, so S3 / OSS / Supabase / a custom
-// /api/upload all plug in by swapping one function.
+// The document remains plain markdown while an upload is in flight. Pending
+// items live in a CM6 StateField, while File objects, abort controllers, and
+// uploader callbacks live in the runtime maps below.
 
 import {
+  Prec,
   StateEffect,
   StateField,
   type Extension,
@@ -28,65 +14,131 @@ import {
 import {
   Decoration,
   EditorView,
+  ViewPlugin,
   WidgetType,
   type DecorationSet,
 } from '@codemirror/view';
 import { File as FileIconLucide, RotateCcw, X } from 'lucide-react';
 import { lucideSvg } from '../../core/icons';
+import { readOnlyFacet } from '../../core/read-only';
 import type { MossSlashCommand } from '../slash-commands';
 
 const FILE_ICON = lucideSvg(FileIconLucide, { size: 22 });
 const RETRY_ICON = lucideSvg(RotateCcw, { size: 14 });
 const CANCEL_ICON = lucideSvg(X, { size: 14 });
+const DEFAULT_MAX_CONCURRENCY = 3;
 
 export type MossUploadKind = 'image' | 'file';
 
 export interface MossUploadResult {
   url: string;
-  /** Override the kind used to format the final markdown. If omitted,
-   *  the command's own kind is used. */
+  /** Override the input kind used to format the final markdown. */
   kind?: MossUploadKind;
 }
 
 export type MossUploader = (
   file: File,
   onProgress: (ratio: number) => void,
+  signal?: AbortSignal,
 ) => Promise<MossUploadResult>;
+
+export interface MossUploadItem {
+  file: File;
+  /** Defaults to image for image/* MIME types and file otherwise. */
+  kind?: MossUploadKind;
+}
+
+export type MossUploadRejectReason =
+  | 'max-files'
+  | 'max-file-size'
+  | 'max-total-size'
+  | 'accept';
+
+export interface MossUploadOptions {
+  resolveKind?: (file: File) => MossUploadKind;
+  maxFiles?: number;
+  maxFileSize?: number;
+  maxTotalSize?: number;
+  maxConcurrency?: number;
+  accept?: string | readonly string[];
+  onRejected?: (
+    files: readonly File[],
+    reason: MossUploadRejectReason,
+  ) => void;
+}
+
+export interface MossFileUploadConfig extends MossUploadOptions {
+  uploader: MossUploader;
+}
 
 interface UploadEntry {
   id: string;
+  batchId: string;
+  index: number;
   pos: number;
+  to: number;
   kind: MossUploadKind;
   fileName: string;
   fileSize: number;
   fileType: string;
   localUrl: string;
-  phase: 'uploading' | 'error';
+  phase: 'uploading' | 'waiting' | 'error';
   progress: number;
   error?: string;
 }
 
-// Runtime bits that can't live in CM6 state (functions, the File
-// object, the uploader closure). Keyed by upload id. Cleaned up on
-// terminal success / cancel. Retry reuses the entry.
-interface Runtime {
-  file: File;
-  uploader: MossUploader;
-  lastProgress: number;
+interface UploadRegistration {
+  id: string;
+  batchId: string;
+  index: number;
+  pos: number;
+  to: number;
+  kind: MossUploadKind;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  localUrl: string;
 }
-const runtime = new Map<string, Runtime>();
+
+type RuntimeStatus =
+  | 'pending'
+  | 'uploading'
+  | 'success'
+  | 'error'
+  | 'cancelled'
+  | 'committed';
+
+interface RuntimeItem {
+  id: string;
+  batchId: string;
+  index: number;
+  file: File;
+  fileName: string;
+  uploader: MossUploader;
+  kind: MossUploadKind;
+  localUrl: string;
+  view: EditorView;
+  controller: AbortController;
+  lastProgress: number;
+  status: RuntimeStatus;
+  result?: MossUploadResult;
+}
+
+interface BatchRuntime {
+  id: string;
+  view: EditorView;
+  items: RuntimeItem[];
+  nextIndex: number;
+  maxConcurrency: number;
+}
+
+const runtimeItems = new Map<string, RuntimeItem>();
+const runtimeBatches = new Map<string, BatchRuntime>();
 
 export const uploadEffects = {
-  register: StateEffect.define<{
-    id: string;
-    pos: number;
-    kind: MossUploadKind;
-    fileName: string;
-    fileSize: number;
-    fileType: string;
-    localUrl: string;
-  }>(),
+  register: StateEffect.define<UploadRegistration>(),
   progress: StateEffect.define<{ id: string; progress: number }>(),
+  waiting: StateEffect.define<{ id: string }>(),
   error: StateEffect.define<{ id: string; error: string }>(),
   retry: StateEffect.define<{ id: string }>(),
   remove: StateEffect.define<{ id: string }>(),
@@ -96,28 +148,42 @@ function applyEffects(entries: UploadEntry[], tr: Transaction): UploadEntry[] {
   let next = entries;
   for (const effect of tr.effects) {
     if (effect.is(uploadEffects.register)) {
-      const p = effect.value;
-      next = [...next, { ...p, phase: 'uploading' as const, progress: 0 }];
+      const registration = effect.value;
+      next = [
+        ...next,
+        {
+          ...registration,
+          phase: 'uploading',
+          progress: 0,
+        },
+      ];
     } else if (effect.is(uploadEffects.progress)) {
-      const p = effect.value;
-      next = next.map((e) =>
-        e.id === p.id ? { ...e, progress: p.progress, phase: 'uploading' as const } : e,
+      const { id, progress } = effect.value;
+      next = next.map((entry) =>
+        entry.id === id
+          ? { ...entry, progress, phase: 'uploading', error: undefined }
+          : entry,
+      );
+    } else if (effect.is(uploadEffects.waiting)) {
+      const { id } = effect.value;
+      next = next.map((entry) =>
+        entry.id === id ? { ...entry, phase: 'waiting' } : entry,
       );
     } else if (effect.is(uploadEffects.error)) {
-      const p = effect.value;
-      next = next.map((e) =>
-        e.id === p.id ? { ...e, phase: 'error' as const, error: p.error } : e,
+      const { id, error } = effect.value;
+      next = next.map((entry) =>
+        entry.id === id ? { ...entry, phase: 'error', error } : entry,
       );
     } else if (effect.is(uploadEffects.retry)) {
-      const p = effect.value;
-      next = next.map((e) =>
-        e.id === p.id
-          ? { ...e, phase: 'uploading' as const, progress: 0, error: undefined }
-          : e,
+      const { id } = effect.value;
+      next = next.map((entry) =>
+        entry.id === id
+          ? { ...entry, phase: 'uploading', progress: 0, error: undefined }
+          : entry,
       );
     } else if (effect.is(uploadEffects.remove)) {
-      const p = effect.value;
-      next = next.filter((e) => e.id !== p.id);
+      const { id } = effect.value;
+      next = next.filter((entry) => entry.id !== id);
     }
   }
   return next;
@@ -128,21 +194,27 @@ const uploadField = StateField.define<UploadEntry[]>({
   update(entries, tr) {
     if (!tr.docChanged && tr.effects.length === 0) return entries;
     const mapped = tr.docChanged
-      ? entries.map((e) => ({ ...e, pos: tr.changes.mapPos(e.pos) }))
+      ? entries.map((entry) => ({
+          ...entry,
+          // Mapping with assoc=1 keeps pending uploads after text inserted
+          // at their target instead of allowing a later upload to overwrite it.
+          pos: tr.changes.mapPos(entry.pos, 1),
+          to: tr.changes.mapPos(entry.to, 1),
+        }))
       : entries;
     return tr.effects.length > 0 ? applyEffects(mapped, tr) : mapped;
   },
-  provide: (f) => EditorView.decorations.from(f, buildDecorations),
+  provide: (field) => EditorView.decorations.from(field, buildDecorations),
 });
 
 function buildDecorations(entries: UploadEntry[]): DecorationSet {
   if (entries.length === 0) return Decoration.none;
-  const ranges = entries.map((e) =>
+  const ranges = entries.map((entry) =>
     Decoration.widget({
-      widget: new UploadWidget(e),
+      widget: new UploadWidget(entry),
       block: true,
       side: 1,
-    }).range(e.pos),
+    }).range(entry.pos),
   );
   return Decoration.set(ranges, true);
 }
@@ -164,38 +236,34 @@ class UploadWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const e = this.entry;
+    const entry = this.entry;
     const wrap = document.createElement('div');
     wrap.className = 'cm-moss-upload';
-    wrap.dataset.id = e.id;
+    wrap.dataset.id = entry.id;
 
     const preview = document.createElement('div');
     preview.className = 'cm-moss-upload-preview';
-    if (e.kind === 'image') {
-      const img = document.createElement('img');
-      img.src = e.localUrl;
-      img.alt = e.fileName;
-      preview.appendChild(img);
+    if (entry.kind === 'image') {
+      const image = document.createElement('img');
+      image.src = entry.localUrl;
+      image.alt = entry.fileName;
+      preview.appendChild(image);
     } else {
-      // File kind: a fuller card-style placeholder so the block reads
-      // as "complete" like the image thumbnail, not a tiny icon in a
-      // big empty box. Big file glyph + extension badge.
       preview.classList.add('cm-moss-upload-preview-file');
       const glyph = document.createElement('span');
       glyph.className = 'cm-moss-upload-file-glyph';
       glyph.innerHTML = FILE_ICON;
-      const ext = document.createElement('span');
-      ext.className = 'cm-moss-upload-ext';
-      ext.textContent = extOf(e.fileName) || 'FILE';
-      preview.append(glyph, ext);
+      const extension = document.createElement('span');
+      extension.className = 'cm-moss-upload-ext';
+      extension.textContent = extOf(entry.fileName) || 'FILE';
+      preview.append(glyph, extension);
     }
 
     const body = document.createElement('div');
     body.className = 'cm-moss-upload-body';
-
     const meta = document.createElement('div');
     meta.className = 'cm-moss-upload-meta';
-    meta.textContent = `${e.fileName} · ${formatBytes(e.fileSize)}`;
+    meta.textContent = `${entry.fileName} · ${formatBytes(entry.fileSize)}`;
 
     const progress = document.createElement('div');
     progress.className = 'cm-moss-upload-progress';
@@ -205,10 +273,8 @@ class UploadWidget extends WidgetType {
 
     const status = document.createElement('div');
     status.className = 'cm-moss-upload-status';
-
     const actions = document.createElement('div');
     actions.className = 'cm-moss-upload-actions';
-
     body.append(meta, progress, status, actions);
     wrap.append(preview, body);
 
@@ -222,43 +288,54 @@ class UploadWidget extends WidgetType {
   }
 
   paint(dom: HTMLElement, view: EditorView): void {
-    const e = this.entry;
+    const entry = this.entry;
     const bar = dom.querySelector<HTMLElement>('.cm-moss-upload-bar');
-    if (bar) bar.style.width = `${Math.max(0, Math.min(1, e.progress)) * 100}%`;
+    if (bar) {
+      bar.style.width = `${Math.max(0, Math.min(1, entry.progress)) * 100}%`;
+    }
+
     const status = dom.querySelector<HTMLElement>('.cm-moss-upload-status');
     if (status) {
-      const pct = Math.round(e.progress * 100);
+      const pct = Math.round(entry.progress * 100);
       status.textContent =
-        e.phase === 'error'
-          ? `Failed: ${e.error ?? 'unknown error'}`
-          : `Uploading ${pct}%`;
-      status.classList.toggle('is-error', e.phase === 'error');
+        entry.phase === 'error'
+          ? `Failed: ${entry.error ?? 'unknown error'}`
+          : entry.phase === 'waiting'
+            ? 'Waiting for earlier files'
+            : `Uploading ${pct}%`;
+      status.classList.toggle('is-error', entry.phase === 'error');
     }
+
     const actions = dom.querySelector<HTMLElement>('.cm-moss-upload-actions');
-    if (actions) {
-      actions.innerHTML = '';
-      if (e.phase === 'error') {
-        const retry = document.createElement('button');
-        retry.type = 'button';
-        retry.className = 'cm-moss-upload-btn retry';
-        retry.innerHTML = RETRY_ICON;
-        retry.title = 'Retry upload';
-        retry.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          retryUpload(view, e.id);
-        });
-        const cancel = document.createElement('button');
-        cancel.type = 'button';
-        cancel.className = 'cm-moss-upload-btn cancel';
-        cancel.innerHTML = CANCEL_ICON;
-        cancel.title = 'Cancel upload';
-        cancel.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          cancelUpload(view, e.id);
-        });
-        actions.append(retry, cancel);
-      }
+    if (!actions) return;
+    actions.innerHTML = '';
+    if (entry.phase === 'error') {
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'cm-moss-upload-btn retry';
+      retry.innerHTML = RETRY_ICON;
+      retry.title = 'Retry upload';
+      retry.setAttribute('aria-label', 'Retry upload');
+      retry.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        retryUpload(view, entry.id);
+      });
+      actions.appendChild(retry);
     }
+
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'cm-moss-upload-btn cancel';
+    cancel.innerHTML = CANCEL_ICON;
+    cancel.title = 'Cancel upload';
+    cancel.setAttribute('aria-label', 'Cancel upload');
+    cancel.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      cancelUpload(view, entry.id);
+    });
+    actions.appendChild(cancel);
   }
 
   ignoreEvent(): boolean {
@@ -267,7 +344,60 @@ class UploadWidget extends WidgetType {
 }
 
 export function mossUploadBlocks(): Extension {
-  return uploadField;
+  return [uploadField, uploadCleanupPlugin];
+}
+
+export function mossFileUpload(config: MossFileUploadConfig): Extension {
+  return [
+    uploadField,
+    uploadCleanupPlugin,
+    Prec.high(
+      EditorView.domEventHandlers({
+        paste: (event, view) => {
+          if (event.defaultPrevented || !canUpload(view)) return false;
+          if (isInsideTableCell(event.target)) return false;
+          const files = filesFromDataTransfer(event.clipboardData);
+          if (files.length === 0) return false;
+          event.preventDefault();
+          const { from, to } = view.state.selection.main;
+          beginUploads(
+            view,
+            from,
+            to,
+            files.map((file) => ({ file })),
+            config.uploader,
+            config,
+          );
+          return true;
+        },
+        dragover: (event, view) => {
+          if (event.defaultPrevented || !canUpload(view)) return false;
+          if (filesFromDataTransfer(event.dataTransfer).length === 0) return false;
+          event.preventDefault();
+          if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+          return true;
+        },
+        drop: (event, view) => {
+          if (event.defaultPrevented || !canUpload(view)) return false;
+          if (isInsideTableCell(event.target)) return false;
+          const files = filesFromDataTransfer(event.dataTransfer);
+          if (files.length === 0) return false;
+          event.preventDefault();
+          const coords = { x: event.clientX, y: event.clientY };
+          const pos = view.posAtCoords(coords) ?? view.state.selection.main.from;
+          beginUploads(
+            view,
+            pos,
+            pos,
+            files.map((file) => ({ file })),
+            config.uploader,
+            config,
+          );
+          return true;
+        },
+      }),
+    ),
+  ];
 }
 
 export function beginUpload(
@@ -277,94 +407,493 @@ export function beginUpload(
   file: File,
   uploader: MossUploader,
 ): void {
-  const id = genId();
-  const localUrl = URL.createObjectURL(file);
-  runtime.set(id, { file, uploader, lastProgress: 0 });
-  view.dispatch({
-    effects: uploadEffects.register.of({
+  beginUploads(view, anchorPos, anchorPos, [{ file, kind }], uploader);
+}
+
+export function beginUploads(
+  view: EditorView,
+  from: number,
+  to: number,
+  items: readonly MossUploadItem[],
+  uploader: MossUploader,
+  options: MossUploadOptions = {},
+): void {
+  if (!canUpload(view) || items.length === 0) return;
+
+  const accepted = selectUploadItems(items, options);
+  if (accepted.length === 0) return;
+
+  const batchId = genId();
+  const start = Math.max(0, Math.min(from, view.state.doc.length));
+  const end = Math.max(start, Math.min(to, view.state.doc.length));
+  const batch: BatchRuntime = {
+    id: batchId,
+    view,
+    items: [],
+    nextIndex: 0,
+    maxConcurrency: normalizeConcurrency(options.maxConcurrency),
+  };
+
+  for (const [index, item] of accepted.entries()) {
+    const id = genId();
+    const localUrl = createLocalUrl(item.file);
+    const runtimeItem: RuntimeItem = {
       id,
-      pos: anchorPos,
-      kind,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
+      batchId,
+      index,
+      file: item.file,
+      fileName: safeFileName(item.file.name, item.kind),
+      uploader,
+      kind: item.kind,
       localUrl,
-    }),
+      view,
+      controller: new AbortController(),
+      lastProgress: 0,
+      status: 'pending',
+    };
+    runtimeItems.set(id, runtimeItem);
+    batch.items.push(runtimeItem);
+  }
+  runtimeBatches.set(batchId, batch);
+
+  view.dispatch({
+    effects: batch.items.map((item) =>
+      uploadEffects.register.of({
+        id: item.id,
+        batchId,
+        index: item.index,
+        pos: start,
+        // Only the first item owns the selected range. The remaining items
+        // are inserted at the mapped position after the first block.
+        to: item.index === 0 ? end : start,
+        kind: item.kind,
+        fileName: item.fileName,
+        fileSize: item.file.size,
+        fileType: item.file.type,
+        localUrl: item.localUrl,
+      }),
+    ),
   });
-  void runUploader(view, id, runtime.get(id)!);
+
+  scheduleBatch(batch);
 }
 
 export function retryUpload(view: EditorView, id: string): void {
-  const rt = runtime.get(id);
-  if (!rt) return;
-  if (!hasEntry(view, id)) return;
+  const item = runtimeItems.get(id);
+  if (!item || item.view !== view || item.status !== 'error') return;
+  const batch = runtimeBatches.get(item.batchId);
+  if (!batch || !hasEntry(view, id)) return;
+
+  item.status = 'pending';
+  item.controller = new AbortController();
+  item.lastProgress = 0;
   view.dispatch({ effects: uploadEffects.retry.of({ id }) });
-  void runUploader(view, id, rt);
+  scheduleBatch(batch);
 }
 
 export function cancelUpload(view: EditorView, id: string): void {
-  const entry = readEntry(view, id);
-  runtime.delete(id);
-  if (entry?.localUrl) URL.revokeObjectURL(entry.localUrl);
+  const item = runtimeItems.get(id);
+  if (!item || item.view !== view) return;
+  const batch = runtimeBatches.get(item.batchId);
+  item.status = 'cancelled';
+  item.controller.abort();
+  removeRuntimeItem(item);
   if (hasEntry(view, id)) {
     view.dispatch({ effects: uploadEffects.remove.of({ id }) });
   }
+  if (batch) {
+    flushBatch(batch);
+    scheduleBatch(batch);
+  }
 }
 
-async function runUploader(
-  view: EditorView,
-  id: string,
-  rt: Runtime,
-): Promise<void> {
-  const onProgress = (ratio: number) => {
-    const clamped = Math.max(0, Math.min(1, ratio));
-    if (Math.abs(clamped - rt.lastProgress) < 0.02 && clamped < 1) return;
-    rt.lastProgress = clamped;
-    if (!hasEntry(view, id)) return;
-    view.dispatch({ effects: uploadEffects.progress.of({ id, progress: clamped }) });
+export function filesFromDataTransfer(
+  transfer: DataTransfer | null,
+): File[] {
+  if (!transfer) return [];
+  const direct = Array.from(transfer.files ?? []);
+  if (direct.length > 0) return uniqueFiles(direct);
+
+  const fromItems: File[] = [];
+  for (const item of Array.from(transfer.items ?? [])) {
+    const file = item.getAsFile();
+    if (file) fromItems.push(file);
+  }
+  return uniqueFiles(fromItems);
+}
+
+async function runUpload(item: RuntimeItem): Promise<void> {
+  item.status = 'uploading';
+  const onProgress = (ratio: number): void => {
+    if (isCancelled(item) || !hasEntry(item.view, item.id)) return;
+    const progress = Math.max(0, Math.min(1, ratio));
+    if (Math.abs(progress - item.lastProgress) < 0.02 && progress < 1) return;
+    item.lastProgress = progress;
+    safeDispatch(item.view, {
+      effects: uploadEffects.progress.of({ id: item.id, progress }),
+    });
   };
 
   try {
-    const { url, kind } = await rt.uploader(rt.file, onProgress);
-    const entry = readEntry(view, id);
-    if (!entry) return; // cancelled or doc no longer has the anchor
-    const line = view.state.doc.lineAt(entry.pos);
-    const resolvedKind = kind ?? entry.kind;
-    const md =
-      resolvedKind === 'file'
-        ? `[${entry.fileName}](${url})`
-        : `![${entry.fileName}](${url})`;
-    // For images, drop the caret right after `![name` so the user
-    // can type `|caption` to give alt and caption different text,
-    // or leave it as-is (the name doubles as caption by default).
-    // For files, leave the caret at the end of the inserted link.
-    const caret =
-      resolvedKind === 'file'
-        ? line.from + md.length
-        : line.from + 2 + entry.fileName.length;
-    view.dispatch({
-      changes: { from: line.from, to: line.to, insert: md },
-      effects: uploadEffects.remove.of({ id }),
-      selection: { anchor: caret },
+    const result = await item.uploader(
+      item.file,
+      onProgress,
+      item.controller.signal,
+    );
+    if (isCancelled(item) || !hasEntry(item.view, item.id)) return;
+    assertSafeUrl(result.url);
+    item.result = result;
+    item.status = 'success';
+    safeDispatch(item.view, {
+      effects: [
+        uploadEffects.progress.of({ id: item.id, progress: 1 }),
+        uploadEffects.waiting.of({ id: item.id }),
+      ],
     });
-    if (entry.localUrl) URL.revokeObjectURL(entry.localUrl);
-    runtime.delete(id);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (!hasEntry(view, id)) return;
-    view.dispatch({ effects: uploadEffects.error.of({ id, error: msg }) });
-    // keep runtime so retry can reuse it
+    const batch = runtimeBatches.get(item.batchId);
+    if (batch) {
+      flushBatch(batch);
+      scheduleBatch(batch);
+    }
+  } catch (error) {
+    if (isCancelled(item)) return;
+    item.status = 'error';
+    const message = error instanceof Error ? error.message : String(error);
+    if (hasEntry(item.view, item.id)) {
+      safeDispatch(item.view, {
+        effects: uploadEffects.error.of({ id: item.id, error: message }),
+      });
+    }
+    const batch = runtimeBatches.get(item.batchId);
+    if (batch) scheduleBatch(batch);
   }
+}
+
+function flushBatch(batch: BatchRuntime): void {
+  if (!isViewUsable(batch.view)) {
+    cleanupBatch(batch);
+    return;
+  }
+
+  const cancelled: RuntimeItem[] = [];
+  const ready: RuntimeItem[] = [];
+  while (batch.nextIndex < batch.items.length) {
+    const item = batch.items[batch.nextIndex];
+    if (item.status === 'cancelled') {
+      cancelled.push(item);
+      batch.nextIndex++;
+      continue;
+    }
+    if (item.status === 'success') {
+      ready.push(item);
+      batch.nextIndex++;
+      continue;
+    }
+    break;
+  }
+
+  if (cancelled.length > 0 && ready.length === 0) {
+    safeDispatch(batch.view, {
+      effects: cancelled.map((item) => uploadEffects.remove.of({ id: item.id })),
+    });
+    for (const item of cancelled) removeRuntimeItem(item);
+    flushBatch(batch);
+    return;
+  }
+
+  if (ready.length === 0) {
+    cleanupBatch(batch);
+    return;
+  }
+
+  const firstEntry = readEntry(batch.view, ready[0].id);
+  if (!firstEntry) {
+    for (const item of [...cancelled, ...ready]) {
+      item.status = 'committed';
+      removeRuntimeItem(item);
+    }
+    flushBatch(batch);
+    return;
+  }
+
+  const markdowns = ready.map((item) =>
+    formatMarkdown(
+      item.kind,
+      item.fileName,
+      item.result?.url ?? '',
+      item.result?.kind,
+    ),
+  );
+  const insertion = buildBlockInsertion(
+    batch.view,
+    firstEntry.pos,
+    firstEntry.to,
+    markdowns,
+  );
+  const effects = [
+    ...cancelled.map((item) => uploadEffects.remove.of({ id: item.id })),
+    ...ready.map((item) => uploadEffects.remove.of({ id: item.id })),
+  ];
+
+  try {
+    batch.view.dispatch({
+      changes: {
+        from: firstEntry.pos,
+        to: firstEntry.to,
+        insert: insertion.text,
+      },
+      effects,
+      selection: { anchor: firstEntry.pos + insertion.caretOffset },
+    });
+  } catch {
+    cleanupBatch(batch);
+    return;
+  }
+
+  for (const item of [...cancelled, ...ready]) {
+    item.status = 'committed';
+    removeRuntimeItem(item);
+  }
+  flushBatch(batch);
+}
+
+function scheduleBatch(batch: BatchRuntime): void {
+  if (!runtimeBatches.has(batch.id) || !isViewUsable(batch.view)) {
+    cleanupBatch(batch);
+    return;
+  }
+  const active = batch.items.filter((item) => item.status === 'uploading').length;
+  const available = Math.max(0, batch.maxConcurrency - active);
+  const pending = batch.items.filter((item) => item.status === 'pending');
+  for (const item of pending.slice(0, available)) {
+    void runUpload(item);
+  }
+  cleanupBatch(batch);
+}
+
+function cleanupBatch(batch: BatchRuntime): void {
+  const hasLiveItems = batch.items.some(
+    (item) =>
+      item.status !== 'committed' &&
+      item.status !== 'cancelled',
+  );
+  if (!hasLiveItems) runtimeBatches.delete(batch.id);
+}
+
+function cleanupUploadsForView(view: EditorView): void {
+  for (const batch of Array.from(runtimeBatches.values())) {
+    if (batch.view !== view) continue;
+    for (const item of batch.items) {
+      item.status = 'cancelled';
+      item.controller.abort();
+      removeRuntimeItem(item);
+    }
+    runtimeBatches.delete(batch.id);
+  }
+}
+
+function removeRuntimeItem(item: RuntimeItem): void {
+  runtimeItems.delete(item.id);
+  revokeLocalUrl(item.localUrl);
+}
+
+const uploadCleanupPlugin = ViewPlugin.fromClass(
+  class {
+    constructor(readonly view: EditorView) {}
+
+    destroy(): void {
+      cleanupUploadsForView(this.view);
+    }
+  },
+);
+
+function canUpload(view: EditorView): boolean {
+  return !view.state.facet(readOnlyFacet) && !view.state.readOnly;
+}
+
+function isInsideTableCell(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement &&
+    Boolean(target.closest('.cm-moss-table-cell, .cm-moss-table-cell-source'));
+}
+
+function safeDispatch(
+  view: EditorView,
+  spec: Parameters<EditorView['dispatch']>[0],
+): void {
+  if (isViewUsable(view)) view.dispatch(spec);
+}
+
+function isViewUsable(view: EditorView): boolean {
+  return view.dom.isConnected;
 }
 
 function hasEntry(view: EditorView, id: string): boolean {
   const entries = view.state.field(uploadField, false);
-  return Array.isArray(entries) && entries.some((e) => e.id === id);
+  return Array.isArray(entries) && entries.some((entry) => entry.id === id);
 }
 
 function readEntry(view: EditorView, id: string): UploadEntry | undefined {
   const entries = view.state.field(uploadField, false);
-  return Array.isArray(entries) ? entries.find((e) => e.id === id) : undefined;
+  return Array.isArray(entries)
+    ? entries.find((entry) => entry.id === id)
+    : undefined;
+}
+
+function buildBlockInsertion(
+  view: EditorView,
+  from: number,
+  to: number,
+  markdowns: readonly string[],
+): { text: string; caretOffset: number } {
+  const doc = view.state.doc;
+  const fromLine = doc.lineAt(from);
+  const toLine = doc.lineAt(to);
+  const before = doc.sliceString(fromLine.from, from);
+  const after = doc.sliceString(to, toLine.to);
+  const prefix = before.trim() ? '\n\n' : '';
+  // Leave a real editable line after an upload at the end of a document.
+  // Without it, standalone image/file widgets occupy the visual area below
+  // the hidden source line and the caret remains inside that source range.
+  const suffix = after.trim() ? '\n\n' : '\n';
+  const middle = markdowns.join('\n\n');
+  const text = prefix + middle + suffix;
+  return { text, caretOffset: text.length };
+}
+
+function formatMarkdown(
+  kind: MossUploadKind,
+  fileName: string,
+  url: string,
+  resultKind?: MossUploadKind,
+): string {
+  assertSafeUrl(url);
+  const resolvedKind = resultKind ?? kind;
+  return resolvedKind === 'file'
+    ? `[${fileName}](${url})`
+    : `![${fileName}](${url})`;
+}
+
+function assertSafeUrl(url: string): void {
+  if (!url.trim() || /[\s"')]/.test(url)) {
+    throw new Error('Uploader returned an invalid URL');
+  }
+}
+
+function selectUploadItems(
+  items: readonly MossUploadItem[],
+  options: MossUploadOptions,
+): { file: File; kind: MossUploadKind }[] {
+  const accepted: { file: File; kind: MossUploadKind }[] = [];
+  const rejected = new Map<MossUploadRejectReason, File[]>();
+  const report = (file: File, reason: MossUploadRejectReason) => {
+    const files = rejected.get(reason) ?? [];
+    files.push(file);
+    rejected.set(reason, files);
+  };
+  const maxFiles = normalizeLimit(options.maxFiles);
+  const maxFileSize = normalizeLimit(options.maxFileSize);
+  const maxTotalSize = normalizeLimit(options.maxTotalSize);
+  const accepts = normalizeAccept(options.accept);
+  let totalSize = 0;
+
+  for (const item of items) {
+    const file = item.file;
+    if (maxFiles !== undefined && accepted.length >= maxFiles) {
+      report(file, 'max-files');
+      continue;
+    }
+    if (maxFileSize !== undefined && file.size > maxFileSize) {
+      report(file, 'max-file-size');
+      continue;
+    }
+    if (accepts.length > 0 && !matchesAccept(file, accepts)) {
+      report(file, 'accept');
+      continue;
+    }
+    if (maxTotalSize !== undefined && totalSize + file.size > maxTotalSize) {
+      report(file, 'max-total-size');
+      continue;
+    }
+    totalSize += file.size;
+    accepted.push({
+      file,
+      kind: item.kind ?? options.resolveKind?.(file) ?? defaultKind(file),
+    });
+  }
+  for (const [reason, files] of rejected) {
+    options.onRejected?.(files, reason);
+  }
+  return accepted;
+}
+
+function normalizeConcurrency(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value)) {
+    return DEFAULT_MAX_CONCURRENCY;
+  }
+  return Math.max(1, Math.floor(value));
+}
+
+function normalizeLimit(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value) || value < 0) return undefined;
+  return value;
+}
+
+function normalizeAccept(
+  accept: string | readonly string[] | undefined,
+): string[] {
+  if (!accept) return [];
+  const values: readonly string[] =
+    typeof accept === 'string' ? accept.split(',') : accept;
+  return values
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isCancelled(item: RuntimeItem): boolean {
+  return item.status === 'cancelled';
+}
+
+function matchesAccept(file: File, accepts: readonly string[]): boolean {
+  const type = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+  return accepts.some((accept) => {
+    if (accept.startsWith('.')) return name.endsWith(accept);
+    if (accept.endsWith('/*')) return type.startsWith(accept.slice(0, -1));
+    return type === accept;
+  });
+}
+
+function defaultKind(file: File): MossUploadKind {
+  return file.type.toLowerCase().startsWith('image/') ? 'image' : 'file';
+}
+
+function safeFileName(name: string, kind: MossUploadKind): string {
+  const cleaned = name
+    .replace(/[\[\]|\\\r\n]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned || (kind === 'image' ? 'image' : 'file');
+}
+
+function uniqueFiles(files: readonly File[]): File[] {
+  const seen = new Set<File>();
+  const result: File[] = [];
+  for (const file of files) {
+    if (seen.has(file)) continue;
+    seen.add(file);
+    result.push(file);
+  }
+  return result;
+}
+
+function createLocalUrl(file: File): string {
+  return typeof URL.createObjectURL === 'function'
+    ? URL.createObjectURL(file)
+    : '';
+}
+
+function revokeLocalUrl(url: string): void {
+  if (url && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(url);
 }
 
 function genId(): string {
@@ -374,56 +903,62 @@ function genId(): string {
   return `up_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 function extOf(fileName: string): string {
-  const i = fileName.lastIndexOf('.');
-  return i >= 0 ? fileName.slice(i + 1).toUpperCase() : '';
+  const index = fileName.lastIndexOf('.');
+  return index >= 0 ? fileName.slice(index + 1).toUpperCase() : '';
 }
 
-// ---------------------------------------------------------------------------
-// Commands
-//
-// `mossUploadCommands(uploader)` returns upload-image / upload-file
-// slash commands wired to the widget flow. On `apply` they pick a
-// file, clear any `/query` trigger text on the line, then call
-// `beginUpload` which registers the pending entry and kicks off the
-// uploader. The `+` button path lands here too (its line is already
-// empty, so `clearTriggerLine` is a no-op).
-// ---------------------------------------------------------------------------
-
-export function mossUploadCommands(uploader: MossUploader): MossSlashCommand[] {
+export function mossUploadCommands(
+  uploader: MossUploader,
+  options: MossUploadOptions = {},
+): MossSlashCommand[] {
   return [
     {
       id: 'upload-image',
       label: 'Upload image',
-      detail: 'Pick from disk, upload, insert ![alt](url)',
+      detail: 'Pick from disk, upload, insert ![name](url)',
       keywords: ['picture', 'photo', 'image', 'img'],
       icon: 'image',
       apply: async (view, from) => {
-        const file = await pickFile('image/*');
-        if (!file) return;
+        const files = await pickFiles('image/*');
+        if (files.length === 0) return;
         const line = view.state.doc.lineAt(from);
         clearTriggerLine(view, line);
-        beginUpload(view, line.from, 'image', file, uploader);
+        beginUploads(
+          view,
+          line.from,
+          line.from,
+          files.map((file) => ({ file, kind: 'image' })),
+          uploader,
+          options,
+        );
       },
     },
     {
       id: 'upload-file',
       label: 'Upload file',
-      detail: 'Pick from disk, upload, link [name](url)',
+      detail: 'Pick from disk, upload, insert [name](url)',
       keywords: ['attachment', 'file', 'link'],
       icon: 'file',
       apply: async (view, from) => {
-        const file = await pickFile();
-        if (!file) return;
+        const files = await pickFiles();
+        if (files.length === 0) return;
         const line = view.state.doc.lineAt(from);
         clearTriggerLine(view, line);
-        beginUpload(view, line.from, 'file', file, uploader);
+        beginUploads(
+          view,
+          line.from,
+          line.from,
+          files.map((file) => ({ file, kind: 'file' })),
+          uploader,
+          options,
+        );
       },
     },
   ];
@@ -441,10 +976,11 @@ function clearTriggerLine(
   });
 }
 
-function pickFile(accept?: string): Promise<File | null> {
+function pickFiles(accept?: string): Promise<File[]> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
+    input.multiple = true;
     if (accept) input.accept = accept;
     input.style.position = 'fixed';
     input.style.top = '-9999px';
@@ -461,14 +997,14 @@ function pickFile(accept?: string): Promise<File | null> {
       window.setTimeout(() => {
         if (!settled && !input.files?.length) {
           cleanup();
-          resolve(null);
+          resolve([]);
         }
       }, 300);
     };
     input.addEventListener('change', () => {
-      const file = input.files?.[0] ?? null;
+      const files = Array.from(input.files ?? []);
       cleanup();
-      resolve(file);
+      resolve(files);
     });
     window.addEventListener('focus', onFocus, true);
     document.body.appendChild(input);

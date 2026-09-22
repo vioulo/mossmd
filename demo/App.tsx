@@ -202,6 +202,9 @@ const demoUploader: MossUploader = (file, onProgress) =>
     tick();
   });
 const demoUploadCommands = mossUploadCommands(demoUploader);
+const MOSS_DEMO_FILE_UPLOAD = {
+  uploader: demoUploader,
+};
 
 const MOSS_DEMO_SLASH_COMMANDS = {
   commands: overrideDefaultUploads(
@@ -544,6 +547,7 @@ export function App() {
               codeLanguages={MOSS_CODE_LANGUAGES}
               customSyntax={MOSS_DEMO_SYNTAX}
               slashCommandsConfig={MOSS_DEMO_SLASH_COMMANDS}
+              fileUpload={MOSS_DEMO_FILE_UPLOAD}
               initialRevealText={revealText}
               inlinePreviewConfig={{ onLinkClick: handleLinkClick }}
               wikiLinksConfig={{

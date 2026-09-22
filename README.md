@@ -112,6 +112,23 @@ const uploadCommands = mossUploadCommands(uploader);
 
 上传在 pending 期间显示一个块级进度 Widget，成功后落回最终 Markdown，失败可重试或取消。pending 状态只活在编辑器内部，不会污染原文。
 
+如果需要直接支持图片和普通文件的粘贴、拖拽及批量上传，可以把同一个 uploader
+传给 `fileUpload`。输入统一为 `File[]`，默认按 MIME 类型分流：图片生成
+`![name](url)`，普通文件生成 `[name](url)`；图片不会自动生成空的 `|caption`，
+用户仍可在图片名后输入 `|caption` 或 `|width=72%`。
+
+```tsx
+<MossMD
+  markdownSource={'…'}
+  fileUpload={{
+    uploader,
+    maxConcurrency: 3,
+    maxFiles: 20,
+    maxFileSize: 20 * 1024 * 1024,
+  }}
+/>
+```
+
 ## 阅读模式
 
 ```tsx

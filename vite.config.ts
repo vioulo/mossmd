@@ -27,6 +27,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, 'src/core/code-languages.ts'),
       },
       {
+        find: /^mossmd\/icons$/,
+        replacement: path.resolve(__dirname, 'src/core/icons.ts'),
+      },
+      {
         find: /^mossmd\/styles\.css$/,
         replacement: path.resolve(__dirname, 'src/styles/inline-preview.css'),
       },

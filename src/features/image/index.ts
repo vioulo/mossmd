@@ -15,9 +15,22 @@ import {
   type ViewUpdate,
 } from '@codemirror/view';
 import { Check, Eye, Image as ImageIcon, Maximize2, Pencil, X } from 'lucide-react';
-import { lucideSvg } from '../../core/icons';
+import {
+  appendMossIcon,
+  mossLucideIcon,
+  type MossIconRenderer,
+} from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
 import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
+
+export interface MossImageIcons {
+  edit: MossIconRenderer;
+  preview: MossIconRenderer;
+  resize: MossIconRenderer;
+  save: MossIconRenderer;
+  cancel: MossIconRenderer;
+  placeholder: MossIconRenderer;
+}
 
 export interface MossImagesConfig {
   /** Show the image edit button in editable mode. Defaults to true. */
@@ -26,6 +39,8 @@ export interface MossImagesConfig {
   resizable?: boolean;
   /** Show the image preview button. Defaults to true. */
   previewable?: boolean;
+  /** Override visible image block/editor icons. */
+  icons?: Partial<MossImageIcons>;
 }
 
 export interface MossImageEdit {
@@ -35,12 +50,14 @@ export interface MossImageEdit {
   width: string | null;
 }
 
-const EDIT_ICON = lucideSvg(Pencil, { size: 16 });
-const PREVIEW_ICON = lucideSvg(Eye, { size: 16 });
-const RESIZE_ICON = lucideSvg(Maximize2, { size: 16 });
-const SAVE_ICON = lucideSvg(Check, { size: 15 });
-const CLOSE_ICON = lucideSvg(X, { size: 15 });
-const IMAGE_PLACEHOLDER_ICON = lucideSvg(ImageIcon, { size: 36 });
+const DEFAULT_IMAGE_ICONS: MossImageIcons = {
+  edit: mossLucideIcon(Pencil, { size: 16 }),
+  preview: mossLucideIcon(Eye, { size: 16 }),
+  resize: mossLucideIcon(Maximize2, { size: 16 }),
+  save: mossLucideIcon(Check, { size: 15 }),
+  cancel: mossLucideIcon(X, { size: 15 }),
+  placeholder: mossLucideIcon(ImageIcon, { size: 36 }),
+};
 const IMAGE_WIDTH_RE = /^(?:\d+(?:\.\d+)?)(?:%|px|rem|em|vw)$/;
 const MIN_IMAGE_WIDTH = 160;
 
@@ -79,7 +96,15 @@ const MIN_IMAGE_WIDTH = 160;
 const dimensionCache = new Map<string, { w: number; h: number }>();
 const activeImagePreviews = new WeakMap<EditorView, () => void>();
 
-function openImagePreview(view: EditorView, image: MossImageEdit): void {
+function resolveImageIcons(config: MossImagesConfig): MossImageIcons {
+  return { ...DEFAULT_IMAGE_ICONS, ...config.icons };
+}
+
+function openImagePreview(
+  view: EditorView,
+  image: MossImageEdit,
+  icons: MossImageIcons,
+): void {
   activeImagePreviews.get(view)?.();
 
   const previousFocus = document.activeElement;
@@ -96,7 +121,7 @@ function openImagePreview(view: EditorView, image: MossImageEdit): void {
   const closeButton = document.createElement('button');
   closeButton.type = 'button';
   closeButton.className = 'cm-moss-image-preview-close';
-  closeButton.innerHTML = CLOSE_ICON;
+  appendMossIcon(closeButton, icons.cancel);
   closeButton.setAttribute('aria-label', 'Close image preview');
   closeButton.title = 'Close preview';
 
@@ -285,6 +310,7 @@ function openImageEditor(
   view: EditorView,
   wrap: HTMLElement,
   image: MossImageEdit,
+  icons: MossImageIcons,
 ): void {
   activeImageEditors.get(view)?.();
 
@@ -317,13 +343,13 @@ function openImageEditor(
   const cancel = document.createElement('button');
   cancel.type = 'button';
   cancel.className = 'cm-moss-image-editor-button';
-  cancel.innerHTML = CLOSE_ICON;
+  appendMossIcon(cancel, icons.cancel);
   cancel.setAttribute('aria-label', 'Cancel image edit');
   cancel.title = 'Cancel';
   const save = document.createElement('button');
   save.type = 'submit';
   save.className = 'cm-moss-image-editor-button is-primary';
-  save.innerHTML = SAVE_ICON;
+  appendMossIcon(save, icons.save);
   save.setAttribute('aria-label', 'Save image');
   save.title = 'Save';
   actions.append(cancel, save);
@@ -398,6 +424,7 @@ class ImageWidget extends WidgetType {
     readonly canEdit: boolean,
     readonly canResize: boolean,
     readonly canPreview: boolean,
+    readonly icons: MossImageIcons,
   ) {
     super();
   }
@@ -410,7 +437,13 @@ class ImageWidget extends WidgetType {
       other.width === this.width &&
       other.canEdit === this.canEdit &&
       other.canResize === this.canResize &&
-      other.canPreview === this.canPreview
+      other.canPreview === this.canPreview &&
+      other.icons.edit === this.icons.edit &&
+      other.icons.preview === this.icons.preview &&
+      other.icons.resize === this.icons.resize &&
+      other.icons.save === this.icons.save &&
+      other.icons.cancel === this.icons.cancel &&
+      other.icons.placeholder === this.icons.placeholder
     );
   }
 
@@ -434,7 +467,7 @@ class ImageWidget extends WidgetType {
       frame.classList.add('cm-moss-image-frame-placeholder');
       placeholder = document.createElement('div');
       placeholder.className = 'cm-moss-image-placeholder';
-      placeholder.innerHTML = IMAGE_PLACEHOLDER_ICON;
+      appendMossIcon(placeholder, this.icons.placeholder);
       placeholder.setAttribute('aria-hidden', 'true');
       frame.appendChild(placeholder);
     }
@@ -489,7 +522,7 @@ class ImageWidget extends WidgetType {
       const preview = document.createElement('button');
       preview.type = 'button';
       preview.className = 'cm-moss-image-preview';
-      preview.innerHTML = PREVIEW_ICON;
+      appendMossIcon(preview, this.icons.preview);
       preview.setAttribute('aria-label', 'Preview image');
       preview.title = 'Preview image';
       preview.addEventListener('pointerdown', (event) => {
@@ -504,7 +537,7 @@ class ImageWidget extends WidgetType {
           alt: this.alt,
           caption: this.caption,
           width: this.width,
-        });
+        }, this.icons);
       });
       frame.appendChild(preview);
     }
@@ -513,7 +546,7 @@ class ImageWidget extends WidgetType {
       const edit = document.createElement('button');
       edit.type = 'button';
       edit.className = 'cm-moss-image-edit';
-      edit.innerHTML = EDIT_ICON;
+      appendMossIcon(edit, this.icons.edit);
       edit.setAttribute('aria-label', 'Edit image');
       edit.title = 'Edit image';
       edit.addEventListener('pointerdown', (event) => {
@@ -529,7 +562,7 @@ class ImageWidget extends WidgetType {
             alt: this.alt,
             caption: this.caption,
             width: this.width,
-          });
+          }, this.icons);
         }
       });
       frame.appendChild(edit);
@@ -539,7 +572,7 @@ class ImageWidget extends WidgetType {
       const resize = document.createElement('button');
       resize.type = 'button';
       resize.className = 'cm-moss-image-resize';
-      resize.innerHTML = RESIZE_ICON;
+      appendMossIcon(resize, this.icons.resize);
       resize.setAttribute('aria-label', 'Resize image');
       resize.title = 'Resize image';
       resize.addEventListener('pointerdown', (event) => {
@@ -634,6 +667,7 @@ function buildImageBlocks(
   config: MossImagesConfig,
 ): DecorationSet {
   const ranges: Range<Decoration>[] = [];
+  const icons = resolveImageIcons(config);
   // Push the parser to cover the whole doc so image nodes in
   // regions CM6 hasn't yet parsed get widgetized. Without this, for
   // moderately long atoms the initial parse doesn't reach the
@@ -682,6 +716,7 @@ function buildImageBlocks(
               config.editable !== false &&
               !state.facet(readOnlyFacet),
             config.previewable !== false,
+            icons,
           ),
           block: true,
           // side: 1 places the block widget after the line's content,

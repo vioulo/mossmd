@@ -11,13 +11,17 @@ import {
 } from '@codemirror/search';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
-import { lucideSvg } from '../../core/icons';
+import {
+  appendMossIcon,
+  mossLucideIcon,
+  type MossIconRenderer,
+} from '../../core/icons';
 
 export type MossSearchPanelPosition = 'top' | 'center' | 'bottom';
 
-const SEARCH_ICON_PREV = lucideSvg(ChevronLeft, { size: 18 });
-const SEARCH_ICON_NEXT = lucideSvg(ChevronRight, { size: 18 });
-const SEARCH_ICON_CLOSE = lucideSvg(X, { size: 18 });
+const SEARCH_ICON_PREV = mossLucideIcon(ChevronLeft, { size: 18 });
+const SEARCH_ICON_NEXT = mossLucideIcon(ChevronRight, { size: 18 });
+const SEARCH_ICON_CLOSE = mossLucideIcon(X, { size: 18 });
 
 export function mossSearch(position: MossSearchPanelPosition = 'top'): Extension {
   return search({
@@ -154,14 +158,14 @@ function defaultSearchPanel(
 }
 
 function makeIconButton(
-  svg: string,
+  icon: MossIconRenderer,
   label: string,
   onClick: () => void,
 ): HTMLButtonElement {
   const el = document.createElement('button');
   el.type = 'button';
   el.className = 'cm-moss-search-btn';
-  el.innerHTML = svg;
+  appendMossIcon(el, icon, { size: 18, ariaHidden: true });
   el.setAttribute('aria-label', label);
   el.title = label;
   el.addEventListener('click', onClick);

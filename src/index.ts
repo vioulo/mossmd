@@ -1,6 +1,7 @@
 export { MossMD } from './editor';
 export type {
   MossMDHandle,
+  MossMDIconsConfig,
   MossMDProps,
 } from './editor';
 
@@ -29,3 +30,12 @@ export type {
 } from './syntax';
 export { MOSS_CODE_LANGUAGES } from './core/code-languages';
 export { setFrozen, defaultOnLinkClick } from './core/inline-preview';
+export {
+  mossLucideIcon,
+  renderLucideIcon,
+  renderMossIcon,
+} from './core/icons';
+export type {
+  MossIconProps,
+  MossIconRenderer,
+} from './core/icons';

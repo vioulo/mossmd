@@ -28,13 +28,29 @@ import {
   type ViewUpdate,
 } from '@codemirror/view';
 import { Download, File as FileIconLucide, Trash2 } from 'lucide-react';
-import { lucideSvg } from '../../core/icons';
+import {
+  appendMossIcon,
+  mossLucideIcon,
+  type MossIconRenderer,
+} from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
 import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
 
-const FILE_ICON = lucideSvg(FileIconLucide, { size: 40 });
-const DOWNLOAD_ICON = lucideSvg(Download, { size: 16 });
-const DELETE_ICON = lucideSvg(Trash2, { size: 16 });
+export interface MossFileBlockIcons {
+  file: MossIconRenderer;
+  download: MossIconRenderer;
+  delete: MossIconRenderer;
+}
+
+export interface MossFileBlocksConfig {
+  icons?: Partial<MossFileBlockIcons>;
+}
+
+const DEFAULT_FILE_BLOCK_ICONS: MossFileBlockIcons = {
+  file: mossLucideIcon(FileIconLucide, { size: 40 }),
+  download: mossLucideIcon(Download, { size: 16 }),
+  delete: mossLucideIcon(Trash2, { size: 16 }),
+};
 
 // Non-image file extensions that we'll turn into a file card. The URL
 // regex alone isn't enough — we need to skip links that are obviously
@@ -156,6 +172,7 @@ class FileBlockWidget extends WidgetType {
     readonly url: string,
     readonly ext: string,
     readonly canDelete: boolean,
+    readonly icons: MossFileBlockIcons,
   ) {
     super();
   }
@@ -165,7 +182,10 @@ class FileBlockWidget extends WidgetType {
       other.label === this.label &&
       other.url === this.url &&
       other.ext === this.ext &&
-      other.canDelete === this.canDelete
+      other.canDelete === this.canDelete &&
+      other.icons.file === this.icons.file &&
+      other.icons.download === this.icons.download &&
+      other.icons.delete === this.icons.delete
     );
   }
 
@@ -204,7 +224,7 @@ class FileBlockWidget extends WidgetType {
     } else {
       const glyph = document.createElement('span');
       glyph.className = 'cm-moss-file-block-glyph';
-      glyph.innerHTML = FILE_ICON;
+      appendMossIcon(glyph, this.icons.file);
       const ext = document.createElement('span');
       ext.className = 'cm-moss-file-block-ext';
       ext.textContent = this.ext || 'FILE';
@@ -236,7 +256,7 @@ class FileBlockWidget extends WidgetType {
     const download = document.createElement('button');
     download.type = 'button';
     download.className = 'cm-moss-file-block-download';
-    download.innerHTML = DOWNLOAD_ICON;
+    appendMossIcon(download, this.icons.download);
     download.setAttribute('aria-label', 'Download file');
     download.title = 'Download file';
     download.addEventListener('pointerdown', stopEditorEvent);
@@ -250,7 +270,7 @@ class FileBlockWidget extends WidgetType {
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'cm-moss-file-block-delete';
-      remove.innerHTML = DELETE_ICON;
+      appendMossIcon(remove, this.icons.delete);
       remove.setAttribute('aria-label', 'Delete file');
       remove.title = 'Delete file';
       remove.addEventListener('pointerdown', stopEditorEvent);
@@ -322,8 +342,15 @@ function extOf(url: string, label: string): string {
   return '';
 }
 
-function buildFileBlocks(state: EditorState): DecorationSet {
+function buildFileBlocks(
+  state: EditorState,
+  config: MossFileBlocksConfig,
+): DecorationSet {
   const ranges: Range<Decoration>[] = [];
+  const icons: MossFileBlockIcons = {
+    ...DEFAULT_FILE_BLOCK_ICONS,
+    ...config.icons,
+  };
   const tree =
     ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
 
@@ -351,6 +378,7 @@ function buildFileBlocks(state: EditorState): DecorationSet {
             file.url,
             ext,
             !state.facet(readOnlyFacet),
+            icons,
           ),
           block: true,
           side: 1,
@@ -391,20 +419,20 @@ function changeAffectsFileBlocks(
   return affected;
 }
 
-export function mossFileBlocks(): Extension {
+export function mossFileBlocks(config: MossFileBlocksConfig = {}): Extension {
   const fileBlocksField = StateField.define<DecorationSet>({
-    create: (state) => buildFileBlocks(state),
+    create: (state) => buildFileBlocks(state, config),
     update(deco, tr) {
       for (const effect of tr.effects) {
-        if (effect.is(treeGrowthEffect)) return buildFileBlocks(tr.state);
+        if (effect.is(treeGrowthEffect)) return buildFileBlocks(tr.state, config);
       }
       const readOnlyChanged =
         tr.startState.facet(readOnlyFacet) !== tr.state.facet(readOnlyFacet);
-      if (readOnlyChanged) return buildFileBlocks(tr.state);
+      if (readOnlyChanged) return buildFileBlocks(tr.state, config);
       if (!tr.docChanged) return deco;
       const mapped = deco.map(tr.changes);
       if (!changeAffectsFileBlocks(tr, deco)) return mapped;
-      return buildFileBlocks(tr.state);
+      return buildFileBlocks(tr.state, config);
     },
     provide: (f) => EditorView.decorations.from(f),
   });

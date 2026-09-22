@@ -9,6 +9,7 @@ import {
   MossMD,
   type MossMDHandle,
 } from '../editor';
+import { mossLucideIcon } from '../core/icons';
 
 const hosts: HTMLElement[] = [];
 
@@ -23,6 +24,16 @@ function mount(element: React.ReactNode) {
     root.render(element);
   });
   return { host, root };
+}
+
+function testIcon(name: string) {
+  return ({ document, size = 16 }: { document: Document; size?: number }) => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('data-moss-test-icon', name);
+    svg.setAttribute('width', String(size));
+    svg.setAttribute('height', String(size));
+    return svg;
+  };
 }
 
 afterEach(() => {
@@ -180,8 +191,8 @@ describe('MossMD', () => {
         editorHandleRef={handleRef}
         inlinePreviewConfig={{
           taskCheckboxes: {
-            '!': { icon: Star, label: 'Priority' },
-            A: { icon: Star, label: 'Active', filled: true },
+            '!': { icon: mossLucideIcon(Star), label: 'Priority' },
+            A: { icon: mossLucideIcon(Star), label: 'Active', filled: true },
           },
         }}
       />,
@@ -193,6 +204,9 @@ describe('MossMD', () => {
     expect(statuses).toHaveLength(5);
     expect(statuses[0]?.dataset.status).toBe('/');
     expect(statuses[0]?.querySelector('svg')).not.toBeNull();
+    expect(statuses[0]?.querySelector('svg')?.getAttribute('viewBox')).toBe(
+      '0 0 24 24',
+    );
     expect(statuses[1]?.getAttribute('aria-label')).toBe('Priority');
     expect(statuses[2]?.dataset.status).toBe('*');
     expect(statuses[2]?.querySelector('svg')?.getAttribute('fill')).toBe(
@@ -539,6 +553,159 @@ describe('MossMD', () => {
 
     expect(handleRef.current?.getMarkdown()).toBe('After.');
     expect(host.querySelector('.cm-moss-file-block')).toBeNull();
+  });
+
+  it('renders consumer-provided icon renderers on user-facing surfaces', async () => {
+    const { host } = mount(
+      <MossMD
+        markdownSource={[
+          '![Alt](https://example.com/pending.png)',
+          '',
+          '[report.pdf](https://example.com/report.pdf)',
+        ].join('\n')}
+        imagesConfig={{
+          icons: {
+            placeholder: testIcon('image-placeholder'),
+          },
+        }}
+        fileBlocksConfig={{
+          icons: {
+            file: testIcon('file-block-file'),
+            download: testIcon('file-block-download'),
+            delete: testIcon('file-block-delete'),
+          },
+        }}
+      />,
+    );
+
+    expect(
+      host.querySelector('[data-moss-test-icon="image-placeholder"]'),
+    ).not.toBeNull();
+    expect(
+      host.querySelector('[data-moss-test-icon="file-block-file"]'),
+    ).not.toBeNull();
+    expect(
+      host.querySelector('[data-moss-test-icon="file-block-download"]'),
+    ).not.toBeNull();
+    expect(
+      host.querySelector('[data-moss-test-icon="file-block-delete"]'),
+    ).not.toBeNull();
+
+    const slash = mount(
+      <MossMD
+        markdownSource=""
+        slashCommandsConfig={{
+          commands: [
+            {
+              id: 'custom',
+              label: 'Custom',
+              icon: testIcon('slash-custom'),
+              apply: () => undefined,
+            },
+          ],
+          sideButton: true,
+        }}
+      />,
+    );
+    const view = EditorView.findFromDOM(slash.host.querySelector('.cm-editor')!);
+    expect(view).not.toBeNull();
+    act(() => {
+      view!.focus();
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } });
+    });
+    const plus = slash.host.querySelector<HTMLButtonElement>('.cm-moss-side-plus');
+    expect(plus).not.toBeNull();
+    act(() =>
+      plus!.dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, cancelable: true }),
+      ),
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+
+    expect(slash.host.querySelector('.cm-completionIcon-moss-custom')).not.toBeNull();
+    expect(
+      slash.host.querySelector('[data-moss-test-icon="slash-custom"]'),
+    ).not.toBeNull();
+  });
+
+  it('merges top-level icon overrides into feature configs', () => {
+    const { host } = mount(
+      <MossMD
+        markdownSource={[
+          '![Alt](https://example.com/pending.png)',
+          '',
+          '[report.pdf](https://example.com/report.pdf)',
+        ].join('\n')}
+        icons={{
+          image: {
+            placeholder: testIcon('top-image-placeholder'),
+          },
+          file: {
+            file: testIcon('top-file-block-file'),
+            download: testIcon('top-file-block-download'),
+            delete: testIcon('top-file-block-delete'),
+          },
+        }}
+      />,
+    );
+
+    expect(
+      host.querySelector('[data-moss-test-icon="top-image-placeholder"]'),
+    ).not.toBeNull();
+    expect(
+      host.querySelector('[data-moss-test-icon="top-file-block-file"]'),
+    ).not.toBeNull();
+    expect(
+      host.querySelector('[data-moss-test-icon="top-file-block-download"]'),
+    ).not.toBeNull();
+    expect(
+      host.querySelector('[data-moss-test-icon="top-file-block-delete"]'),
+    ).not.toBeNull();
+  });
+
+  it('lets feature-level icon overrides win over top-level icons', () => {
+    const { host } = mount(
+      <MossMD
+        markdownSource={[
+          '![Alt](https://example.com/pending.png)',
+          '',
+          '[report.pdf](https://example.com/report.pdf)',
+        ].join('\n')}
+        icons={{
+          image: {
+            placeholder: testIcon('top-image-placeholder'),
+          },
+          file: {
+            file: testIcon('top-file-block-file'),
+          },
+        }}
+        imagesConfig={{
+          icons: {
+            placeholder: testIcon('feature-image-placeholder'),
+          },
+        }}
+        fileBlocksConfig={{
+          icons: {
+            file: testIcon('feature-file-block-file'),
+          },
+        }}
+      />,
+    );
+
+    expect(
+      host.querySelector('[data-moss-test-icon="feature-image-placeholder"]'),
+    ).not.toBeNull();
+    expect(
+      host.querySelector('[data-moss-test-icon="feature-file-block-file"]'),
+    ).not.toBeNull();
+    expect(
+      host.querySelector('[data-moss-test-icon="top-image-placeholder"]'),
+    ).toBeNull();
+    expect(
+      host.querySelector('[data-moss-test-icon="top-file-block-file"]'),
+    ).toBeNull();
   });
 
   it('opens slash commands after an indented slash and shows command icons', async () => {

@@ -15,6 +15,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, 'src/core/code-languages.ts'),
       },
       {
+        find: /^mossmd\/icons$/,
+        replacement: path.resolve(__dirname, 'src/core/icons.ts'),
+      },
+      {
         find: /^mossmd\/collab$/,
         replacement: path.resolve(__dirname, 'src/collab/index.ts'),
       },

@@ -129,6 +129,28 @@ const uploadCommands = mossUploadCommands(uploader);
 />
 ```
 
+用户可见的图标可以通过顶层 `icons` 统一替换；底层仍接受返回 DOM 节点的
+`MossIconRenderer`，不绑定 Lucide。使用 Lucide 时可用 `mossLucideIcon`
+做适配：
+
+```tsx
+import { mossLucideIcon } from 'mossmd/icons';
+import { DownloadCloud, Paperclip } from 'lucide-react';
+
+<MossMD
+  markdownSource={'…'}
+  icons={{
+    file: {
+      file: mossLucideIcon(Paperclip, { size: 40 }),
+      download: mossLucideIcon(DownloadCloud, { size: 16 }),
+    },
+    upload: {
+      file: mossLucideIcon(Paperclip, { size: 22 }),
+    },
+  }}
+/>
+```
+
 ## 阅读模式
 
 ```tsx

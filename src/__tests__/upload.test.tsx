@@ -3,6 +3,7 @@ import { act, createRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorView } from '@codemirror/view';
 import { MossMD, type MossMDHandle } from '../editor';
+import type { MossIconRenderer } from '../core/icons';
 
 const mounts: { host: HTMLElement; unmount: () => void }[] = [];
 
@@ -10,6 +11,7 @@ function mount(
   markdownSource: string,
   fileUpload: NonNullable<React.ComponentProps<typeof MossMD>['fileUpload']>,
   editorHandleRef?: { current: MossMDHandle | null },
+  props: Pick<React.ComponentProps<typeof MossMD>, 'icons'> = {},
 ) {
   const host = document.createElement('div');
   document.body.appendChild(host);
@@ -20,6 +22,7 @@ function mount(
         markdownSource={markdownSource}
         fileUpload={fileUpload}
         editorHandleRef={editorHandleRef}
+        {...props}
       />,
     );
   });
@@ -27,6 +30,16 @@ function mount(
   if (!view) throw new Error('Editor view did not mount');
   mounts.push({ host, unmount: () => root.unmount() });
   return { host, view };
+}
+
+function testIcon(name: string): MossIconRenderer {
+  return ({ document, size = 16 }) => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('data-moss-test-icon', name);
+    svg.setAttribute('width', String(size));
+    svg.setAttribute('height', String(size));
+    return svg;
+  };
 }
 
 function dataTransfer(files: File[]): DataTransfer {
@@ -70,6 +83,35 @@ afterEach(() => {
 });
 
 describe('file upload input', () => {
+  it('uses top-level icon overrides for upload progress blocks', async () => {
+    const uploader = vi.fn(
+      () => new Promise<{ url: string }>(() => undefined),
+    );
+    const file = new File(['text'], 'notes.txt', { type: 'text/plain' });
+    const { host } = mount(
+      '',
+      { uploader },
+      undefined,
+      {
+        icons: {
+          upload: {
+            file: testIcon('top-upload-file'),
+          },
+        },
+      },
+    );
+    const content = host.querySelector<HTMLElement>('.cm-content')!;
+
+    await act(async () => {
+      content.dispatchEvent(pasteEvent(dataTransfer([file])));
+      await Promise.resolve();
+    });
+
+    expect(
+      host.querySelector('[data-moss-test-icon="top-upload-file"]'),
+    ).not.toBeNull();
+  });
+
   it('pastes images as image markdown and files as ordinary links', async () => {
     const uploader = vi.fn(async (file: File) => ({
       url: `https://cdn.example/${file.name}`,

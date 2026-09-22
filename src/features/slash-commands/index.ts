@@ -49,23 +49,26 @@ import {
   Minus,
   Plus,
   Table2,
-  type LucideIcon,
 } from 'lucide-react';
-import { lucideSvg } from '../../core/icons';
+import {
+  appendMossIcon,
+  mossLucideIcon,
+  type MossIconRenderer,
+} from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
-import { mossUploadBlocks } from '../upload';
+import { mossUploadBlocks, type MossUploadBlockConfig } from '../upload';
 
-const SIDE_PLUS_ICON = lucideSvg(Plus, { size: 18, strokeWidth: 2 });
+const SIDE_PLUS_ICON = mossLucideIcon(Plus, { size: 18, strokeWidth: 2 });
 
-const SLASH_COMMAND_ICONS: Record<string, LucideIcon> = {
-  image: FileImage,
-  file: File,
-  snippet: FileText,
-  list: List,
-  code: Code2,
-  table: Table2,
-  rule: Minus,
-  callout: MessageSquare,
+const SLASH_COMMAND_ICONS: Record<string, MossIconRenderer> = {
+  image: mossLucideIcon(FileImage),
+  file: mossLucideIcon(File),
+  snippet: mossLucideIcon(FileText),
+  list: mossLucideIcon(List),
+  code: mossLucideIcon(Code2),
+  table: mossLucideIcon(Table2),
+  rule: mossLucideIcon(Minus),
+  callout: mossLucideIcon(MessageSquare),
 };
 
 export interface MossSlashCommand {
@@ -78,11 +81,11 @@ export interface MossSlashCommand {
   detail?: string;
   /** Extra tokens used by the default fuzzy matcher. */
   keywords?: string[];
-  /** Icon kind key rendered as a leading icon in the popup. Maps to a
-   *  `.cm-completionIcon-moss-<icon>` CSS rule (see inline-preview.css).
-   *  Built-in kinds: 'image', 'file', 'snippet', 'list', 'code',
-   *  'table', 'rule', 'callout'. Omit to fall back to 'snippet'. */
-  icon?: string;
+  /** Icon rendered before the command label. String values select a
+   *  built-in kind: 'image', 'file', 'snippet', 'list', 'code',
+   *  'table', 'rule', 'callout'. A Moss icon renderer can be supplied
+   *  for fully custom commands. */
+  icon?: string | MossIconRenderer;
   /** Replace the `/query` range (or the empty cursor range when
    *  triggered via the `+` button) with this command's markdown.
    *  May be async — file pickers and network uploads are fine. */
@@ -121,14 +124,25 @@ function isSlashCommandCompletion(
 function renderSlashCommandIcon(completion: Completion): Node | null {
   if (!isSlashCommandCompletion(completion)) return null;
 
-  const iconKey = /^[\w-]+$/.test(completion.command.icon ?? '')
-    ? completion.command.icon ?? 'snippet'
-    : 'snippet';
-  const Icon = SLASH_COMMAND_ICONS[iconKey] ?? FileText;
+  const configuredIcon = completion.command.icon;
+  const iconKey =
+    typeof configuredIcon === 'string' && /^[\w-]+$/.test(configuredIcon)
+      ? configuredIcon
+      : typeof configuredIcon === 'string'
+        ? 'snippet'
+        : 'custom';
+  const iconSource =
+    typeof configuredIcon === 'string'
+      ? SLASH_COMMAND_ICONS[iconKey] ?? SLASH_COMMAND_ICONS.snippet
+      : configuredIcon ?? SLASH_COMMAND_ICONS.snippet;
   const icon = document.createElement('span');
   icon.className = `cm-completionIcon cm-completionIcon-moss-${iconKey}`;
   icon.setAttribute('aria-hidden', 'true');
-  icon.innerHTML = lucideSvg(Icon, { size: 16, strokeWidth: 1.8 });
+  appendMossIcon(icon, iconSource, {
+    size: 16,
+    strokeWidth: 1.8,
+    ariaHidden: true,
+  });
   return icon;
 }
 
@@ -143,6 +157,8 @@ export interface MossSlashCommandsOptions {
    * `mossFileUpload` extension owns file input and the field.
    */
   includeUploadBlocks?: boolean;
+  /** Configure upload progress blocks registered by slash commands. */
+  uploadBlocksConfig?: MossUploadBlockConfig;
 }
 
 export function mossSlashCommands(
@@ -196,7 +212,7 @@ export function mossSlashCommands(
   // compatibility. A dedicated file-upload extension can own the field
   // instead, avoiding duplicate StateField registration.
   if (options.includeUploadBlocks !== false) {
-    extensions.push(mossUploadBlocks());
+    extensions.push(mossUploadBlocks(options.uploadBlocksConfig));
   }
 
   return extensions;
@@ -286,10 +302,14 @@ function defaultFilter(
 }
 
 function toOption(cmd: MossSlashCommand): SlashCommandCompletion {
+  const typeIcon =
+    typeof cmd.icon === 'string' && /^[\w-]+$/.test(cmd.icon)
+      ? cmd.icon
+      : 'snippet';
   return {
     label: cmd.label,
     detail: cmd.detail,
-    type: 'moss-' + (cmd.icon ?? 'snippet'),
+    type: `moss-${typeIcon}`,
     apply: (
       view: EditorView,
       _completion: Completion,
@@ -346,7 +366,7 @@ class SidePlusWidget extends WidgetType {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'cm-moss-side-plus';
-    btn.innerHTML = SIDE_PLUS_ICON;
+    appendMossIcon(btn, SIDE_PLUS_ICON);
     btn.title = 'Add a block (or type /)';
     btn.setAttribute('aria-label', 'Add a block');
     btn.addEventListener('mousedown', (event) => {

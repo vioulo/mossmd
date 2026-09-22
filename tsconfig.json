@@ -18,6 +18,7 @@
     "paths": {
       "mossmd": ["./src/index.ts"],
       "mossmd/code-languages": ["./src/core/code-languages.ts"],
+      "mossmd/icons": ["./src/core/icons.ts"],
       "mossmd/styles.css": ["./src/styles/inline-preview.css"],
       "mossmd/editor.css": ["./src/styles/inline-preview.css"],
       "mossmd/content.css": ["./src/styles/content.css"],

@@ -5,6 +5,7 @@
 // uploader callbacks live in the runtime maps below.
 
 import {
+  Facet,
   Prec,
   StateEffect,
   StateField,
@@ -19,13 +20,14 @@ import {
   type DecorationSet,
 } from '@codemirror/view';
 import { File as FileIconLucide, RotateCcw, X } from 'lucide-react';
-import { lucideSvg } from '../../core/icons';
+import {
+  appendMossIcon,
+  mossLucideIcon,
+  type MossIconRenderer,
+} from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
 import type { MossSlashCommand } from '../slash-commands';
 
-const FILE_ICON = lucideSvg(FileIconLucide, { size: 22 });
-const RETRY_ICON = lucideSvg(RotateCcw, { size: 14 });
-const CANCEL_ICON = lucideSvg(X, { size: 14 });
 const DEFAULT_MAX_CONCURRENCY = 3;
 
 export type MossUploadKind = 'image' | 'file';
@@ -54,6 +56,12 @@ export type MossUploadRejectReason =
   | 'max-total-size'
   | 'accept';
 
+export interface MossUploadIcons {
+  file: MossIconRenderer;
+  retry: MossIconRenderer;
+  cancel: MossIconRenderer;
+}
+
 export interface MossUploadOptions {
   resolveKind?: (file: File) => MossUploadKind;
   maxFiles?: number;
@@ -67,8 +75,31 @@ export interface MossUploadOptions {
   ) => void;
 }
 
-export interface MossFileUploadConfig extends MossUploadOptions {
+export interface MossUploadBlockConfig {
+  /** Override icons rendered by upload progress blocks. */
+  icons?: Partial<MossUploadIcons>;
+}
+
+export interface MossFileUploadConfig
+  extends MossUploadOptions,
+    MossUploadBlockConfig {
   uploader: MossUploader;
+}
+
+const DEFAULT_UPLOAD_ICONS: MossUploadIcons = {
+  file: mossLucideIcon(FileIconLucide, { size: 22 }),
+  retry: mossLucideIcon(RotateCcw, { size: 14 }),
+  cancel: mossLucideIcon(X, { size: 14 }),
+};
+
+const uploadIconsFacet = Facet.define<MossUploadIcons, MossUploadIcons>({
+  combine: (values) => values[0] ?? DEFAULT_UPLOAD_ICONS,
+});
+
+function resolveUploadIcons(
+  config: MossUploadBlockConfig = {},
+): MossUploadIcons {
+  return { ...DEFAULT_UPLOAD_ICONS, ...config.icons };
 }
 
 interface UploadEntry {
@@ -252,7 +283,7 @@ class UploadWidget extends WidgetType {
       preview.classList.add('cm-moss-upload-preview-file');
       const glyph = document.createElement('span');
       glyph.className = 'cm-moss-upload-file-glyph';
-      glyph.innerHTML = FILE_ICON;
+      appendMossIcon(glyph, view.state.facet(uploadIconsFacet).file);
       const extension = document.createElement('span');
       extension.className = 'cm-moss-upload-ext';
       extension.textContent = extOf(entry.fileName) || 'FILE';
@@ -308,12 +339,12 @@ class UploadWidget extends WidgetType {
 
     const actions = dom.querySelector<HTMLElement>('.cm-moss-upload-actions');
     if (!actions) return;
-    actions.innerHTML = '';
+    actions.replaceChildren();
     if (entry.phase === 'error') {
       const retry = document.createElement('button');
       retry.type = 'button';
       retry.className = 'cm-moss-upload-btn retry';
-      retry.innerHTML = RETRY_ICON;
+      appendMossIcon(retry, view.state.facet(uploadIconsFacet).retry);
       retry.title = 'Retry upload';
       retry.setAttribute('aria-label', 'Retry upload');
       retry.addEventListener('click', (event) => {
@@ -327,7 +358,7 @@ class UploadWidget extends WidgetType {
     const cancel = document.createElement('button');
     cancel.type = 'button';
     cancel.className = 'cm-moss-upload-btn cancel';
-    cancel.innerHTML = CANCEL_ICON;
+    appendMossIcon(cancel, view.state.facet(uploadIconsFacet).cancel);
     cancel.title = 'Cancel upload';
     cancel.setAttribute('aria-label', 'Cancel upload');
     cancel.addEventListener('click', (event) => {
@@ -343,14 +374,25 @@ class UploadWidget extends WidgetType {
   }
 }
 
-export function mossUploadBlocks(): Extension {
-  return [uploadField, uploadCleanupPlugin];
+function uploadBlockExtensions(
+  config: MossUploadBlockConfig = {},
+): Extension[] {
+  return [
+    uploadIconsFacet.of(resolveUploadIcons(config)),
+    uploadField,
+    uploadCleanupPlugin,
+  ];
+}
+
+export function mossUploadBlocks(
+  config: MossUploadBlockConfig = {},
+): Extension {
+  return uploadBlockExtensions(config);
 }
 
 export function mossFileUpload(config: MossFileUploadConfig): Extension {
   return [
-    uploadField,
-    uploadCleanupPlugin,
+    ...uploadBlockExtensions(config),
     Prec.high(
       EditorView.domEventHandlers({
         paste: (event, view) => {

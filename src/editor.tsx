@@ -49,8 +49,16 @@ import {
   normalizeDigitPunctuation,
   startAsteriskList,
 } from './core/edit-helpers';
-import { mossImages, type MossImagesConfig as ImagesConfig } from './features/image';
-import { mossFileBlocks } from './features/file-blocks';
+import {
+  mossImages,
+  type MossImageIcons,
+  type MossImagesConfig as ImagesConfig,
+} from './features/image';
+import {
+  mossFileBlocks,
+  type MossFileBlockIcons,
+  type MossFileBlocksConfig,
+} from './features/file-blocks';
 import { highlightMarkdown } from './syntax/highlight';
 import { inlinePreview } from './core/inline-preview';
 import { readOnlyExtension } from './core/read-only';
@@ -74,6 +82,7 @@ import type { MossTablesConfig as TablesConfig } from './features/table';
 import {
   mossFileUpload,
   type MossFileUploadConfig,
+  type MossUploadIcons,
 } from './features/upload';
 
 // Stable references so consumers that don't pass `codeLanguages` or
@@ -115,6 +124,15 @@ export interface MossMDHandle {
    */
   setReadOnly: (readOnly: boolean) => void;
   setCollabAdapter: (adapter: CollabAdapter) => Promise<void>;
+}
+
+export interface MossMDIconsConfig {
+  /** Icons rendered by image blocks and their inline controls. */
+  image?: Partial<MossImageIcons>;
+  /** Icons rendered by standalone file link blocks. */
+  file?: Partial<MossFileBlockIcons>;
+  /** Icons rendered by transient upload progress blocks. */
+  upload?: Partial<MossUploadIcons>;
 }
 
 export interface MossMDProps {
@@ -273,8 +291,15 @@ export interface MossMDProps {
   extensions?: readonly Extension[];
   customSyntax?: readonly MossCustomSyntax[];
   inlinePreviewConfig?: InlinePreviewConfig;
+  /**
+   * Unified icon overrides for the built-in React editor surface.
+   * Feature-level icon configs still work and take precedence.
+   */
+  icons?: MossMDIconsConfig;
   /** Configure the floating edit control rendered on image blocks. */
   imagesConfig?: ImagesConfig;
+  /** Configure rendered file link blocks. */
+  fileBlocksConfig?: MossFileBlocksConfig;
   tablesConfig?: TablesConfig;
   wikiLinksConfig?: WikiLinksConfig;
   slashCommandsConfig?: MossSlashCommandsConfig;
@@ -308,7 +333,9 @@ export function MossMD({
   extensions = EMPTY_EXTENSIONS,
   customSyntax = [],
   inlinePreviewConfig = {},
+  icons = {},
   imagesConfig = {},
+  fileBlocksConfig = {},
   tablesConfig = {},
   wikiLinksConfig = {},
   slashCommandsConfig,
@@ -344,6 +371,29 @@ export function MossMD({
   const readOnlyRef = useRef(readOnly);
   readOnlyRef.current = readOnly;
   const hasWikiLinksConfig = Object.keys(wikiLinksConfig).length > 0;
+  const resolvedImagesConfig: ImagesConfig = {
+    ...imagesConfig,
+    icons: {
+      ...icons.image,
+      ...imagesConfig.icons,
+    },
+  };
+  const resolvedFileBlocksConfig: MossFileBlocksConfig = {
+    ...fileBlocksConfig,
+    icons: {
+      ...icons.file,
+      ...fileBlocksConfig.icons,
+    },
+  };
+  const resolvedFileUpload: MossFileUploadConfig | undefined = fileUpload
+    ? {
+        ...fileUpload,
+        icons: {
+          ...icons.upload,
+          ...fileUpload.icons,
+        },
+      }
+    : undefined;
 
   useEffect(() => {
     onMarkdownChangeRef.current = onMarkdownChange;
@@ -494,8 +544,8 @@ export function MossMD({
             onLinkClick: handleLinkClick,
             ...tablesConfig,
           }),
-          mossImages(imagesConfig),
-          mossFileBlocks(),
+          mossImages(resolvedImagesConfig),
+          mossFileBlocks(resolvedFileBlocksConfig),
           inlinePreview({
             onLinkClick: handleLinkClick,
             ...inlinePreviewConfig,
@@ -511,11 +561,12 @@ export function MossMD({
           ...(slashCommandsConfig
             ? [
                 mossSlashCommands(slashCommandsConfig, {
-                  includeUploadBlocks: !fileUpload,
+                  includeUploadBlocks: !resolvedFileUpload,
+                  uploadBlocksConfig: { icons: icons.upload },
                 }),
               ]
             : []),
-          ...(fileUpload ? [mossFileUpload(fileUpload)] : []),
+          ...(resolvedFileUpload ? [mossFileUpload(resolvedFileUpload)] : []),
           EditorView.updateListener.of((update) => {
             if (!update.docChanged) return;
             onMarkdownChangeRef.current?.(update.state.doc.toString());

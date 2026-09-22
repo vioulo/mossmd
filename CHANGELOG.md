@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.8.0 - 2026-09-22
+
+### 新增
+
+- 新增顶层 `MossMDProps.icons` 配置，统一覆盖图片块、文件块和上传进度块的用户可见图标。
+- 新增 `mossmd/icons` 子路径，导出 `MossIconRenderer`、`mossLucideIcon`、`renderLucideIcon` 和 `renderMossIcon`。
+- 新增图片块、文件块、上传块的图标配置类型，并允许 Slash Command 直接使用自定义 `MossIconRenderer`。
+- Demo 正文新增自定义图标代码示例。
+
+### 调整
+
+- 图标渲染从 `lucideSvg` 字符串方案切换为 DOM renderer 协议，不再依赖 `react-dom/server`。
+- `MossMDProps.icons` 作为 React 入口的推荐配置方式，保留 feature 级 `imagesConfig.icons`、`fileBlocksConfig.icons`、`fileUpload.icons` 作为更细粒度覆盖。
+- `mossFileUpload(config)` 复用 `mossUploadBlocks(config)` 的上传块视觉配置，上传行为和上传块展示配置边界更清晰。
+
+### 修复
+
+- 修复 Lucide SVG 的 `viewBox` 属性被错误转换导致图标裁切的问题。
+- 修复默认 `fill` 被覆盖后部分图标填充颜色异常的问题。
+- 修复 CodeMirror autocomplete 默认 icon 样式导致 slash command 图标尺寸异常和显示不全的问题。
+
+### 文档
+
+- 新增 `docs/icon-customization.md`，记录编辑器图标协议、开放范围、配置优先级和上传块配置关系。
+- README 增加顶层 `icons` 配置示例。
+
 ## 0.7.2 - 2026-09-22
 
 ### Added

@@ -24,10 +24,14 @@ import {
   TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
-import { lucideSvg } from './icons';
+import {
+  appendMossIcon,
+  mossLucideIcon,
+  type MossIconRenderer,
+} from './icons';
 
 export interface MossTaskCheckboxStatus {
-  icon?: LucideIcon;
+  icon?: MossIconRenderer;
   label?: string;
   completed?: boolean;
   filled?: boolean;
@@ -35,36 +39,39 @@ export interface MossTaskCheckboxStatus {
 }
 
 export interface ResolvedTaskCheckboxStatus {
-  icon: LucideIcon;
+  icon: MossIconRenderer;
   label: string;
   completed: boolean;
   filled: boolean;
   toggleTo: string | null;
 }
 
+const taskIcon = (icon: LucideIcon): MossIconRenderer => mossLucideIcon(icon);
+const EMPTY_TASK_ICON = taskIcon(Circle);
+
 export const DEFAULT_TASK_CHECKBOXES: Record<
   string,
   ResolvedTaskCheckboxStatus
 > = {
-  ' ': { icon: Square, label: 'To Do', completed: false, filled: false, toggleTo: 'x' },
-  '/': { icon: LoaderCircle, label: 'In Progress', completed: false, filled: false, toggleTo: null },
-  x: { icon: Check, label: 'Done', completed: true, filled: false, toggleTo: ' ' },
-  '-': { icon: Minus, label: 'Cancelled', completed: false, filled: false, toggleTo: null },
-  '<': { icon: CalendarCheck, label: 'Scheduled', completed: false, filled: false, toggleTo: null },
-  '!': { icon: CircleAlert, label: 'Important', completed: false, filled: false, toggleTo: null },
-  '?': { icon: CircleQuestionMark, label: 'Question', completed: false, filled: false, toggleTo: null },
-  i: { icon: Info, label: 'Information', completed: false, filled: false, toggleTo: null },
-  S: { icon: BadgeDollarSign, label: 'Amount', completed: false, filled: false, toggleTo: null },
-  '*': { icon: Star, label: 'Star', completed: false, filled: true, toggleTo: null },
-  b: { icon: Bookmark, label: 'Bookmark', completed: false, filled: true, toggleTo: null },
-  '"': { icon: Quote, label: 'Quote', completed: false, filled: false, toggleTo: null },
-  n: { icon: StickyNote, label: 'Note', completed: false, filled: false, toggleTo: null },
-  l: { icon: MapPin, label: 'Location', completed: false, filled: false, toggleTo: null },
-  I: { icon: Lightbulb, label: 'Idea', completed: false, filled: false, toggleTo: null },
-  p: { icon: ThumbsUp, label: 'Pro', completed: false, filled: false, toggleTo: null },
-  c: { icon: ThumbsDown, label: 'Con', completed: false, filled: false, toggleTo: null },
-  u: { icon: TrendingUp, label: 'Up', completed: false, filled: false, toggleTo: null },
-  d: { icon: TrendingDown, label: 'Down', completed: false, filled: false, toggleTo: null },
+  ' ': { icon: taskIcon(Square), label: 'To Do', completed: false, filled: false, toggleTo: 'x' },
+  '/': { icon: taskIcon(LoaderCircle), label: 'In Progress', completed: false, filled: false, toggleTo: null },
+  x: { icon: taskIcon(Check), label: 'Done', completed: true, filled: false, toggleTo: ' ' },
+  '-': { icon: taskIcon(Minus), label: 'Cancelled', completed: false, filled: false, toggleTo: null },
+  '<': { icon: taskIcon(CalendarCheck), label: 'Scheduled', completed: false, filled: false, toggleTo: null },
+  '!': { icon: taskIcon(CircleAlert), label: 'Important', completed: false, filled: false, toggleTo: null },
+  '?': { icon: taskIcon(CircleQuestionMark), label: 'Question', completed: false, filled: false, toggleTo: null },
+  i: { icon: taskIcon(Info), label: 'Information', completed: false, filled: false, toggleTo: null },
+  S: { icon: taskIcon(BadgeDollarSign), label: 'Amount', completed: false, filled: false, toggleTo: null },
+  '*': { icon: taskIcon(Star), label: 'Star', completed: false, filled: true, toggleTo: null },
+  b: { icon: taskIcon(Bookmark), label: 'Bookmark', completed: false, filled: true, toggleTo: null },
+  '"': { icon: taskIcon(Quote), label: 'Quote', completed: false, filled: false, toggleTo: null },
+  n: { icon: taskIcon(StickyNote), label: 'Note', completed: false, filled: false, toggleTo: null },
+  l: { icon: taskIcon(MapPin), label: 'Location', completed: false, filled: false, toggleTo: null },
+  I: { icon: taskIcon(Lightbulb), label: 'Idea', completed: false, filled: false, toggleTo: null },
+  p: { icon: taskIcon(ThumbsUp), label: 'Pro', completed: false, filled: false, toggleTo: null },
+  c: { icon: taskIcon(ThumbsDown), label: 'Con', completed: false, filled: false, toggleTo: null },
+  u: { icon: taskIcon(TrendingUp), label: 'Up', completed: false, filled: false, toggleTo: null },
+  d: { icon: taskIcon(TrendingDown), label: 'Down', completed: false, filled: false, toggleTo: null },
 };
 
 export const taskCheckboxConfigFacet = Facet.define<
@@ -103,10 +110,10 @@ export function resolveTaskCheckboxStatus(
   return {
     icon:
       override?.icon ??
-      (emptyVariant ? Circle : undefined) ??
+      (emptyVariant ? EMPTY_TASK_ICON : undefined) ??
       defaults?.icon ??
       baseOverride?.icon ??
-      Circle,
+      EMPTY_TASK_ICON,
     label:
       override?.label ??
       baseOverride?.label ??
@@ -232,8 +239,8 @@ async function copyTextToClipboard(text: string): Promise<void> {
   throw new Error('Copy failed');
 }
 
-const CODE_COPY_ICON = lucideSvg(Copy, { size: 16 });
-const CODE_COPY_SUCCESS_ICON = lucideSvg(Check, { size: 16 });
+const CODE_COPY_ICON = mossLucideIcon(Copy, { size: 16 });
+const CODE_COPY_SUCCESS_ICON = mossLucideIcon(Check, { size: 16 });
 
 export class CodeCopyWidget extends WidgetType {
   constructor(readonly code: string) {
@@ -250,7 +257,10 @@ export class CodeCopyWidget extends WidgetType {
   private setCopied(copied: boolean): void {
     if (!this.button) return;
     this.button.classList.toggle('is-copied', copied);
-    this.button.innerHTML = copied ? CODE_COPY_SUCCESS_ICON : CODE_COPY_ICON;
+    appendMossIcon(
+      this.button,
+      copied ? CODE_COPY_SUCCESS_ICON : CODE_COPY_ICON,
+    );
     this.button.setAttribute('aria-label', copied ? 'Copied' : 'Copy code');
     this.button.title = copied ? 'Copied' : 'Copy code';
   }
@@ -275,7 +285,7 @@ export class CodeCopyWidget extends WidgetType {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'cm-moss-code-copy';
-    button.innerHTML = CODE_COPY_ICON;
+    appendMossIcon(button, CODE_COPY_ICON);
     button.setAttribute('aria-label', 'Copy code');
     button.title = 'Copy code';
     this.button = button;
@@ -340,12 +350,12 @@ export class TaskCheckboxWidget extends WidgetType {
       button.setAttribute('aria-label', this.status.label);
       button.title = this.status.label;
       button.dataset.status = this.key;
-      if (this.status.icon !== Circle) {
-        button.innerHTML = lucideSvg(this.status.icon, {
+      if (this.status.icon !== EMPTY_TASK_ICON) {
+        appendMossIcon(button, this.status.icon, {
           size: 17,
           strokeWidth: 2.5,
           fill: this.status.filled ? 'currentColor' : 'none',
-          'aria-hidden': 'true',
+          ariaHidden: true,
         });
       }
       this.bindToggle(button, view);

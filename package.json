@@ -1,6 +1,6 @@
 {
   "name": "mossmd",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "CodeMirror 6 markdown editor with Obsidian-style inline live preview and custom block syntax extensions.",
   "keywords": [
     "codemirror",
@@ -66,6 +66,10 @@
     "./features/upload": {
       "types": "./dist/features/upload/index.d.ts",
       "default": "./dist/features/upload/index.js"
+    },
+    "./icons": {
+      "types": "./dist/core/icons.d.ts",
+      "default": "./dist/core/icons.js"
     },
     "./features/search": {
       "types": "./dist/features/search/index.d.ts",

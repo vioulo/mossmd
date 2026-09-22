@@ -25,29 +25,29 @@ import {
   MoreHorizontal,
   Trash2,
 } from 'lucide-react';
-import { lucideSvg } from '../../core/icons';
+import { appendMossIcon, mossLucideIcon } from '../../core/icons';
 import { matchHighlight } from '../../syntax/highlight';
 import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
 import { readOnlyFacet } from '../../core/read-only';
 
-const TABLE_MENU_ICON = lucideSvg(MoreHorizontal, { size: 16, strokeWidth: 2 });
-const TABLE_MENU_ROW_ABOVE_ICON = lucideSvg(ArrowUpFromLine, {
+const TABLE_MENU_ICON = mossLucideIcon(MoreHorizontal, { size: 16, strokeWidth: 2 });
+const TABLE_MENU_ROW_ABOVE_ICON = mossLucideIcon(ArrowUpFromLine, {
   size: 16,
   strokeWidth: 1.9,
 });
-const TABLE_MENU_ROW_BELOW_ICON = lucideSvg(ArrowDownFromLine, {
+const TABLE_MENU_ROW_BELOW_ICON = mossLucideIcon(ArrowDownFromLine, {
   size: 16,
   strokeWidth: 1.9,
 });
-const TABLE_MENU_COLUMN_LEFT_ICON = lucideSvg(ArrowLeftFromLine, {
+const TABLE_MENU_COLUMN_LEFT_ICON = mossLucideIcon(ArrowLeftFromLine, {
   size: 16,
   strokeWidth: 1.9,
 });
-const TABLE_MENU_COLUMN_RIGHT_ICON = lucideSvg(ArrowRightFromLine, {
+const TABLE_MENU_COLUMN_RIGHT_ICON = mossLucideIcon(ArrowRightFromLine, {
   size: 16,
   strokeWidth: 1.9,
 });
-const TABLE_MENU_DELETE_ICON = lucideSvg(Trash2, { size: 16, strokeWidth: 1.9 });
+const TABLE_MENU_DELETE_ICON = mossLucideIcon(Trash2, { size: 16, strokeWidth: 1.9 });
 
 // GFM tables as a WYSIWYG block widget.
 //
@@ -814,7 +814,7 @@ function makeCell(
     const menuTrigger = document.createElement('button');
     menuTrigger.type = 'button';
     menuTrigger.className = 'cm-moss-table-menu-trigger';
-    menuTrigger.innerHTML = TABLE_MENU_ICON;
+    appendMossIcon(menuTrigger, TABLE_MENU_ICON);
     menuTrigger.setAttribute('aria-label', 'Table actions');
     menuTrigger.title = 'Table actions';
     menuTrigger.addEventListener('pointerdown', (event) => {
@@ -1006,7 +1006,7 @@ function openCellMenu(
   type MenuItem =
     | {
         label: string;
-        icon: string;
+        icon: ReturnType<typeof mossLucideIcon>;
         destructive?: boolean;
         action: () => void;
       }
@@ -1113,7 +1113,7 @@ function openCellMenu(
     if (item.destructive) btn.classList.add('is-destructive');
     const icon = document.createElement('span');
     icon.className = 'cm-moss-table-menu-item-icon';
-    icon.innerHTML = item.icon;
+    appendMossIcon(icon, item.icon);
     icon.setAttribute('aria-hidden', 'true');
     const label = document.createElement('span');
     label.className = 'cm-moss-table-menu-item-label';

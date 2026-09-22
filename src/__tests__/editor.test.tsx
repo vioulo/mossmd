@@ -169,6 +169,38 @@ describe('MossMD', () => {
     expect(panel?.classList.contains('moss-search-panel-center')).toBe(true);
   });
 
+  it('closes the search panel and returns focus to the editor on Escape', () => {
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
+    };
+    const { host } = mount(
+      <MossMD
+        markdownSource="find me"
+        editorHandleRef={handleRef}
+      />,
+    );
+
+    act(() => handleRef.current?.openSearch('find'));
+
+    const input = host.querySelector<HTMLInputElement>('.cm-moss-search-input');
+    expect(input).not.toBeNull();
+    expect(document.activeElement).toBe(input);
+
+    act(() => {
+      input!.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Escape',
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+
+    expect(host.querySelector('.moss-search-panel')).toBeNull();
+    expect(host.querySelector('.cm-content')).toBe(document.activeElement);
+    expect(handleRef.current?.getMarkdown()).toBe('find me');
+  });
+
   it('renders custom task statuses as icons and toggles configured pairs', () => {
     const markdown = [
       '- [ ] To Do',

@@ -45,6 +45,13 @@ function defaultSearchPanel(
 
   const form = document.createElement('form');
   form.autocomplete = 'off';
+  form.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeSearchPanel(view);
+    view.focus();
+  });
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     findNext(view);

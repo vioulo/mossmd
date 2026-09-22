@@ -266,6 +266,17 @@ import { CircleAlert } from 'lucide-react';
 
 标准 `[ ]`/`[x]` 会互相切换；自定义状态使用状态字符和带 `-` 前缀的状态字符表示填充态与空白态，例如 `[A]` 和 `[-A]`。用户也可以通过 `toggleTo` 自定义两个状态之间的切换。
 
+水平分隔线内置支持三种样式：`---` 为普通实线，`***` 为舒缓波浪线，`___` 为中间带符号的分隔线。中间符号可以通过 `inlinePreviewConfig.horizontalRule.glyph` 自定义，也支持 emoji：
+
+```tsx
+<MossMD
+  markdownSource={'___'}
+  inlinePreviewConfig={{
+    horizontalRule: { glyph: '🌿' },
+  }}
+/>
+```
+
 ## 底层组合
 
 如果你不想使用完整的 React 包装，可以直接把各个模块拼起来：

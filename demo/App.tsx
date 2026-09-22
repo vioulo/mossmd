@@ -28,7 +28,6 @@ import {
   generateSampleMarkdown,
   type SampleSize,
 } from './sample-content';
-import { wavyHrSyntax } from './wavy-hr';
 import { overrideDefaultUploads } from './custom-upload';
 
 // Demo-only slash commands — markdown snippet helpers shipped alongside
@@ -177,7 +176,7 @@ const WIKI_SNIPPETS: Record<string, string> = {
   'search-fallback': 'Fallback result for testing content-like matching in the demo.',
 };
 
-const MOSS_DEMO_SYNTAX = [mossCalloutSyntax(), wavyHrSyntax()];
+const MOSS_DEMO_SYNTAX = [mossCalloutSyntax()];
 
 // Compose the package's default upload skeletons with a demo-specific
 // uploader that uses the new widget flow (`mossUploadCommands`). The
@@ -549,7 +548,10 @@ export function App() {
               slashCommandsConfig={MOSS_DEMO_SLASH_COMMANDS}
               fileUpload={MOSS_DEMO_FILE_UPLOAD}
               initialRevealText={revealText}
-              inlinePreviewConfig={{ onLinkClick: handleLinkClick }}
+              inlinePreviewConfig={{
+                onLinkClick: handleLinkClick,
+                horizontalRule: { glyph: '🌿' },
+              }}
               wikiLinksConfig={{
                 suggest: handleWikiSuggest,
                 resolve: handleWikiResolve,

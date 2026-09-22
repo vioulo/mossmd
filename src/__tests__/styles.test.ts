@@ -121,5 +121,11 @@ describe('content styles', () => {
     expect(editorStyles).toContain('border-radius: 50%;');
     expect(editorStyles).toContain('.cm-moss-task-status-empty');
     expect(editorStyles).toContain('box-shadow: 0 0 0 3px');
+    expect(editorStyles).toContain('.cm-line.cm-moss-hr.cm-moss-hr-wavy::after');
+    expect(editorStyles).toContain('mask-size: 32px 8px;');
+    expect(editorStyles).toContain(
+      '.cm-line.cm-moss-hr.cm-moss-hr-glyph::after',
+    );
+    expect(editorStyles).toContain('content: attr(data-moss-hr-glyph);');
   });
 });

@@ -477,6 +477,45 @@
   pointer-events: none;
 }
 
+.cm-line.cm-moss-hr.cm-moss-hr-wavy::after {
+  border-top: none;
+  height: 8px;
+  background-color: var(--moss-border, #3d3d3d);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 8' preserveAspectRatio='none'%3E%3Cpath d='M0 4 C4 0.5 12 0.5 16 4 S28 7.5 32 4' fill='none' stroke='white' stroke-width='1.25' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 8' preserveAspectRatio='none'%3E%3Cpath d='M0 4 C4 0.5 12 0.5 16 4 S28 7.5 32 4' fill='none' stroke='white' stroke-width='1.25' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-repeat: repeat-x;
+  -webkit-mask-repeat: repeat-x;
+  mask-position: center;
+  -webkit-mask-position: center;
+  mask-size: 32px 8px;
+  -webkit-mask-size: 32px 8px;
+  transform: translateY(-50%);
+}
+
+.cm-line.cm-moss-hr.cm-moss-hr-glyph::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid var(--moss-border, #3d3d3d);
+  pointer-events: none;
+}
+
+.cm-line.cm-moss-hr.cm-moss-hr-glyph::after {
+  border-top: none;
+  content: attr(data-moss-hr-glyph);
+  left: 50%;
+  right: auto;
+  width: auto;
+  transform: translate(-50%, -50%);
+  padding: 0 0.6em;
+  background: var(--moss-bg, #1e1e1e);
+  color: var(--moss-fg-muted, #888);
+  font-size: 0.85em;
+  line-height: 1;
+}
+
 /* The source of a standalone image is replaced visually by its block
  * widget. Keep the source line for CM6 position mapping, but remove its
  * line box so it does not read as an empty row above the image. */

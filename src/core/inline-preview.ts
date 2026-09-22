@@ -1,6 +1,7 @@
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import type { SyntaxNode } from '@lezer/common';
 import {
+  Facet,
   type Extension,
   type Range,
   type Text,
@@ -70,9 +71,28 @@ export interface InlinePreviewConfig {
    * added by consumers.
    */
   taskCheckboxes?: Partial<Record<string, MossTaskCheckboxStatus>>;
+  /**
+   * Controls the built-in horizontal-rule variants. `***` renders as a
+   * relaxed wave, while `___` renders as a line with the configured glyph.
+   */
+  horizontalRule?: MossHorizontalRuleConfig;
+}
+
+export interface MossHorizontalRuleConfig {
+  /** Glyph or emoji shown in the middle of `___` horizontal rules. */
+  glyph?: string;
 }
 
 export type MossInlinePreviewConfig = InlinePreviewConfig;
+
+const horizontalRuleConfigFacet = Facet.define<
+  MossHorizontalRuleConfig,
+  MossHorizontalRuleConfig
+>({
+  combine: (values) => values[0] ?? {},
+});
+
+const DEFAULT_HORIZONTAL_RULE_GLYPH = '✦';
 
 // decoration building
 
@@ -207,6 +227,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   const tree =
     ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
   const taskConfig = state.facet(taskCheckboxConfigFacet);
+  const horizontalRuleConfig = state.facet(horizontalRuleConfigFacet);
 
   for (let number = 1; number <= doc.lines; number++) {
     const line = doc.line(number);
@@ -583,7 +604,23 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         // edit the marker without it vanishing.
         const line = doc.lineAt(node.from);
         if (!activeLines.has(line.number)) {
-          ranges.push(Decoration.line({ class: 'cm-moss-hr' }).range(line.from));
+          const marker = line.text.trimStart().slice(0, 1);
+          const className =
+            marker === '*'
+              ? 'cm-moss-hr cm-moss-hr-wavy'
+              : marker === '_'
+                ? 'cm-moss-hr cm-moss-hr-glyph'
+                : 'cm-moss-hr';
+          const attributes =
+            marker === '_'
+              ? {
+                  'data-moss-hr-glyph':
+                    horizontalRuleConfig.glyph ?? DEFAULT_HORIZONTAL_RULE_GLYPH,
+                }
+              : undefined;
+          ranges.push(
+            Decoration.line({ class: className, attributes }).range(line.from),
+          );
           pushReplace(ranges, doc, line.from, line.to);
         }
       }
@@ -992,6 +1029,7 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
   const { onLinkClick = defaultOnLinkClick } = config;
   return [
     taskCheckboxConfigFacet.of(config.taskCheckboxes ?? {}),
+    horizontalRuleConfigFacet.of(config.horizontalRule ?? {}),
     previewActivityExtension(),
     inlinePreviewPlugin,
     fencedCodeSelectionPlugin,

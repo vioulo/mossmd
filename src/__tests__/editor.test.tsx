@@ -201,6 +201,23 @@ describe('MossMD', () => {
     expect(handleRef.current?.getMarkdown()).toBe('find me');
   });
 
+  it('renders built-in horizontal-rule variants and accepts a custom glyph', () => {
+    const { host } = mount(
+      <MossMD
+        markdownSource={'***\n___\n---'}
+        inlinePreviewConfig={{ horizontalRule: { glyph: '🌿' } }}
+      />,
+    );
+
+    const lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines).toHaveLength(3);
+    expect(lines[0]?.classList.contains('cm-moss-hr-wavy')).toBe(true);
+    expect(lines[1]?.classList.contains('cm-moss-hr-glyph')).toBe(true);
+    expect(lines[1]?.dataset.mossHrGlyph).toBe('🌿');
+    expect(lines[2]?.classList.contains('cm-moss-hr-wavy')).toBe(false);
+    expect(lines[2]?.classList.contains('cm-moss-hr-glyph')).toBe(false);
+  });
+
   it('renders custom task statuses as icons and toggles configured pairs', () => {
     const markdown = [
       '- [ ] To Do',

@@ -192,16 +192,25 @@ export function fencedCodeSource(doc: Text, from: number, to: number): string {
   return lines.slice(1, -1).join('\n');
 }
 
+const BULLET_SYMBOLS = ['✦', '✧'] as const;
+
 export class BulletWidget extends WidgetType {
-  eq(): boolean {
-    return true;
+  private readonly symbol: (typeof BULLET_SYMBOLS)[number];
+
+  constructor(depth: number) {
+    super();
+    this.symbol = BULLET_SYMBOLS[Math.abs(depth) % BULLET_SYMBOLS.length];
+  }
+
+  eq(other: BulletWidget): boolean {
+    return other.symbol === this.symbol;
   }
 
   toDOM(): HTMLElement {
     const span = document.createElement('span');
     span.className =
       'cm-moss-list-marker cm-moss-unordered-marker cm-moss-bullet';
-    span.textContent = '•';
+    span.textContent = this.symbol;
     return span;
   }
 
@@ -209,8 +218,6 @@ export class BulletWidget extends WidgetType {
     return false;
   }
 }
-
-export const BULLET_WIDGET = new BulletWidget();
 
 async function copyTextToClipboard(text: string): Promise<void> {
   try {

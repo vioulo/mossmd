@@ -218,6 +218,20 @@ describe('active list-line preview', () => {
     expect(firstLine?.querySelector('.cm-moss-list-marker-active')).toBeNull();
   });
 
+  it('alternates unordered-list glyphs by nesting depth', () => {
+    const view = makeView(
+      '- one\n  - two\n    - three\n      - four',
+      0,
+      [inlinePreview()],
+    );
+
+    const bullets = Array.from(
+      view.contentDOM.querySelectorAll<HTMLElement>('.cm-moss-bullet'),
+    ).map((bullet) => bullet.textContent);
+
+    expect(bullets).toEqual(['✦', '✧', '✦', '✧']);
+  });
+
   it('does not preview an ordered marker before its separator space', () => {
     const view = makeView('1.', 2, [inlinePreview()]);
     const line = view.contentDOM.querySelector<HTMLElement>('.cm-line');

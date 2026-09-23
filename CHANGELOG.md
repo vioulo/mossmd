@@ -10,6 +10,7 @@
 
 ### 调整
 
+- 无序列表预览态 marker 改为按嵌套层级轮换 `✦` / `✧`。
 - 移除 `inlinePreviewConfig.horizontalRule.glyph`，水平分隔线图标改由 Markdown 原文语法表达。
 
 ### 文档

@@ -27,7 +27,7 @@ import {
   shouldRevealTaskSource,
 } from './preview-activity';
 import {
-  BULLET_WIDGET,
+  BulletWidget,
   CodeCopyWidget,
   fencedCodeSource,
   parseListTaskMarker,
@@ -586,10 +586,10 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         // otherwise they would be added on top of the tree-derived
         // padding and ordered/odd indentation would still drift.
         const listItem = nearestListItem(node.node);
+        const listDepth = listItem ? listItemDepth(listItem) : 0;
         if (listItem) {
-          const depth = listItemDepth(listItem);
           const padding =
-            LIST_BASE_EM + LIST_ALCOVE_EM + depth * LIST_LEVEL_EM;
+            LIST_BASE_EM + LIST_ALCOVE_EM + listDepth * LIST_LEVEL_EM;
           const firstLine = doc.lineAt(listItem.from);
           const lastLine = doc.lineAt(listItem.to);
 
@@ -692,7 +692,9 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             // Bullet: substitute with the fixed-width marker
             // widget, swallowing the trailing space so content
             // starts precisely at padding-left.
-            pushReplace(ranges, doc, node.from, markEnd, { widget: BULLET_WIDGET });
+            pushReplace(ranges, doc, node.from, markEnd, {
+              widget: new BulletWidget(listDepth),
+            });
           } else {
             // Ordered list (or anything else with a non-standard
             // mark text like `1.`, `42.`): keep both the marker and

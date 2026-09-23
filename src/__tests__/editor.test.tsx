@@ -1145,6 +1145,40 @@ describe('MossMD', () => {
     expect(highlight?.textContent).toContain('glow');
   });
 
+  it('reveals table-cell highlight delimiters when the caret enters the mark', () => {
+    const { host } = mount(
+      <MossMD
+        markdownSource={[
+          '| Plain | Highlight |',
+          '| --- | --- |',
+          '| text | ==glow== |',
+        ].join('\n')}
+      />,
+    );
+
+    const wrap = host.querySelector<HTMLElement>('.cm-moss-highlight-wrap');
+    const source = wrap?.closest<HTMLElement>('.cm-moss-table-cell-source');
+    const highlight = wrap?.querySelector<HTMLElement>('.cm-moss-highlight');
+    const text = highlight?.firstChild;
+    expect(source).not.toBeNull();
+    expect(wrap).not.toBeNull();
+    expect(text?.nodeType).toBe(Node.TEXT_NODE);
+
+    act(() => {
+      source!.focus();
+      const range = document.createRange();
+      range.setStart(text!, 1);
+      range.collapse(true);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      source!.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+
+    expect(wrap?.classList.contains('active')).toBe(true);
+    expect(source?.textContent).toBe('==glow==');
+  });
+
   it('renders a code copy button that copies the fenced body only', async () => {
     const markdown = ['```ts', 'const answer = 42;', 'console.log(answer);', '```'].join('\n');
     const writeText = vi.fn().mockResolvedValue(undefined);

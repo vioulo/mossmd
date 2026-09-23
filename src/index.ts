@@ -8,7 +8,6 @@ export type {
 export { mossInlinePreview } from './core/inline-preview';
 export type {
   MossInlinePreviewConfig,
-  MossHorizontalRuleConfig,
   MossTaskCheckboxStatus,
 } from './core/inline-preview';
 export { mossHighlightMarkdown } from './syntax/highlight';

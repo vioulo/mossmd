@@ -1,7 +1,6 @@
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import type { SyntaxNode } from '@lezer/common';
 import {
-  Facet,
   type Extension,
   type Range,
   type Text,
@@ -10,6 +9,7 @@ import {
   Decoration,
   EditorView,
   ViewPlugin,
+  WidgetType,
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
@@ -71,28 +71,94 @@ export interface InlinePreviewConfig {
    * added by consumers.
    */
   taskCheckboxes?: Partial<Record<string, MossTaskCheckboxStatus>>;
-  /**
-   * Controls the built-in horizontal-rule variants. `***` renders as a
-   * relaxed wave, while `___` renders as a line with the configured glyph.
-   */
-  horizontalRule?: MossHorizontalRuleConfig;
-}
-
-export interface MossHorizontalRuleConfig {
-  /** Glyph or emoji shown in the middle of `___` horizontal rules. */
-  glyph?: string;
 }
 
 export type MossInlinePreviewConfig = InlinePreviewConfig;
 
-const horizontalRuleConfigFacet = Facet.define<
-  MossHorizontalRuleConfig,
-  MossHorizontalRuleConfig
->({
-  combine: (values) => values[0] ?? {},
-});
+interface ParsedHorizontalRule {
+  marker: '-' | '*' | '_';
+  glyph: string;
+}
 
-const DEFAULT_HORIZONTAL_RULE_GLYPH = '✦';
+function parseExtendedHorizontalRule(
+  text: string,
+): ParsedHorizontalRule | null {
+  const match = text.match(/^\s*(-{3,}|\*{3,}|_{3,})(.*?)\1\s*$/);
+  if (!match) return null;
+
+  const glyph = match[2].trim();
+  if (!glyph) return null;
+
+  return {
+    marker: match[1][0] as ParsedHorizontalRule['marker'],
+    glyph,
+  };
+}
+
+function isPlainHorizontalRule(text: string): boolean {
+  return /^\s*(\*|_|-)(?:[ \t]*\1){2,}[ \t]*$/.test(text);
+}
+
+class HorizontalRuleWidget extends WidgetType {
+  constructor(
+    private readonly marker: '-' | '*' | '_',
+    private readonly glyph: string | null = null,
+  ) {
+    super();
+  }
+
+  eq(other: HorizontalRuleWidget): boolean {
+    return other.marker === this.marker && other.glyph === this.glyph;
+  }
+
+  toDOM(): HTMLElement {
+    const wrap = document.createElement('span');
+    const classes = ['cm-moss-hr-widget'];
+    if (this.marker === '*') classes.push('cm-moss-hr-widget-wavy');
+    if (this.glyph) classes.push('cm-moss-hr-widget-glyph');
+    wrap.className = classes.join(' ');
+    wrap.setAttribute('aria-hidden', 'true');
+
+    const left = document.createElement('span');
+    left.className = 'cm-moss-hr-segment cm-moss-hr-segment-left';
+
+    if (!this.glyph) {
+      wrap.append(left);
+      return wrap;
+    }
+
+    const glyph = document.createElement('span');
+    glyph.className = 'cm-moss-hr-symbol';
+    glyph.textContent = this.glyph;
+
+    const right = document.createElement('span');
+    right.className = 'cm-moss-hr-segment cm-moss-hr-segment-right';
+    wrap.append(left, glyph, right);
+    return wrap;
+  }
+}
+
+function horizontalRuleClassNames(
+  marker: '-' | '*' | '_',
+  glyph: string | null,
+): string {
+  const classNames = ['cm-moss-hr'];
+  if (marker === '*') classNames.push('cm-moss-hr-wavy');
+  if (glyph) classNames.push('cm-moss-hr-glyph');
+  return classNames.join(' ');
+}
+
+function pushHorizontalRuleWidget(
+  ranges: Range<Decoration>[],
+  doc: Text,
+  line: { from: number; to: number },
+  marker: '-' | '*' | '_',
+  glyph: string | null = null,
+): void {
+  pushReplace(ranges, doc, line.from, line.to, {
+    widget: new HorizontalRuleWidget(marker, glyph),
+  });
+}
 
 // decoration building
 
@@ -227,7 +293,11 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   const tree =
     ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
   const taskConfig = state.facet(taskCheckboxConfigFacet);
-  const horizontalRuleConfig = state.facet(horizontalRuleConfigFacet);
+  const extendedHorizontalRuleLines = new Map<
+    number,
+    ParsedHorizontalRule
+  >();
+  const horizontalRuleSourceLines = new Set<number>();
 
   for (let number = 1; number <= doc.lines; number++) {
     const line = doc.line(number);
@@ -236,6 +306,53 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         Decoration.line({ class: 'cm-moss-empty-line' }).range(line.from),
       );
     }
+
+    if (isLineInsideMarkdownCode(state, number)) continue;
+
+    const extendedHorizontalRule = parseExtendedHorizontalRule(line.text);
+    if (!extendedHorizontalRule) {
+      if (!isPlainHorizontalRule(line.text)) continue;
+      horizontalRuleSourceLines.add(number);
+      if (activeLines.has(number) && line.from < line.to) {
+        ranges.push(
+          Decoration.mark({ class: 'cm-moss-hr-source' }).range(
+            line.from,
+            line.to,
+          ),
+        );
+      }
+      continue;
+    }
+
+    extendedHorizontalRuleLines.set(number, extendedHorizontalRule);
+    horizontalRuleSourceLines.add(number);
+    if (activeLines.has(number)) {
+      if (line.from < line.to) {
+        ranges.push(
+          Decoration.mark({ class: 'cm-moss-hr-source' }).range(
+            line.from,
+            line.to,
+          ),
+        );
+      }
+      continue;
+    }
+
+    ranges.push(
+      Decoration.line({
+        class: horizontalRuleClassNames(
+          extendedHorizontalRule.marker,
+          extendedHorizontalRule.glyph,
+        ),
+      }).range(line.from),
+    );
+    pushHorizontalRuleWidget(
+      ranges,
+      doc,
+      line,
+      extendedHorizontalRule.marker,
+      extendedHorizontalRule.glyph,
+    );
   }
 
   // `from` positions of Link nodes whose range overlaps a selection.
@@ -261,6 +378,15 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   // its cost scales with document size.)
   tree.iterate({
     enter: (node) => {
+      if (
+        node.name !== 'Document' &&
+        (extendedHorizontalRuleLines.has(doc.lineAt(node.from).number) ||
+          (node.name !== 'HorizontalRule' &&
+            horizontalRuleSourceLines.has(doc.lineAt(node.from).number)))
+      ) {
+        return false;
+      }
+
       // GFM parses custom task markers such as `[!]` and `[/]` as
       // shortcut links. They are task UI, not links: skip the synthetic
       // Link node so it cannot add a link icon or hide its source using
@@ -599,29 +725,19 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       if (node.name === 'HorizontalRule') {
         // CommonMark HR: a line of `***`, `---`, or `___` (3+, any
         // spacing between). On inactive lines we hide the characters
-        // and render a horizontal rule via CSS `::after`. On active
+        // and render a horizontal-rule widget. On active
         // lines we leave the raw characters visible so the user can
         // edit the marker without it vanishing.
         const line = doc.lineAt(node.from);
         if (!activeLines.has(line.number)) {
           const marker = line.text.trimStart().slice(0, 1);
-          const className =
-            marker === '*'
-              ? 'cm-moss-hr cm-moss-hr-wavy'
-              : marker === '_'
-                ? 'cm-moss-hr cm-moss-hr-glyph'
-                : 'cm-moss-hr';
-          const attributes =
-            marker === '_'
-              ? {
-                  'data-moss-hr-glyph':
-                    horizontalRuleConfig.glyph ?? DEFAULT_HORIZONTAL_RULE_GLYPH,
-                }
-              : undefined;
+          const hrMarker = marker === '*' || marker === '_' ? marker : '-';
           ranges.push(
-            Decoration.line({ class: className, attributes }).range(line.from),
+            Decoration.line({
+              class: horizontalRuleClassNames(hrMarker, null),
+            }).range(line.from),
           );
-          pushReplace(ranges, doc, line.from, line.to);
+          pushHorizontalRuleWidget(ranges, doc, line, hrMarker);
         }
       }
 
@@ -689,7 +805,10 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   if (view.hasFocus) {
     const head = state.selection.main.head;
     const line = doc.lineAt(head);
-    if (activeLines.has(line.number)) {
+    if (
+      activeLines.has(line.number) &&
+      !horizontalRuleSourceLines.has(line.number)
+    ) {
       supplementMidTypingEmphasis(
         line.text,
         line.from,
@@ -1029,7 +1148,6 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
   const { onLinkClick = defaultOnLinkClick } = config;
   return [
     taskCheckboxConfigFacet.of(config.taskCheckboxes ?? {}),
-    horizontalRuleConfigFacet.of(config.horizontalRule ?? {}),
     previewActivityExtension(),
     inlinePreviewPlugin,
     fencedCodeSelectionPlugin,

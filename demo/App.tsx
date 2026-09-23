@@ -111,7 +111,7 @@ const DEMO_SNIPPET_COMMANDS: MossSlashCommand[] = [
   {
     id: 'hr',
     label: 'Horizontal',
-    detail: '--- solid / *** wavy / ___ glyph',
+    detail: '--- solid / *** wavy / ---⭐--- glyph',
     keywords: ['divider', 'rule', 'separator'],
     icon: 'rule',
     apply: (view, from, to) =>
@@ -602,7 +602,6 @@ export function App() {
               initialRevealText={revealText}
               inlinePreviewConfig={{
                 onLinkClick: handleLinkClick,
-                horizontalRule: { glyph: '🌿' },
               }}
               wikiLinksConfig={{
                 suggest: handleWikiSuggest,

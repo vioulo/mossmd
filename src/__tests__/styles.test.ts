@@ -134,11 +134,19 @@ describe('content styles', () => {
     expect(editorStyles).toContain('border-radius: 50%;');
     expect(editorStyles).toContain('.cm-moss-task-status-empty');
     expect(editorStyles).toContain('box-shadow: 0 0 0 3px');
-    expect(editorStyles).toContain('.cm-line.cm-moss-hr.cm-moss-hr-wavy::after');
-    expect(editorStyles).toContain('mask-size: 32px 8px;');
+    expect(editorStyles).toContain('.cm-moss-hr-widget');
+    expect(editorStyles).toContain('.cm-moss-hr-segment');
     expect(editorStyles).toContain(
-      '.cm-line.cm-moss-hr.cm-moss-hr-glyph::after',
+      '.cm-moss-hr-widget-wavy .cm-moss-hr-segment',
     );
-    expect(editorStyles).toContain('content: attr(data-moss-hr-glyph);');
+    expect(editorStyles).toContain('mask-size: 32px 8px;');
+    expect(editorStyles).toContain('.cm-moss-hr-symbol');
+    expect(editorStyles).toContain('.cm-line .cm-moss-hr-source');
+    expect(editorStyles).toContain('.cm-line .cm-moss-hr-source *');
+    expect(editorStyles).toContain('font-style: normal;');
+    expect(editorStyles).toContain('color: inherit;');
+    expect(editorStyles).toContain('min-height: 1.7em;');
+    expect(editorStyles).toContain('min-width: 1.45em;');
+    expect(editorStyles).toContain('line-height: 1.35;');
   });
 });

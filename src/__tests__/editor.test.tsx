@@ -201,21 +201,85 @@ describe('MossMD', () => {
     expect(handleRef.current?.getMarkdown()).toBe('find me');
   });
 
-  it('renders built-in horizontal-rule variants and accepts a custom glyph', () => {
+  it('renders built-in horizontal-rule variants without default glyphs', () => {
     const { host } = mount(
-      <MossMD
-        markdownSource={'***\n___\n---'}
-        inlinePreviewConfig={{ horizontalRule: { glyph: '🌿' } }}
-      />,
+      <MossMD markdownSource={'***\n___\n---'} />,
     );
 
     const lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
     expect(lines).toHaveLength(3);
     expect(lines[0]?.classList.contains('cm-moss-hr-wavy')).toBe(true);
-    expect(lines[1]?.classList.contains('cm-moss-hr-glyph')).toBe(true);
-    expect(lines[1]?.dataset.mossHrGlyph).toBe('🌿');
+    expect(lines[1]?.classList.contains('cm-moss-hr-glyph')).toBe(false);
+    expect(lines[1]?.querySelector('.cm-moss-hr-symbol')).toBeNull();
     expect(lines[2]?.classList.contains('cm-moss-hr-wavy')).toBe(false);
     expect(lines[2]?.classList.contains('cm-moss-hr-glyph')).toBe(false);
+    expect(lines[2]?.querySelector('.cm-moss-hr-symbol')).toBeNull();
+  });
+
+  it('renders glyphs from symmetric horizontal-rule syntax', () => {
+    const { host } = mount(
+      <MossMD markdownSource={'---⭐---\n***🌿***\n___'} />,
+    );
+
+    const lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines).toHaveLength(3);
+    expect(lines[0]?.classList.contains('cm-moss-hr')).toBe(true);
+    expect(lines[0]?.classList.contains('cm-moss-hr-wavy')).toBe(false);
+    expect(lines[0]?.classList.contains('cm-moss-hr-glyph')).toBe(true);
+    expect(lines[0]?.querySelector('.cm-moss-hr-widget')).not.toBeNull();
+    expect(lines[0]?.querySelector('.cm-moss-hr-segment-left')).not.toBeNull();
+    expect(lines[0]?.querySelector('.cm-moss-hr-segment-right')).not.toBeNull();
+    expect(lines[0]?.querySelector('.cm-moss-hr-symbol')?.textContent).toBe('⭐');
+    expect(lines[1]?.classList.contains('cm-moss-hr-wavy')).toBe(true);
+    expect(lines[1]?.classList.contains('cm-moss-hr-glyph')).toBe(true);
+    expect(
+      lines[1]?.querySelector('.cm-moss-hr-widget-wavy'),
+    ).not.toBeNull();
+    expect(lines[1]?.querySelector('.cm-moss-hr-symbol')?.textContent).toBe('🌿');
+    expect(lines[2]?.classList.contains('cm-moss-hr-glyph')).toBe(false);
+  });
+
+  it('keeps active symmetric horizontal-rule source plain and editable', () => {
+    const markdown = '***🌿***\n___⭐___';
+    const { host } = mount(
+      <MossMD markdownSource={markdown} />,
+    );
+    const editor = host.querySelector<HTMLElement>('.cm-editor');
+    const view = editor ? EditorView.findFromDOM(editor) : null;
+    expect(view).not.toBeNull();
+
+    act(() => {
+      view!.focus();
+      view!.dispatch({ selection: { anchor: 0 } });
+    });
+
+    const lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines[0]?.classList.contains('cm-moss-hr')).toBe(false);
+    expect(lines[0]?.textContent).toBe('***🌿***');
+    expect(lines[0]?.querySelector('.cm-moss-hr-source')).not.toBeNull();
+    expect(lines[0]?.querySelector('.cm-moss-strong')).toBeNull();
+    expect(lines[0]?.querySelector('.cm-moss-em')).toBeNull();
+
+    act(() => {
+      view!.dispatch({
+        selection: { anchor: markdown.indexOf('___') },
+      });
+    });
+
+    expect(lines[1]?.classList.contains('cm-moss-hr')).toBe(false);
+    expect(lines[1]?.textContent).toBe('___⭐___');
+    expect(lines[1]?.querySelector('.cm-moss-hr-source')).not.toBeNull();
+    expect(lines[1]?.querySelector('.cm-moss-strong')).toBeNull();
+    expect(lines[1]?.querySelector('.cm-moss-em')).toBeNull();
+  });
+
+  it('does not treat extended horizontal-rule syntax inside code as a divider', () => {
+    const { host } = mount(
+      <MossMD markdownSource={'```md\n---⭐---\n***🌿***\n```'} />,
+    );
+
+    expect(host.querySelector('.cm-moss-hr')).toBeNull();
+    expect(host.querySelector('.cm-moss-fenced-code')).not.toBeNull();
   });
 
   it('renders custom task statuses as icons and toggles configured pairs', () => {

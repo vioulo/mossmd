@@ -447,15 +447,15 @@ export function generateSampleMarkdown(
   // ordinary text: headings, emphasis, escapes, collapsed links.
   sections.push('## And the usual markdown', paragraph(rng));
   sections.push('And highlight syntax works with ==double equals== markers too.');
-  // Built-in HR showcase — the editor renders a different visual for each
-  // CommonMark HR sigil: solid `---`, wavy `***`, glyph-centered `___`.
-  // Type any of them on a blank line to see the variant; click the line to
-  // reveal the raw marker.
+  // Built-in HR syntax: plain `---` / `***` / `___`, plus symmetric glyph
+  // forms such as `---⭐---` and `***🌿***`.
   sections.push(
-    'Horizontal rules support solid, relaxed wavy, and glyph-centered styles:',
+    'Horizontal rules support solid, relaxed wavy, and optional inline glyphs:',
     '***',
-    '___',
     '---',
+    '---⭐---',
+    '***🌿***',
+    '___',
   );
   if (includeLists) sections.push(list(rng));
   if (!imageless) {

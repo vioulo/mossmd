@@ -458,26 +458,32 @@
   color: var(--moss-fg-muted, #888);
 }
 
-/* Horizontal rule — on inactive lines, the raw `***` / `---` /
- * `___` characters are hidden by Decoration.replace, and a visual
- * rule is drawn through the center of the line via a pseudo-element.
- * The line keeps its natural line-height so height stays stable
- * between active and inactive states (active shows the raw chars). */
-.cm-line.cm-moss-hr {
-  position: relative;
+.cm-line .cm-moss-hr-source,
+.cm-line .cm-moss-hr-source * {
+  font-weight: 400;
+  font-style: normal;
+  text-decoration: none;
+  color: inherit;
 }
 
-.cm-line.cm-moss-hr::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  border-top: 1px solid var(--moss-border, #3d3d3d);
+.cm-moss-hr-widget {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 1.7em;
+  gap: 0.6em;
+  vertical-align: middle;
   pointer-events: none;
 }
 
-.cm-line.cm-moss-hr.cm-moss-hr-wavy::after {
+.cm-moss-hr-segment {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-top: 1px solid var(--moss-border, #3d3d3d);
+}
+
+.cm-moss-hr-widget-wavy .cm-moss-hr-segment {
   border-top: none;
   height: 8px;
   background-color: var(--moss-border, #3d3d3d);
@@ -489,31 +495,19 @@
   -webkit-mask-position: center;
   mask-size: 32px 8px;
   -webkit-mask-size: 32px 8px;
-  transform: translateY(-50%);
 }
 
-.cm-line.cm-moss-hr.cm-moss-hr-glyph::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  border-top: 1px solid var(--moss-border, #3d3d3d);
-  pointer-events: none;
-}
-
-.cm-line.cm-moss-hr.cm-moss-hr-glyph::after {
-  border-top: none;
-  content: attr(data-moss-hr-glyph);
-  left: 50%;
-  right: auto;
-  width: auto;
-  transform: translate(-50%, -50%);
-  padding: 0 0.6em;
-  background: var(--moss-bg, #1e1e1e);
+.cm-moss-hr-symbol {
+  flex: 0 1 auto;
+  min-width: 1.45em;
+  max-width: min(12em, calc(100% - 2em));
   color: var(--moss-fg-muted, #888);
-  font-size: 0.85em;
-  line-height: 1;
+  font-size: 0.95em;
+  line-height: 1.35;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* The source of a standalone image is replaced visually by its block

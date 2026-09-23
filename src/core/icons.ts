@@ -37,9 +37,17 @@ function attrName(name: string): string {
 function setAttr(
   element: Element,
   name: string,
-  value: PrimitiveAttr,
+  value: unknown,
 ): void {
   if (value == null || name === 'key' || name === 'ref') return;
+  if (
+    typeof value !== 'string' &&
+    typeof value !== 'number' &&
+    typeof value !== 'boolean' &&
+    typeof value !== 'bigint'
+  ) {
+    return;
+  }
   element.setAttribute(attrName(name), String(value));
 }
 

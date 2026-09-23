@@ -8,6 +8,7 @@ import {
 } from '@codemirror/view';
 import { type Extension, type Range } from '@codemirror/state';
 import { readOnlyFacet } from '../../core/read-only';
+import { previewFrozenField } from '../../core/preview-activity';
 import { defineMossSyntax, type MossCustomSyntax } from '../../syntax';
 
 export type MossCalloutType =
@@ -67,18 +68,33 @@ class CalloutMarkerWidget extends WidgetType {
   constructor(
     private readonly type: string,
     private readonly label: string,
+    private readonly lineFrom: number,
   ) {
     super();
   }
 
   override eq(other: CalloutMarkerWidget): boolean {
-    return this.type === other.type && this.label === other.label;
+    return (
+      this.type === other.type &&
+      this.label === other.label &&
+      this.lineFrom === other.lineFrom
+    );
   }
 
-  override toDOM(): HTMLElement {
+  override toDOM(view: EditorView): HTMLElement {
     const span = document.createElement('span');
     span.className = `cm-moss-callout-label cm-moss-callout-label-${this.type}`;
     span.textContent = this.label;
+    span.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      view.focus();
+      view.dispatch({
+        selection: { anchor: this.lineFrom },
+        userEvent: 'select.pointer',
+      });
+    });
     return span;
   }
 
@@ -102,11 +118,19 @@ export function mossCallouts(config: MossCalloutsConfig = {}): Extension {
       }
 
       update(update: ViewUpdate): void {
+        const wasFrozen =
+          update.startState.field(previewFrozenField, false) ?? false;
+        const isFrozen = update.state.field(previewFrozenField, false) ?? false;
+        const justUnfroze = wasFrozen && !isFrozen;
+
+        if (isFrozen && !justUnfroze && !update.docChanged) return;
+
         const readOnlyChanged =
           update.startState.facet(readOnlyFacet) !==
           update.state.facet(readOnlyFacet);
 
         if (
+          justUnfroze ||
           update.docChanged ||
           update.selectionSet ||
           update.focusChanged ||
@@ -183,7 +207,7 @@ function buildCalloutDecorations(
     if (!activeLines.has(start.number)) {
       ranges.push(
         Decoration.replace({
-          widget: new CalloutMarkerWidget(start.type, start.label),
+          widget: new CalloutMarkerWidget(start.type, start.label, start.from),
         }).range(start.markerFrom, start.markerTo),
       );
     }

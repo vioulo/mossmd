@@ -212,6 +212,21 @@ function isWikiLinkNode(
   );
 }
 
+function isCalloutMarkerNode(
+  node: { name: string; from: number; to: number },
+  doc: Text,
+): boolean {
+  if (node.name !== 'Link') return false;
+
+  const line = doc.lineAt(node.from);
+  const match = line.text.match(/^(\s{0,3}>\s?)(\[![A-Za-z][\w-]*\])/);
+  return (
+    match !== null &&
+    node.from === line.from + match[1].length &&
+    node.to === line.from + match[0].length
+  );
+}
+
 const INLINE_MARK_CLASS: Record<string, string> = {
   StrongEmphasis: 'cm-moss-strong',
   Emphasis: 'cm-moss-em',
@@ -393,6 +408,10 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       // link-scoped reveal rules.
       if (node.name === 'Link') {
         if (isWikiLinkNode(node, doc)) return false;
+        // Callout owns the `[!TYPE]` marker on blockquote lines. The
+        // Markdown parser exposes it as a shortcut Link, but treating it as
+        // a normal link would hide its brackets and apply link styling.
+        if (isCalloutMarkerNode(node, doc)) return false;
         const line = doc.lineAt(node.from);
         const taskInfo = parseListTaskMarker(line.text, taskConfig);
         if (

@@ -10,6 +10,7 @@ import {
   type MossMDHandle,
 } from '../editor';
 import { mossLucideIcon } from '../core/icons';
+import { mossCalloutSyntax } from '../features/callout';
 
 const hosts: HTMLElement[] = [];
 
@@ -1013,6 +1014,99 @@ describe('MossMD', () => {
     expect(host.querySelector('.cm-moss-link')?.textContent).toContain(
       '[Render semantic vector](https://example.org/1620e)',
     );
+  });
+
+  it('keeps callout markers out of generic link preview', () => {
+    const markdown = '> [!NOTE] Custom syntax extension\n\nOutside';
+    const { host } = mount(
+      <MossMD
+        markdownSource={markdown}
+        customSyntax={[mossCalloutSyntax()]}
+      />,
+    );
+    const editor = host.querySelector<HTMLElement>('.cm-editor');
+    const view = editor ? EditorView.findFromDOM(editor) : null;
+    expect(view).not.toBeNull();
+    const calloutLine = () =>
+      Array.from(host.querySelectorAll<HTMLElement>('.cm-line')).find((line) =>
+        line.textContent?.includes('Custom syntax extension'),
+      );
+    expect(host.querySelectorAll('.cm-moss-link')).toHaveLength(0);
+    expect(calloutLine()?.textContent).toContain('NoteCustom syntax extension');
+
+    const titleFrom = markdown.indexOf('Custom');
+    act(() => {
+      view!.focus();
+      view!.dispatch({ selection: { anchor: titleFrom } });
+    });
+    expect(host.querySelectorAll('.cm-moss-link')).toHaveLength(0);
+    expect(calloutLine()?.textContent).toContain(
+      '> [!NOTE] Custom syntax extension',
+    );
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: markdown.indexOf('[!NOTE]') + 2 } });
+      view!.dispatch({ selection: { anchor: titleFrom } });
+      view!.dispatch({ selection: { anchor: markdown.length } });
+    });
+    expect(host.querySelectorAll('.cm-moss-link')).toHaveLength(0);
+    expect(calloutLine()?.textContent).toContain('NoteCustom syntax extension');
+  });
+
+  it('reveals and restores a callout when clicked with the mouse', () => {
+    vi.useFakeTimers();
+    try {
+      const markdown = '> [!NOTE] Custom syntax extension\n\nOutside';
+      const { host } = mount(
+        <MossMD
+          markdownSource={markdown}
+          customSyntax={[mossCalloutSyntax()]}
+        />,
+      );
+      const editor = host.querySelector<HTMLElement>('.cm-editor');
+      const view = editor ? EditorView.findFromDOM(editor) : null;
+      const label = host.querySelector<HTMLElement>('.cm-moss-callout-label');
+      const calloutLine = () =>
+        Array.from(host.querySelectorAll<HTMLElement>('.cm-line')).find((line) =>
+          line.textContent?.includes('Custom syntax extension'),
+        );
+      expect(view).not.toBeNull();
+      expect(label).not.toBeNull();
+      expect(calloutLine()?.textContent).toContain('NoteCustom syntax extension');
+
+      act(() => {
+        label!.dispatchEvent(
+          new MouseEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+          }),
+        );
+        window.dispatchEvent(
+          new MouseEvent('pointerup', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+          }),
+        );
+        vi.advanceTimersByTime(100);
+      });
+
+      expect(view!.state.selection.main.from).toBeLessThanOrEqual(
+        markdown.indexOf('Custom'),
+      );
+      expect(view!.state.doc.lineAt(view!.state.selection.main.head).number).toBe(1);
+      expect(calloutLine()?.textContent).toContain(
+        '> [!NOTE] Custom syntax extension',
+      );
+
+      act(() => {
+        view!.dispatch({ selection: { anchor: markdown.length } });
+      });
+      expect(calloutLine()?.textContent).toContain('NoteCustom syntax extension');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each([

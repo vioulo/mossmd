@@ -116,3 +116,119 @@
   --moss-hl-operator: #cf222e;
   --moss-hl-invalid: #82071e;
 }
+
+/*
+ * Blue presets.
+ *
+ * These palettes intentionally keep the document foreground neutral while
+ * moving interaction, links, selections, and surfaces into a blue family.
+ * Use `data-theme="blue"` for the dark preset or `data-theme="blue-light"`
+ * for the light preset.
+ */
+[data-theme="blue"] {
+  --moss-fg: #dbe7f5;
+  --moss-fg-muted: #8fa5bd;
+  --moss-fg-faint: #637a93;
+  --moss-bg: #0b1220;
+  --moss-bg-panel: #0f1b2d;
+  --moss-bg-surface: #16263d;
+  --moss-border: #2b4568;
+  --moss-accent: #2d6dc3;
+  --moss-accent-bright: #6da7ff;
+  --moss-list-marker: #8fb9ff;
+  --moss-list-ordered: var(--moss-list-marker);
+  --moss-list-unordered: var(--moss-list-marker);
+  --moss-accent-soft: #bcd8ff;
+  --moss-link: #7fb0ff;
+  --moss-link-hover: #bcd8ff;
+  --moss-code-bg: #101e32;
+  --moss-code-rail: color-mix(
+    in srgb,
+    var(--moss-accent) 55%,
+    var(--moss-border) 45%
+  );
+  --moss-selection-bg: color-mix(
+    in srgb,
+    var(--moss-accent) 42%,
+    var(--moss-bg) 58%
+  );
+  --moss-search-bg: rgba(250, 209, 59, 0.28);
+  --moss-search-bg-active: rgba(250, 209, 59, 0.58);
+  --moss-initial-reveal-bg: color-mix(
+    in srgb,
+    var(--moss-accent-bright) 28%,
+    transparent 72%
+  );
+  --moss-initial-reveal-bg-strong: color-mix(
+    in srgb,
+    var(--moss-accent-bright) 44%,
+    transparent 56%
+  );
+  --moss-hl-keyword: #9cc8ff;
+  --moss-hl-string: #a7d8b1;
+  --moss-hl-number: #ffb37a;
+  --moss-hl-comment: #7890a8;
+  --moss-hl-type: #ffd27a;
+  --moss-hl-function: #7ec8ff;
+  --moss-hl-property: #9bb3d7;
+  --moss-hl-regexp: #ff8e9e;
+  --moss-hl-escape: #7de3ff;
+  --moss-hl-tag: #ff8e9e;
+  --moss-hl-variable: #d9e7f5;
+  --moss-hl-operator: #7de3ff;
+  --moss-hl-invalid: #ff6b81;
+}
+
+[data-theme="blue-light"] {
+  --moss-fg: #24364a;
+  --moss-fg-muted: #58708c;
+  --moss-fg-faint: #7e94aa;
+  --moss-bg: #f7fbff;
+  --moss-bg-panel: #ffffff;
+  --moss-bg-surface: #e8f0fb;
+  --moss-border: #c7d6e8;
+  --moss-accent: #2d6dc3;
+  --moss-accent-bright: #2871e9;
+  --moss-list-marker: #1d5db4;
+  --moss-list-ordered: var(--moss-list-marker);
+  --moss-list-unordered: var(--moss-list-marker);
+  --moss-accent-soft: #8fb9ff;
+  --moss-link: #1d5db4;
+  --moss-link-hover: #174b8f;
+  --moss-code-bg: #eff5fc;
+  --moss-code-rail: color-mix(
+    in srgb,
+    var(--moss-accent) 55%,
+    var(--moss-border) 45%
+  );
+  --moss-selection-bg: color-mix(
+    in srgb,
+    var(--moss-accent) 20%,
+    transparent 80%
+  );
+  --moss-search-bg: rgba(250, 209, 59, 0.35);
+  --moss-search-bg-active: rgba(250, 209, 59, 0.62);
+  --moss-initial-reveal-bg: color-mix(
+    in srgb,
+    var(--moss-accent-bright) 16%,
+    transparent 84%
+  );
+  --moss-initial-reveal-bg-strong: color-mix(
+    in srgb,
+    var(--moss-accent-bright) 30%,
+    transparent 70%
+  );
+  --moss-hl-keyword: #7c3aed;
+  --moss-hl-string: #16723a;
+  --moss-hl-number: #b54708;
+  --moss-hl-comment: #6b7d90;
+  --moss-hl-type: #8a5a00;
+  --moss-hl-function: #1d5db4;
+  --moss-hl-property: #245f9f;
+  --moss-hl-regexp: #b42318;
+  --moss-hl-escape: #087f9b;
+  --moss-hl-tag: #b42318;
+  --moss-hl-variable: #24364a;
+  --moss-hl-operator: #087f9b;
+  --moss-hl-invalid: #b42318;
+}

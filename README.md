@@ -237,9 +237,27 @@ export const calloutSyntax = defineMossSyntax({
 
 ## 主题
 
-所有颜色、字体、字号都来自 CSS 自定义属性。你可以在编辑器祖先节点上覆盖这些变量，也可以通过 `data-theme="light"` 切换到浅色配色。
+所有颜色、字体、字号都来自 CSS 自定义属性。你可以在编辑器祖先节点上覆盖这些变量，也可以通过 `data-theme="light"` 切换到浅色配色。MossMD 还提供两个蓝色 preset：`data-theme="blue"` 是深海蓝主题，`data-theme="blue-light"` 是浅蓝主题；它们只改变主题 token，不增加编辑器配置。蓝色 preset 与明暗模式是两个独立维度，可以分别选择配色和明暗：
+
+- `data-theme="blue"`：蓝色深色
+- `data-theme="blue-light"`：蓝色浅色
+- `data-theme="dark"`：默认深色
+- `data-theme="light"`：默认浅色
 
 `mossmd/tokens.css` 提供共享主题令牌，`mossmd/editor.css` 负责编辑器表面样式，`mossmd/content.css` 负责渲染后的 Markdown。
+
+```tsx
+import { MossMD } from 'mossmd';
+import 'mossmd/editor.css';
+
+export function BlueMoss() {
+  return (
+    <div data-theme="blue">
+      <MossMD markdownSource="# Blue Moss" />
+    </div>
+  );
+}
+```
 
 图片块会在图片上显示预览按钮；点击后在编辑器外打开大图预览，不会修改 Markdown 或改变文档布局。编辑模式下还会显示编辑和缩放按钮，可修改 alt 文本、图片标题、宽度和 URL。点击图片会选中完整的原始图片语法，因此复制、删除仍然作用于 Markdown 源文。触摸设备上按钮会自动使用较大的常驻触控目标；如需关闭编辑、缩放或预览，可以传入 `imagesConfig={{ editable: false, resizable: false, previewable: false }}`。
 

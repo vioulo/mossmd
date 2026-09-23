@@ -6,6 +6,7 @@ import {
   Copy,
   Download,
   Moon,
+  Palette,
   RotateCcw,
   Sun,
 } from 'lucide-react';
@@ -156,7 +157,8 @@ const DEMO_SNIPPET_COMMANDS: MossSlashCommand[] = [
   },
 ];
 
-type ThemeMode = 'dark' | 'light';
+type ThemePalette = 'default' | 'blue';
+type ThemeAppearance = 'dark' | 'light';
 
 declare const __APP_VERSION__: string;
 const VERSION = __APP_VERSION__;
@@ -244,7 +246,9 @@ function formatBytes(chars: number): string {
 
 export function App() {
   const [sampleSize, setSampleSize] = useState<SampleSize>('1 page');
-  const [theme, setTheme] = useState<ThemeMode>('dark');
+  const [themePalette, setThemePalette] = useState<ThemePalette>('default');
+  const [themeAppearance, setThemeAppearance] =
+    useState<ThemeAppearance>('dark');
   const [readOnly, setReadOnly] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [liveMarkdown, setLiveMarkdown] = useState('');
@@ -316,9 +320,20 @@ export function App() {
     requestAnimationFrame(() => measurePerfRef.current());
   }, []);
 
-  const toggleTheme = useCallback(() => {
-    setTheme((current) => (current === 'dark' ? 'light' : 'dark'));
+  const toggleThemePalette = useCallback(() => {
+    setThemePalette((current) => (current === 'default' ? 'blue' : 'default'));
   }, []);
+
+  const toggleThemeAppearance = useCallback(() => {
+    setThemeAppearance((current) => (current === 'dark' ? 'light' : 'dark'));
+  }, []);
+
+  const theme = useMemo(() => {
+    if (themePalette === 'blue') {
+      return themeAppearance === 'light' ? 'blue-light' : 'blue';
+    }
+    return themeAppearance;
+  }, [themeAppearance, themePalette]);
 
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -462,7 +477,7 @@ export function App() {
           </div>
         </div>
 
-        {/* Right floating cluster: live/ro | actions | theme */}
+        {/* Right floating cluster: live/ro | actions | palette | appearance */}
         <div className="demo-pill-cluster demo-pill-cluster-right">
           <div className="demo-pill-card" role="group" aria-label="Edit mode">
             <button
@@ -524,12 +539,49 @@ export function App() {
           <div className="demo-pill-card">
             <button
               type="button"
-              className="demo-pill demo-icon-pill"
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+              className={`demo-pill demo-icon-pill ${
+                themePalette === 'blue' ? 'is-active' : ''
+              }`}
+              onClick={toggleThemePalette}
+              aria-pressed={themePalette === 'blue'}
+              aria-label={
+                themePalette === 'default'
+                  ? 'Switch to blue palette'
+                  : 'Switch to default palette'
+              }
+              title={
+                themePalette === 'default'
+                  ? 'Blue palette'
+                  : 'Default palette'
+              }
             >
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+              <Palette size={14} />
+            </button>
+          </div>
+          <div className="demo-pill-card">
+            <button
+              type="button"
+              className={`demo-pill demo-icon-pill ${
+                themeAppearance === 'light' ? 'is-active' : ''
+              }`}
+              onClick={toggleThemeAppearance}
+              aria-pressed={themeAppearance === 'light'}
+              aria-label={
+                themeAppearance === 'dark'
+                  ? 'Switch to light appearance'
+                  : 'Switch to dark appearance'
+              }
+              title={
+                themeAppearance === 'dark'
+                  ? 'Light appearance'
+                  : 'Dark appearance'
+              }
+            >
+              {themeAppearance === 'dark' ? (
+                <Sun size={14} />
+              ) : (
+                <Moon size={14} />
+              )}
             </button>
           </div>
         </div>

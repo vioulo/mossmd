@@ -6,8 +6,21 @@ const contentStyles = readFileSync(
   resolve(process.cwd(), 'src/styles/content.css'),
   'utf8',
 );
+const tokenStyles = readFileSync(
+  resolve(process.cwd(), 'src/styles/tokens.css'),
+  'utf8',
+);
 
 describe('content styles', () => {
+  it('exposes dark and light blue theme presets through shared tokens', () => {
+    expect(tokenStyles).toContain('[data-theme="blue"]');
+    expect(tokenStyles).toContain('[data-theme="blue-light"]');
+    expect(tokenStyles).toContain('--moss-bg: #0b1220;');
+    expect(tokenStyles).toContain('--moss-bg: #f7fbff;');
+    expect(tokenStyles).toContain('--moss-accent: #2d6dc3;');
+    expect(tokenStyles).toContain('--moss-search-bg: rgba(250, 209, 59, 0.28);');
+  });
+
   it('themes ordered-list markers with the shared list token', () => {
     expect(contentStyles).toContain('.moss-markdown ol > li::marker');
     expect(contentStyles).toContain(

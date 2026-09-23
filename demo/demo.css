@@ -201,7 +201,9 @@ a:hover {
 
 /* Light theme: tone down the 3D weight so pills don't look stamped on */
 [data-theme="light"] .demo-pill-card,
-[data-theme="light"] .demo-status-bar {
+[data-theme="light"] .demo-status-bar,
+[data-theme="blue-light"] .demo-pill-card,
+[data-theme="blue-light"] .demo-status-bar {
   border-color: color-mix(in srgb, var(--moss-fg, #1a1a1a) 10%, transparent);
   box-shadow:
     0 1px 0 rgba(0, 0, 0, 0.03) inset,
@@ -209,7 +211,8 @@ a:hover {
     0 6px 16px rgba(0, 0, 0, 0.08);
 }
 
-[data-theme="light"] .demo-pill.is-active {
+[data-theme="light"] .demo-pill.is-active,
+[data-theme="blue-light"] .demo-pill.is-active {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.3) inset,
     0 1px 4px rgba(0, 0, 0, 0.12);

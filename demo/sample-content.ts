@@ -197,25 +197,6 @@ function link(rng: () => number): string {
   );
 }
 
-function imageBlock(rng: () => number): string {
-  // picsum.photos is seeded and deterministic — same seed always
-  // returns the same image — so the harness screenshot stays stable.
-  const seed = 1000 + Math.floor(rng() * 9000);
-  const w = 320 + Math.floor(rng() * 260);
-  const h = 180 + Math.floor(rng() * 200);
-  const alt = words(rng, 2 + Math.floor(rng() * 2));
-  const url = `https://picsum.photos/seed/${seed}/${w}/${h}`;
-  // ~40% of images use the pipe syntax to show a caption; the rest
-  // stay plain `![alt](url)` to exercise the no-caption path. Of
-  // the captioned ones, ~1 in 4 uses the empty-pipe shorthand
-  // `![alt|](url)` to verify the alt-fallback branch.
-  const r = rng();
-  if (r < 0.6) return `![${alt}](${url})`;
-  if (r < 0.7) return `![${alt}|](${url})`;
-  const caption = words(rng, 4 + Math.floor(rng() * 4));
-  return `![${alt}|${caption}](${url})`;
-}
-
 // Generate a section: h2 + 3-6 blocks.
 function section(
   rng: () => number,
@@ -252,7 +233,7 @@ function section(
 export type SampleSize = '1 page' | '10 pages' | '100 pages' | '500 pages' | '1000 pages';
 
 const SECTIONS_PER_SIZE: Record<SampleSize, number> = {
-  '1 page': 1,
+  '1 page': 0,
   '10 pages': 10,
   '100 pages': 100,
   '500 pages': 500,
@@ -354,23 +335,17 @@ export function generateSampleMarkdown(
   const bannerIntro = [
     `# ${title}`,
     `![MossMD banner|MossMD](${bannerImageUrl})`,
-    `_CodeMirror 6 markdown editor with Obsidian-style inline live preview — WYSIWYG tables, syntax-highlighted code, interactive checkboxes, and cursor-scoped link unfold. Showing a ${size} sample._`,
+    'MossMD — CodeMirror 6 Markdown editor with Obsidian-style live preview. [GitHub](https://github.com/vioulo/mossmd)',
   ].join('\n');
 
   const sections: string[] = [
     bannerIntro,
-    // Hero section — the three features that make users go "oh nice"
-    // on first load. Deterministic content so the first-visit
-    // impression is stable across reloads; random / varied content
-    // for the section loop below.
-    '## Try it',
   ];
 
-  sections.push(
-    'MossMD — CodeMirror 6 Markdown editor with Obsidian-style live preview. [GitHub](https://github.com/vioulo/mossmd)',
-  );
+  sections.push('***𓇼***');
 
   sections.push(
+    '# Custom syntax',
     'Callouts keep Obsidian-style blocks readable while the source stays plain markdown:',
     [
       '> [!NOTE] Custom syntax extension',
@@ -381,108 +356,12 @@ export function generateSampleMarkdown(
   // 1. Fenced code block — shows per-grammar syntax highlighting.
   if (includeCodeBlocks) {
     sections.push(
+      '## Code block & highlight',
       'Fenced code blocks pick up per-language syntax highlighting. The grammar loads lazily — only fences you actually open hit the wire:',
       '```' + SHOWCASE_CODE.lang + '\n' + SHOWCASE_CODE.body + '\n```',
     );
   }
-  // 2. WYSIWYG table with inline markdown rendering inside cells.
-  if (includeTables) {
-    sections.push(
-      'Tables render WYSIWYG. Click a cell to edit in place — inline markdown inside cells reveals its delimiters only when your cursor enters:',
-      // Deterministic inline-marks table so probes can target a known
-      // bold / italic / strike / highlight / link cell. First row is the baseline
-      // (probes target row 0); subsequent rows add variety so every
-      // supported combination appears at a glance — delimiter
-      // variants, nesting, escapes, and cases that should
-      // deliberately NOT decorate.
-      [
-        '| Plain | Bold | Italic | Strike | Highlight | Link |',
-        '|---|---|---|---|---|---|',
-        '| plain text | **bold text** | *italic text* | ~~struck text~~ | ==marked text== | [example](https://example.org) |',
-        '| alt delim | __also bold__ | _also italic_ | ~~gone gone~~ | ==also marked== | [github](https://github.com) |',
-        '| nesting | **bold with _italic_ inside** | *italic with **bold** inside* | ~~strike with **bold**~~ | ==highlight with **bold**== | [text **bold** here](https://example.org) |',
-        '| escapes | \\*literal stars\\* | \\_literal underscores\\_ | \\~\\~not strike\\~\\~ | \\=\\=not highlight\\=\\= | \\[not a link\\] |',
-        '| non-matches | snake_case_var | ident_with_underscores | `code stays raw` | a = b = c | https://example.org raw url |',
-      ].join('\n'),
-    );
-  }
-  // 3. Interactive task list — invites the user to actually click
-  // something and feel the editor respond.
-  if (includeLists) {
-    sections.push(
-      'Task lists support custom status icons. A custom marker and its `-` prefixed form represent filled and empty states; pressing Enter on a task continues the list; Enter on an empty item dedents.',
-      [
-        '- [ ] To Do',
-        '- [/] In Progress',
-        '- [x] Done',
-        '- [-] Cancelled',
-        '- [<] Scheduled',
-        '- [!] Important',
-        '- [?] Question',
-        '- [i] Information',
-        '- [S] Amount',
-        '- [*] Star',
-        '- [b] Bookmark',
-        '- ["] Quote',
-        '- [n] Note',
-        '- [l] Location',
-        '- [I] Idea',
-        '- [p] Pro',
-        '- [c] Con',
-        '- [u] Up',
-        '- [d] Down',
-      ].join('\n'),
-    );
-  }
-  // 4. Wiki links — a flagship 0.3.0 feature. Folded into the hero (no
-  // separate H1) so the document reads as one coherent page. The
-  // `demo-*` targets line up with the resolver/suggester wired in the
-  // demo App, so these render as resolved links and autocomplete works.
   sections.push(
-    'Wiki links connect notes. Type `[[` for autocomplete, and Cmd/Ctrl-click a rendered link to open it — inside inline code it stays raw:',
-    'Labeled: [[demo-project-atlas|Project Atlas]] · Bare: [[demo-meeting-notes]] · In code: `[[demo-project-atlas]]`',
-  );
-  // Secondary section — a deliberate "read the prose" zone after
-  // the hero trio. Sets context for what the editor can do with
-  // ordinary text: headings, emphasis, escapes, collapsed links.
-  sections.push('## And the usual markdown', paragraph(rng));
-  sections.push('And highlight syntax works with ==double equals== markers too.');
-  // Built-in HR syntax: plain `---` / `***` / `___`, plus symmetric glyph
-  // forms such as `---⭐---` and `***🌿***`.
-  sections.push(
-    'Horizontal rules support solid, relaxed wavy, and optional inline glyphs:',
-    '***',
-    '---',
-    '---⭐---',
-    '***🌿***',
-    '___',
-  );
-  if (includeLists) sections.push(list(rng));
-  if (!imageless) {
-    // Seeded picsum image — deterministic (same seed → same image
-    // bytes) so the image-block widget, screenshots, and scroll
-    // measurements stay stable across runs. Omitted in imageless
-    // mode to isolate image-independent layout / scroll behavior.
-    sections.push(imageBlock(rng));
-  }
-  sections.push(
-    quote(rng),
-    // Backslash-escape sample — RSS-to-markdown converters over-escape
-    // punctuation. Readers should see plain text on inactive lines;
-    // focusing the line reveals the raw escapes.
-    'Escapes like domain\\.com and 3\\.14 should render clean until focused\\.',
-    // Deterministic link line so probes have a stable target. Rendered
-    // as `A link to example for reference.` on inactive cursor; clicking
-    // inside the link reveals `[example](https://example.org)`.
-    'A link to [example](https://example.org) for reference.',
-    // Standalone file links — rendered as file-card widgets below
-    // each source line so attachments get a real visual placeholder
-    // instead of disappearing into a plain blue underline. Layout
-    // mirrors the image-block + upload-progress widgets so the
-    // upload → final flow reads as one continuous transition.
-    '## Attachments',
-    '[project-brief.pdf](https://example.org/files/project-brief.pdf)',
-    '[design-notes.zip](https://example.org/files/design-notes.zip)',
     '## Custom icons',
     'User-facing editor icons accept a `MossIconRenderer`. Wrap any Lucide icon with `mossLucideIcon`, or return your own DOM node:',
     [
@@ -517,6 +396,155 @@ export function generateSampleMarkdown(
       '  }}',
       '/>',
       '```',
+    ].join('\n'),
+  );
+  sections.push('***🌿***');
+  // 2. WYSIWYG table with inline markdown rendering inside cells.
+  if (includeTables) {
+    sections.push(
+      '## Tables',
+      'Tables render WYSIWYG. Click a cell to edit in place — inline markdown inside cells reveals its delimiters only when your cursor enters:',
+      // Deterministic inline-marks table so probes can target a known
+      // bold / italic / strike / highlight / link cell. First row is the baseline
+      // (probes target row 0); subsequent rows add variety so every
+      // supported combination appears at a glance — delimiter
+      // variants, nesting, escapes, and cases that should
+      // deliberately NOT decorate.
+      [
+        '| Plain | Bold | Italic | Strike | Highlight | Link |',
+        '|---|---|---|---|---|---|',
+        '| plain text | **bold text** | *italic text* | ~~struck text~~ | ==marked text== | [example](https://example.org) |',
+        '| alt delim | __also bold__ | _also italic_ | ~~gone gone~~ | ==also marked== | [github](https://github.com) |',
+        '| nesting | **bold with _italic_ inside** | *italic with **bold** inside* | ~~strike with **bold**~~ | ==highlight with **bold**== | [text **bold** here](https://example.org) |',
+        '| escapes | \\*literal stars\\* | \\_literal underscores\\_ | \\~\\~not strike\\~\\~ | \\=\\=not highlight\\=\\= | \\[not a link\\] |',
+        '| non-matches | snake_case_var | ident_with_underscores | `code stays raw` | a = b = c | https://example.org raw url |',
+      ].join('\n'),
+    );
+  }
+  // 3. Interactive task list — invites the user to actually click
+  // something and feel the editor respond.
+  if (includeLists) {
+    sections.push(
+      '## Task lists',
+      'Task lists support custom status icons. A custom marker and its `-` prefixed form represent filled and empty states; pressing Enter on a task continues the list; Enter on an empty item dedents.',
+      [
+        '- [ ] To Do',
+        '- [/] In Progress',
+        '- [x] Done',
+        '- [-] Cancelled',
+        '- [<] Scheduled',
+        '- [!] Important',
+        '- [?] Question',
+        '- [i] Information',
+        '- [S] Amount',
+        '- [*] Star',
+        '- [b] Bookmark',
+        '- ["] Quote',
+        '- [n] Note',
+        '- [l] Location',
+        '- [I] Idea',
+        '- [p] Pro',
+        '- [c] Con',
+        '- [u] Up',
+        '- [d] Down',
+      ].join('\n'),
+      [
+        '1. Like flowing water',
+        '2. passing by',
+        '3. experiencing',
+        '4. like wind',
+        '5. like snow',
+        '6. impermanent',
+      ].join('\n'),
+    );
+  }
+  // 4. Wiki links — a flagship 0.3.0 feature. Folded into the hero (no
+  // separate H1) so the document reads as one coherent page. The
+  // `demo-*` targets line up with the resolver/suggester wired in the
+  // demo App, so these render as resolved links and autocomplete works.
+  sections.push(
+    '## Wiki links',
+    'Wiki links connect notes. Type `[[` for autocomplete, and Cmd/Ctrl-click a rendered link to open it — inside inline code it stays raw:',
+    'Labeled: [[demo-project-atlas|Project Atlas]] · Bare: [[demo-meeting-notes]] · In code: `[[demo-project-atlas]]`',
+  );
+  if (includeLists) {
+    sections.push(
+      '## Unordered list',
+      [
+        '- Query graph editor token serialize payload callback transport.',
+        '- Viewport block viewport reader vector subscribe list viewport paragraph theme token virtualize.',
+        '  - Block parser virtualize.',
+        '    - Dark serialize diff theme.',
+        '- Diff chunk chat pipeline image widget tree markdown wiki.',
+        '  - Chunk similarity quote token token similarity.',
+        '- Parser semantic embedding table paragraph markdown list paragraph.',
+        '- Viewport tag payload serialize query link token editor store.',
+        '- Table semantic retrieval vector highlight image.',
+        '- Fence chat prose reader similarity.',
+        '  - Block link paragraph highlight callback widget vector.',
+        '    - Panel diff serialize vector atom transport.',
+      ].join('\n'),
+    );
+  }
+  // Secondary section — a deliberate "read the prose" zone after
+  // the hero trio. Sets context for what the editor can do with
+  // ordinary text: headings, emphasis, escapes, collapsed links.
+  sections.push(
+    '## And the usual markdown',
+    'Pipeline editor dark render block viewport heading dark render hydrate embedding token token payload query editor selection. Index subscribe atom wiki pipeline transport atom viewport fence payload table fence token store panel. Atom image editor reader image tree vector cursor decoration tag paragraph semantic viewport cursor markdown fence image callback payload render panel. Payload chat retrieval decoration pipeline highlight graph subscribe atom image store payload subscribe index highlight fence query.',
+  );
+  // Built-in HR syntax: plain `---` / `***` / `___`, plus symmetric glyph
+  // forms such as `---⭐---` and `***🌿***`.
+  if (includeSeparators) sections.push('---⭐---');
+  if (!imageless) {
+    // Seeded picsum image — deterministic (same seed → same image
+    // bytes) so the image-block widget, screenshots, and scroll
+    // measurements stay stable across runs. Omitted in imageless
+    // mode to isolate image-independent layout / scroll behavior.
+    sections.push(
+      '![unsplash-snow|snow covered house](https://images.unsplash.com/photo-1468476775582-6bede20f356f?q=80&w=1489&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA)',
+    );
+  }
+  sections.push(
+    '> Markdown fence embedding pipeline syntax prose editor token graph link theme image quote heading table hydrate link block agent dark widget panel widget token chat subscribe tree semantic embedding atom pipeline list.',
+    // Backslash-escape sample — RSS-to-markdown converters over-escape
+    // punctuation. Readers should see plain text on inactive lines;
+    // focusing the line reveals the raw escapes.
+    'Escapes like domain\\.com and 3\\.14 should render clean until focused\\.',
+    // Deterministic link line so probes have a stable target. Rendered
+    // as `A link to example for reference.` on inactive cursor; clicking
+    // inside the link reveals `[example](https://example.org)`.
+    'A link to [vioulo —— A newbie](https://vioulo.com) for reference.',
+    // Standalone file links — rendered as file-card widgets below
+    // each source line so attachments get a real visual placeholder
+    // instead of disappearing into a plain blue underline. Layout
+    // mirrors the image-block + upload-progress widgets so the
+    // upload → final flow reads as one continuous transition.
+    '## Attachments',
+    '[project-brief.pdf](https://example.org/files/project-brief.pdf)',
+    '[design-notes.zip](https://example.org/files/design-notes.zip)',
+    '## 未选择的路',
+    [
+      '黄色的树林里分出两条路，',
+      '可惜我不能同时去涉足，',
+      '我在那路口久久伫立，',
+      '我向着一条路极目望去，',
+      '直到它消失在丛林深处。',
+      '但我却选了另外一条路，',
+      '它荒草萋萋，十分幽寂，',
+      '显得更诱人、更美丽，',
+      '虽然在这条小路上，',
+      '都很少留下旅人的足迹，',
+      '虽然那天清晨落叶满地，',
+      '两条路都未经脚印污染。',
+      '啊，留下一条路等改日再见！',
+      '但我知道路径延绵无尽头，',
+      '恐怕我难以再回返。',
+      '也许多少年后在某个地方，',
+      '我将轻声叹息把往事回顾，',
+      '一片树林里分出两条路，',
+      '而我选了人迹更少的一条，',
+      '因此走出了这迥异的旅途。',
     ].join('\n'),
   );
   for (let i = 1; i <= SECTIONS_PER_SIZE[size]; i++) {

@@ -32,11 +32,8 @@ import {
 } from '@codemirror/autocomplete';
 import { EditorState, type Extension } from '@codemirror/state';
 import {
-  Decoration,
   EditorView,
   ViewPlugin,
-  WidgetType,
-  type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
 import {
@@ -103,6 +100,12 @@ export interface MossSlashCommandsConfig {
 
 interface SlashCommandCompletion extends Completion {
   command: MossSlashCommand;
+}
+
+interface SidePlusMeasure {
+  button: HTMLButtonElement;
+  left: number;
+  top: number;
 }
 
 function isSlashCommandCompletion(
@@ -340,99 +343,66 @@ function isCursorOnEmptyLine(
 // ---------------------------------------------------------------------------
 // Side `+` button
 //
-// A non-block widget rendered at the start of the cursor's line when
-// that line is empty. Clicking focuses the editor and calls
-// `startCompletion`, which lands in path B of the source above. Only
-// the cursor's line gets a button — keeps the DOM cheap on long docs
-// and matches Notion's "discoverable on the active empty line" UX
-// rather than rendering buttons for every empty line in the viewport.
-//
-// The button is a non-block decoration at the start of the active line.
-// CSS moves it visually into the left gutter without changing the row's
-// document layout.
+// The button is rendered in an overlay owned by the MossMD root rather than
+// as a document decoration. This keeps it out of `.cm-content`, so it cannot
+// change line layout or depend on negative positioning escaping the scroller.
 // ---------------------------------------------------------------------------
 
-class SidePlusWidget extends WidgetType {
-  constructor(readonly lineFrom: number) {
-    super();
-  }
-
-  eq(other: SidePlusWidget): boolean {
-    return other.lineFrom === this.lineFrom;
-  }
-
-  toDOM(view: EditorView): HTMLElement {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'cm-moss-side-plus';
-    appendMossIcon(
-      btn,
-      resolveMossIcon('slash.side-button', view.state.facet(mossIconFacet)),
-      { size: 18, strokeWidth: 2 },
-    );
-    btn.title = 'Add a block (or type /)';
-    btn.setAttribute('aria-label', 'Add a block');
-    btn.addEventListener('mousedown', (event) => {
-      // Prevent the editor from stealing focus / moving the caret
-      // before we dispatch our own selection.
-      event.preventDefault();
-      event.stopPropagation();
-      view.focus();
-      view.dispatch({
-        selection: { anchor: this.lineFrom },
-        scrollIntoView: false,
-      });
-      startCompletion(view);
-    });
-    btn.addEventListener('click', (event) => {
-      // Keep the follow-up click from being handled by the editor after
-      // the mousedown handler has placed the caret on this line.
-      event.preventDefault();
-      event.stopPropagation();
-    });
-    return btn;
-  }
-
-  ignoreEvent(): boolean {
-    return true;
-  }
-}
-
-function buildSidePlusDecorations(view: EditorView): DecorationSet {
-  const { state } = view;
-  if (state.facet(readOnlyFacet)) return Decoration.none;
-  if (!view.hasFocus) return Decoration.none;
-
-  const sel = state.selection.main;
-  if (!sel.empty) return Decoration.none;
-
-  const line = state.doc.lineAt(sel.head);
-  if (line.text.trim() !== '') return Decoration.none;
-
-  // Only render when the cursor is at the start of the empty line —
-  // if the user moved into the middle of whitespace, don't show the
-  // button (they're navigating, not adding a block).
-  if (sel.head !== line.from) return Decoration.none;
-
-  return Decoration.set(
-    [
-      Decoration.widget({
-        widget: new SidePlusWidget(line.from),
-        // Non-block: renders inline at line.from. CSS shifts it
-        // absolutely into the left gutter without taking a row.
-        side: -1,
-      }).range(line.from),
-    ],
-    true,
+function createSidePlusButton(
+  view: EditorView,
+  lineFrom: number,
+): HTMLButtonElement {
+  const btn = view.dom.ownerDocument.createElement('button');
+  btn.type = 'button';
+  btn.className = 'cm-moss-side-plus';
+  appendMossIcon(
+    btn,
+    resolveMossIcon('slash.side-button', view.state.facet(mossIconFacet)),
+    { size: 18, strokeWidth: 2 },
   );
+  btn.title = 'Add a block (or type /)';
+  btn.setAttribute('aria-label', 'Add a block');
+  btn.addEventListener('mousedown', (event) => {
+    // Prevent the editor from stealing focus / moving the caret before
+    // we dispatch our own selection.
+    event.preventDefault();
+    event.stopPropagation();
+    const anchor = Math.min(lineFrom, view.state.doc.length);
+    view.focus();
+    view.dispatch({
+      selection: { anchor },
+      scrollIntoView: false,
+    });
+    startCompletion(view);
+  });
+  btn.addEventListener('click', (event) => {
+    // Keep the follow-up click from being handled by the editor after
+    // the mousedown handler has placed the caret on this line.
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  return btn;
 }
 
 const sidePlusButtonPlugin = ViewPlugin.fromClass(
   class {
-    decorations: DecorationSet;
+    private readonly layer: HTMLDivElement;
+    private button: HTMLButtonElement | null = null;
+    private readonly onScroll = (): void => this.refresh();
+    private readonly onResize = (): void => this.refresh();
 
-    constructor(view: EditorView) {
-      this.decorations = buildSidePlusDecorations(view);
+    constructor(private readonly view: EditorView) {
+      const document = view.dom.ownerDocument;
+      this.layer = document.createElement('div');
+      this.layer.className = 'cm-moss-side-plus-layer';
+
+      // The root is outside CodeMirror's scrolling content. Keeping the
+      // layer here makes the button an overlay without changing document
+      // width or line height.
+      (view.dom.parentElement ?? view.dom).appendChild(this.layer);
+      view.scrollDOM.addEventListener('scroll', this.onScroll, { passive: true });
+      document.defaultView?.addEventListener('resize', this.onResize);
+      this.refresh();
     }
 
     update(update: ViewUpdate): void {
@@ -443,13 +413,79 @@ const sidePlusButtonPlugin = ViewPlugin.fromClass(
         update.docChanged ||
         update.selectionSet ||
         update.focusChanged ||
+        update.viewportChanged ||
+        update.geometryChanged ||
         readOnlyChanged
       ) {
-        this.decorations = buildSidePlusDecorations(update.view);
+        this.refresh();
       }
     }
+
+    destroy(): void {
+      this.view.scrollDOM.removeEventListener('scroll', this.onScroll);
+      this.view.dom.ownerDocument.defaultView?.removeEventListener(
+        'resize',
+        this.onResize,
+      );
+      this.layer.remove();
+    }
+
+    private refresh(): void {
+      const { state } = this.view;
+      const selection = state.selection.main;
+      const line = state.doc.lineAt(selection.head);
+      const visible =
+        !state.facet(readOnlyFacet) &&
+        this.view.hasFocus &&
+        selection.empty &&
+        line.text.trim() === '' &&
+        selection.head === line.from;
+
+      if (!visible) {
+        this.button?.remove();
+        this.button = null;
+        return;
+      }
+
+      if (
+        !this.button ||
+        this.button.dataset.lineFrom !== String(line.from)
+      ) {
+        this.button?.remove();
+        this.button = createSidePlusButton(this.view, line.from);
+        this.button.dataset.lineFrom = String(line.from);
+        this.layer.appendChild(this.button);
+      }
+
+      this.view.requestMeasure<SidePlusMeasure | null>({
+        key: this,
+        read: (view) => {
+          if (!this.button) return null;
+          const lineFrom = Number(this.button.dataset.lineFrom);
+          if (!Number.isFinite(lineFrom)) return null;
+          const coords = view.coordsAtPos(lineFrom);
+          const host = this.layer.parentElement;
+          if (!coords || !host) return null;
+
+          const hostRect = host.getBoundingClientRect();
+          const buttonRect = this.button.getBoundingClientRect();
+          return {
+            button: this.button,
+            left: Math.max(
+              0,
+              coords.left - hostRect.left - buttonRect.width - 8,
+            ),
+            top: Math.max(0, coords.top - hostRect.top),
+          };
+        },
+        write: (measure) => {
+          if (!measure || measure.button !== this.button) return;
+          measure.button.style.left = `${measure.left}px`;
+          measure.button.style.top = `${measure.top}px`;
+        },
+      });
+    }
   },
-  { decorations: (p) => p.decorations },
 );
 
 // ---------------------------------------------------------------------------

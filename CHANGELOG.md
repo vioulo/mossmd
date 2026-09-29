@@ -1,5 +1,11 @@
 # Changelog
 
+## 未发布
+
+### 调整
+
+- 将 slash menu 的 side `+` 按钮改为编辑器 overlay，不再挂载到 `.cm-content` 或依赖宿主预留 gutter。
+
 ## 0.9.0 - 2026-09-29
 
 ### 新增

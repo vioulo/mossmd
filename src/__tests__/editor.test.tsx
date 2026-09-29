@@ -896,7 +896,8 @@ describe('MossMD', () => {
     });
     const plus = host.querySelector<HTMLButtonElement>('.cm-moss-side-plus');
     expect(plus).not.toBeNull();
-    expect(plus!.closest('.cm-content')).not.toBeNull();
+    expect(plus!.closest('.cm-moss-side-plus-layer')).not.toBeNull();
+    expect(plus!.closest('.cm-content')).toBeNull();
     act(() => plus!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })));
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 100));

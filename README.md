@@ -84,7 +84,7 @@ export function ToolbarDemo() {
 
 ## 斜杠命令与上传
 
-`slashCommandsConfig` 接收一个命令数组和一个 `sideButton` 开关。行首输入 `/` 或点击行首 `+` 会弹出命令面板；选中后 `apply` 回调负责把 `/query` 范围替换成最终片段。
+`slashCommandsConfig` 接收一个命令数组和一个 `sideButton` 开关。行首输入 `/` 或点击行首 `+` 会弹出命令面板；选中后 `apply` 回调负责把 `/query` 范围替换成最终片段。`+` 按钮由编辑器 overlay 管理，不参与正文排版，也不要求宿主为文档额外预留 gutter。
 
 ```tsx
 import { MossMD } from 'mossmd';

@@ -1213,25 +1213,29 @@
 /* ------------------------------------------------------------------ */
 /* Slash-commands side `+` button + popup tweaks.
  *
- * The `+` button is rendered by mossSlashCommands (sideButton: true)
- * as a non-block widget at line.from when the cursor sits on an empty
- * line. It is visually pulled into the left gutter without adding a row.
+ * The `+` button is rendered by mossSlashCommands (sideButton: true) in an
+ * overlay mounted outside `.cm-content`. Its coordinates follow the active
+ * empty line, while the overlay itself never participates in document layout.
  *
  * The autocomplete popup keeps the editor's panel tokens but gets its own
  * compact menu geometry: content-sized width, comfortable hit rows, and a
  * little more separation from the document below it.
  * ------------------------------------------------------------------- */
-.moss-cm-editor .cm-line {
-  position: relative;
+.cm-moss-side-plus-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  font-size: var(--moss-body-size, 1.0625rem);
+  pointer-events: none;
 }
 
-.cm-moss-side-plus {
+.cm-moss-side-plus-layer .cm-moss-side-plus {
   position: absolute;
-  left: -2.8em;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 1.7em;
-  height: 1.7em;
+  left: 0;
+  top: 0;
+  width: 1.4em;
+  height: 1.4em;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1247,6 +1251,7 @@
   cursor: pointer;
   user-select: none;
   opacity: 1;
+  pointer-events: auto;
   transition: opacity 0.12s ease, background-color 0.12s ease,
     color 0.12s ease, border-color 0.12s ease;
 }

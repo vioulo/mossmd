@@ -242,24 +242,37 @@
       transparent 1.1px
     );
   background-size: 14px 14px;
-  border-left: 1px solid color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
-  border-right: 1px solid color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
+  box-shadow:
+    inset 1px 0 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%),
+    inset -1px 0 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
   padding-left: 0.7rem;
   padding-right: 2.4rem;
 }
 
 .cm-line.cm-moss-fenced-code-start {
-  border-top: 1px solid color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
+  box-shadow:
+    inset 1px 0 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%),
+    inset -1px 0 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%),
+    inset 0 1px 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
   border-top-left-radius: var(--moss-radius, 6px);
   border-top-right-radius: var(--moss-radius, 6px);
-  padding-top: 0.28rem;
 }
 
 .cm-line.cm-moss-fenced-code-end {
-  border-bottom: 1px solid color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
+  box-shadow:
+    inset 1px 0 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%),
+    inset -1px 0 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%),
+    inset 0 -1px 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
   border-bottom-left-radius: var(--moss-radius, 6px);
   border-bottom-right-radius: var(--moss-radius, 6px);
-  padding-bottom: 0.28rem;
+}
+
+.cm-line.cm-moss-fenced-code-start.cm-moss-fenced-code-end {
+  box-shadow:
+    inset 1px 0 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%),
+    inset -1px 0 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%),
+    inset 0 1px 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%),
+    inset 0 -1px 0 color-mix(in srgb, var(--moss-border, #3d3d3d) 76%, transparent 24%);
 }
 
 /* `drawSelection()` paints behind content, where the opaque code backdrop

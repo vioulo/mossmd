@@ -14,11 +14,11 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
-import { Check, Eye, Image as ImageIcon, Maximize2, Pencil, X } from 'lucide-react';
 import {
   appendMossIcon,
-  mossLucideIcon,
+  type MossIconMap,
   type MossIconRenderer,
+  resolveMossIcon,
 } from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
 import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
@@ -41,6 +41,7 @@ export interface MossImagesConfig {
   previewable?: boolean;
   /** Override visible image block/editor icons. */
   icons?: Partial<MossImageIcons>;
+  iconMap?: MossIconMap;
 }
 
 export interface MossImageEdit {
@@ -50,14 +51,6 @@ export interface MossImageEdit {
   width: string | null;
 }
 
-const DEFAULT_IMAGE_ICONS: MossImageIcons = {
-  edit: mossLucideIcon(Pencil, { size: 16 }),
-  preview: mossLucideIcon(Eye, { size: 16 }),
-  resize: mossLucideIcon(Maximize2, { size: 16 }),
-  save: mossLucideIcon(Check, { size: 15 }),
-  cancel: mossLucideIcon(X, { size: 15 }),
-  placeholder: mossLucideIcon(ImageIcon, { size: 36 }),
-};
 const IMAGE_WIDTH_RE = /^(?:\d+(?:\.\d+)?)(?:%|px|rem|em|vw)$/;
 const MIN_IMAGE_WIDTH = 160;
 
@@ -97,7 +90,19 @@ const dimensionCache = new Map<string, { w: number; h: number }>();
 const activeImagePreviews = new WeakMap<EditorView, () => void>();
 
 function resolveImageIcons(config: MossImagesConfig): MossImageIcons {
-  return { ...DEFAULT_IMAGE_ICONS, ...config.icons };
+  return {
+    edit: config.icons?.edit ?? resolveMossIcon('image.edit', config.iconMap),
+    preview:
+      config.icons?.preview ?? resolveMossIcon('image.preview', config.iconMap),
+    resize:
+      config.icons?.resize ?? resolveMossIcon('image.resize', config.iconMap),
+    save: config.icons?.save ?? resolveMossIcon('image.save', config.iconMap),
+    cancel:
+      config.icons?.cancel ?? resolveMossIcon('image.cancel', config.iconMap),
+    placeholder:
+      config.icons?.placeholder ??
+      resolveMossIcon('image.placeholder', config.iconMap),
+  };
 }
 
 function openImagePreview(
@@ -121,7 +126,7 @@ function openImagePreview(
   const closeButton = document.createElement('button');
   closeButton.type = 'button';
   closeButton.className = 'cm-moss-image-preview-close';
-  appendMossIcon(closeButton, icons.cancel);
+  appendMossIcon(closeButton, icons.cancel, { size: 15, strokeWidth: 2 });
   closeButton.setAttribute('aria-label', 'Close image preview');
   closeButton.title = 'Close preview';
 
@@ -343,13 +348,13 @@ function openImageEditor(
   const cancel = document.createElement('button');
   cancel.type = 'button';
   cancel.className = 'cm-moss-image-editor-button';
-  appendMossIcon(cancel, icons.cancel);
+  appendMossIcon(cancel, icons.cancel, { size: 15, strokeWidth: 2 });
   cancel.setAttribute('aria-label', 'Cancel image edit');
   cancel.title = 'Cancel';
   const save = document.createElement('button');
   save.type = 'submit';
   save.className = 'cm-moss-image-editor-button is-primary';
-  appendMossIcon(save, icons.save);
+  appendMossIcon(save, icons.save, { size: 15, strokeWidth: 2 });
   save.setAttribute('aria-label', 'Save image');
   save.title = 'Save';
   actions.append(cancel, save);
@@ -467,7 +472,10 @@ class ImageWidget extends WidgetType {
       frame.classList.add('cm-moss-image-frame-placeholder');
       placeholder = document.createElement('div');
       placeholder.className = 'cm-moss-image-placeholder';
-      appendMossIcon(placeholder, this.icons.placeholder);
+      appendMossIcon(placeholder, this.icons.placeholder, {
+        size: 36,
+        strokeWidth: 2,
+      });
       placeholder.setAttribute('aria-hidden', 'true');
       frame.appendChild(placeholder);
     }
@@ -522,7 +530,10 @@ class ImageWidget extends WidgetType {
       const preview = document.createElement('button');
       preview.type = 'button';
       preview.className = 'cm-moss-image-preview';
-      appendMossIcon(preview, this.icons.preview);
+      appendMossIcon(preview, this.icons.preview, {
+        size: 16,
+        strokeWidth: 2,
+      });
       preview.setAttribute('aria-label', 'Preview image');
       preview.title = 'Preview image';
       preview.addEventListener('pointerdown', (event) => {
@@ -546,7 +557,7 @@ class ImageWidget extends WidgetType {
       const edit = document.createElement('button');
       edit.type = 'button';
       edit.className = 'cm-moss-image-edit';
-      appendMossIcon(edit, this.icons.edit);
+      appendMossIcon(edit, this.icons.edit, { size: 16, strokeWidth: 2 });
       edit.setAttribute('aria-label', 'Edit image');
       edit.title = 'Edit image';
       edit.addEventListener('pointerdown', (event) => {
@@ -572,7 +583,10 @@ class ImageWidget extends WidgetType {
       const resize = document.createElement('button');
       resize.type = 'button';
       resize.className = 'cm-moss-image-resize';
-      appendMossIcon(resize, this.icons.resize);
+      appendMossIcon(resize, this.icons.resize, {
+        size: 16,
+        strokeWidth: 2,
+      });
       resize.setAttribute('aria-label', 'Resize image');
       resize.title = 'Resize image';
       resize.addEventListener('pointerdown', (event) => {

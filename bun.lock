@@ -4,9 +4,6 @@
   "workspaces": {
     "": {
       "name": "mossmd",
-      "dependencies": {
-        "lucide-react": "^1.33.0",
-      },
       "devDependencies": {
         "@codemirror/autocomplete": "^6.20.0",
         "@codemirror/commands": "^6.10.0",
@@ -38,6 +35,7 @@
         "@types/react-dom": "^19.2.3",
         "@vitejs/plugin-react": "^4.2.0",
         "happy-dom": "^12.0.0",
+        "lucide-react": "^1.33.0",
         "playwright": "^1.40.0",
         "react": "^19.2.7",
         "react-dom": "^19.2.7",
@@ -72,6 +70,7 @@
         "@lezer/markdown": "^1.0.0",
         "react": "^18.0.0 || ^19.0.0",
         "react-dom": "^18.0.0 || ^19.0.0",
+        "lucide-react": "^1.33.0",
       },
       "optionalPeers": [
         "@codemirror/lang-cpp",
@@ -88,6 +87,7 @@
         "@codemirror/lang-xml",
         "@codemirror/lang-yaml",
         "@codemirror/legacy-modes",
+        "lucide-react",
       ],
     },
   },

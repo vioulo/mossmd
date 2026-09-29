@@ -94,9 +94,7 @@ describe('file upload input', () => {
       undefined,
       {
         icons: {
-          upload: {
-            file: testIcon('top-upload-file'),
-          },
+          'upload.file': testIcon('top-upload-file'),
         },
       },
     );

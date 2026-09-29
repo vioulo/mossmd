@@ -19,11 +19,11 @@ import {
   WidgetType,
   type DecorationSet,
 } from '@codemirror/view';
-import { File as FileIconLucide, RotateCcw, X } from 'lucide-react';
 import {
   appendMossIcon,
-  mossLucideIcon,
+  type MossIconMap,
   type MossIconRenderer,
+  resolveMossIcon,
 } from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
 import type { MossSlashCommand } from '../slash-commands';
@@ -78,6 +78,7 @@ export interface MossUploadOptions {
 export interface MossUploadBlockConfig {
   /** Override icons rendered by upload progress blocks. */
   icons?: Partial<MossUploadIcons>;
+  iconMap?: MossIconMap;
 }
 
 export interface MossFileUploadConfig
@@ -86,20 +87,25 @@ export interface MossFileUploadConfig
   uploader: MossUploader;
 }
 
-const DEFAULT_UPLOAD_ICONS: MossUploadIcons = {
-  file: mossLucideIcon(FileIconLucide, { size: 22 }),
-  retry: mossLucideIcon(RotateCcw, { size: 14 }),
-  cancel: mossLucideIcon(X, { size: 14 }),
-};
-
 const uploadIconsFacet = Facet.define<MossUploadIcons, MossUploadIcons>({
-  combine: (values) => values[0] ?? DEFAULT_UPLOAD_ICONS,
+  combine: (values) =>
+    values[0] ?? {
+      file: resolveMossIcon('upload.file'),
+      retry: resolveMossIcon('upload.retry'),
+      cancel: resolveMossIcon('upload.cancel'),
+    },
 });
 
 function resolveUploadIcons(
   config: MossUploadBlockConfig = {},
 ): MossUploadIcons {
-  return { ...DEFAULT_UPLOAD_ICONS, ...config.icons };
+  return {
+    file: config.icons?.file ?? resolveMossIcon('upload.file', config.iconMap),
+    retry:
+      config.icons?.retry ?? resolveMossIcon('upload.retry', config.iconMap),
+    cancel:
+      config.icons?.cancel ?? resolveMossIcon('upload.cancel', config.iconMap),
+  };
 }
 
 interface UploadEntry {
@@ -283,7 +289,10 @@ class UploadWidget extends WidgetType {
       preview.classList.add('cm-moss-upload-preview-file');
       const glyph = document.createElement('span');
       glyph.className = 'cm-moss-upload-file-glyph';
-      appendMossIcon(glyph, view.state.facet(uploadIconsFacet).file);
+      appendMossIcon(glyph, view.state.facet(uploadIconsFacet).file, {
+        size: 22,
+        strokeWidth: 2,
+      });
       const extension = document.createElement('span');
       extension.className = 'cm-moss-upload-ext';
       extension.textContent = extOf(entry.fileName) || 'FILE';
@@ -344,7 +353,10 @@ class UploadWidget extends WidgetType {
       const retry = document.createElement('button');
       retry.type = 'button';
       retry.className = 'cm-moss-upload-btn retry';
-      appendMossIcon(retry, view.state.facet(uploadIconsFacet).retry);
+      appendMossIcon(retry, view.state.facet(uploadIconsFacet).retry, {
+        size: 14,
+        strokeWidth: 2,
+      });
       retry.title = 'Retry upload';
       retry.setAttribute('aria-label', 'Retry upload');
       retry.addEventListener('click', (event) => {
@@ -358,7 +370,10 @@ class UploadWidget extends WidgetType {
     const cancel = document.createElement('button');
     cancel.type = 'button';
     cancel.className = 'cm-moss-upload-btn cancel';
-    appendMossIcon(cancel, view.state.facet(uploadIconsFacet).cancel);
+    appendMossIcon(cancel, view.state.facet(uploadIconsFacet).cancel, {
+      size: 14,
+      strokeWidth: 2,
+    });
     cancel.title = 'Cancel upload';
     cancel.setAttribute('aria-label', 'Cancel upload');
     cancel.addEventListener('click', (event) => {

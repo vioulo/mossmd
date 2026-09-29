@@ -1,27 +1,33 @@
 # Changelog
 
-## 未发布
+## 0.9.0 - 2026-09-29
 
 ### 新增
 
 - 新增 `data-theme="blue"` 和 `data-theme="blue-light"` 蓝色主题 preset。
 - 蓝色主题覆盖编辑器与内容渲染共用的 `--moss-*` token，并同步调整链接、选区、搜索高亮、代码背景和语法高亮。
 - 新增水平分隔线对称图标语法，例如 `---⭐---` 和 `***🌿***`。
+- 新增语义化 `MossIconKey` / `MossIconMap` 图标协议，由宿主项目提供具体图标 renderer。
+- 新增可选的 `mossmd/icons/lucide` 适配层，支持 Lucide 图标转换为 DOM SVG。
 
 ### 调整
 
 - 无序列表预览态 marker 改为按嵌套层级轮换 `✦` / `✧`。
 - 移除 `inlinePreviewConfig.horizontalRule.glyph`，水平分隔线图标改由 Markdown 原文语法表达。
+- `MossMDProps.icons` 改为扁平的语义 key 映射，不再由编辑器核心维护 Lucide 图标源。
+- Lucide 从运行时依赖改为可选 peer dependency，其他图标库可以通过自己的适配器接入。
 
 ### 修复
 
 - 修复表格单元格内 `==highlight==` 点击后未显露源码分隔符的问题。
+- 修复 Lucide `1.48.0` 新版图标节点结构导致 SVG 只有外壳没有 path 的问题。
 
 ### 文档
 
 - README 增加蓝色主题 preset 的使用示例。
 - Demo 将配色切换与明暗切换拆成两个独立按钮，可组合预览默认/蓝色与深色/浅色。
 - 默认 `---`、`***`、`___` 不再自动附加图标，图标由 Markdown 原文显式提供。
+- 新增图标协议与 Lucide 适配器文档，并更新 Demo 的图标映射示例。
 
 ## 0.8.2 - 2026-09-23
 

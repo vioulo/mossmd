@@ -40,35 +40,25 @@ import {
   type ViewUpdate,
 } from '@codemirror/view';
 import {
-  Code2,
-  File,
-  FileImage,
-  FileText,
-  List,
-  MessageSquare,
-  Minus,
-  Plus,
-  Table2,
-} from 'lucide-react';
-import {
   appendMossIcon,
-  mossLucideIcon,
+  mossIconFacet,
+  resolveMossIcon,
+  type MossIconKey,
+  type MossIconMap,
   type MossIconRenderer,
 } from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
 import { mossUploadBlocks, type MossUploadBlockConfig } from '../upload';
 
-const SIDE_PLUS_ICON = mossLucideIcon(Plus, { size: 18, strokeWidth: 2 });
-
-const SLASH_COMMAND_ICONS: Record<string, MossIconRenderer> = {
-  image: mossLucideIcon(FileImage),
-  file: mossLucideIcon(File),
-  snippet: mossLucideIcon(FileText),
-  list: mossLucideIcon(List),
-  code: mossLucideIcon(Code2),
-  table: mossLucideIcon(Table2),
-  rule: mossLucideIcon(Minus),
-  callout: mossLucideIcon(MessageSquare),
+const SLASH_COMMAND_ICON_KEYS: Record<string, MossIconKey> = {
+  image: 'slash.image',
+  file: 'slash.file',
+  snippet: 'slash.snippet',
+  list: 'slash.list',
+  code: 'slash.code',
+  table: 'slash.table',
+  rule: 'slash.rule',
+  callout: 'slash.callout',
 };
 
 export interface MossSlashCommand {
@@ -121,7 +111,10 @@ function isSlashCommandCompletion(
   return 'command' in completion;
 }
 
-function renderSlashCommandIcon(completion: Completion): Node | null {
+function renderSlashCommandIcon(
+  completion: Completion,
+  iconMap: MossIconMap,
+): Node | null {
   if (!isSlashCommandCompletion(completion)) return null;
 
   const configuredIcon = completion.command.icon;
@@ -133,8 +126,11 @@ function renderSlashCommandIcon(completion: Completion): Node | null {
         : 'custom';
   const iconSource =
     typeof configuredIcon === 'string'
-      ? SLASH_COMMAND_ICONS[iconKey] ?? SLASH_COMMAND_ICONS.snippet
-      : configuredIcon ?? SLASH_COMMAND_ICONS.snippet;
+      ? resolveMossIcon(
+          SLASH_COMMAND_ICON_KEYS[iconKey] ?? 'slash.snippet',
+          iconMap,
+        )
+      : configuredIcon ?? resolveMossIcon('slash.snippet', iconMap);
   const icon = document.createElement('span');
   icon.className = `cm-completionIcon cm-completionIcon-moss-${iconKey}`;
   icon.setAttribute('aria-hidden', 'true');
@@ -159,6 +155,8 @@ export interface MossSlashCommandsOptions {
   includeUploadBlocks?: boolean;
   /** Configure upload progress blocks registered by slash commands. */
   uploadBlocksConfig?: MossUploadBlockConfig;
+  /** Icons used by built-in slash command kinds. */
+  iconMap?: MossIconMap;
 }
 
 export function mossSlashCommands(
@@ -197,7 +195,8 @@ export function mossSlashCommands(
       addToOptions: [
         {
           position: 20,
-          render: renderSlashCommandIcon,
+          render: (completion) =>
+            renderSlashCommandIcon(completion, options.iconMap ?? {}),
         },
       ],
       closeOnBlur: true,
@@ -366,7 +365,11 @@ class SidePlusWidget extends WidgetType {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'cm-moss-side-plus';
-    appendMossIcon(btn, SIDE_PLUS_ICON);
+    appendMossIcon(
+      btn,
+      resolveMossIcon('slash.side-button', view.state.facet(mossIconFacet)),
+      { size: 18, strokeWidth: 2 },
+    );
     btn.title = 'Add a block (or type /)';
     btn.setAttribute('aria-label', 'Add a block');
     btn.addEventListener('mousedown', (event) => {

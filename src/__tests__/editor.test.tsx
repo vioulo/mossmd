@@ -9,7 +9,7 @@ import {
   MossMD,
   type MossMDHandle,
 } from '../editor';
-import { mossLucideIcon } from '../core/icons';
+import { mossLucideIcon } from '../icons/lucide';
 import { mossCalloutSyntax } from '../features/callout';
 
 const hosts: HTMLElement[] = [];
@@ -303,6 +303,10 @@ describe('MossMD', () => {
       <MossMD
         markdownSource={markdown}
         editorHandleRef={handleRef}
+        icons={{
+          'task.in-progress': mossLucideIcon(Star),
+          'task.star': mossLucideIcon(Star),
+        }}
         inlinePreviewConfig={{
           taskCheckboxes: {
             '!': { icon: mossLucideIcon(Star), label: 'Priority' },
@@ -744,7 +748,7 @@ describe('MossMD', () => {
     ).not.toBeNull();
   });
 
-  it('merges top-level icon overrides into feature configs', () => {
+  it('resolves semantic top-level icons inside feature widgets', () => {
     const { host } = mount(
       <MossMD
         markdownSource={[
@@ -753,14 +757,10 @@ describe('MossMD', () => {
           '[report.pdf](https://example.com/report.pdf)',
         ].join('\n')}
         icons={{
-          image: {
-            placeholder: testIcon('top-image-placeholder'),
-          },
-          file: {
-            file: testIcon('top-file-block-file'),
-            download: testIcon('top-file-block-download'),
-            delete: testIcon('top-file-block-delete'),
-          },
+          'image.placeholder': testIcon('top-image-placeholder'),
+          'file.file': testIcon('top-file-block-file'),
+          'file.download': testIcon('top-file-block-download'),
+          'file.delete': testIcon('top-file-block-delete'),
         }}
       />,
     );
@@ -788,12 +788,8 @@ describe('MossMD', () => {
           '[report.pdf](https://example.com/report.pdf)',
         ].join('\n')}
         icons={{
-          image: {
-            placeholder: testIcon('top-image-placeholder'),
-          },
-          file: {
-            file: testIcon('top-file-block-file'),
-          },
+          'image.placeholder': testIcon('top-image-placeholder'),
+          'file.file': testIcon('top-file-block-file'),
         }}
         imagesConfig={{
           icons: {

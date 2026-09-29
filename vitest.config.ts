@@ -19,6 +19,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, 'src/core/icons.ts'),
       },
       {
+        find: /^mossmd\/icons\/lucide$/,
+        replacement: path.resolve(__dirname, 'src/icons/lucide.ts'),
+      },
+      {
         find: /^mossmd\/collab$/,
         replacement: path.resolve(__dirname, 'src/collab/index.ts'),
       },

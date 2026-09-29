@@ -39,6 +39,7 @@ import {
 import { listEditingExtension } from './list-editing';
 import { listNavigationExtension } from './list-navigation';
 import { isLineInsideMarkdownCode } from './markdown-context';
+import { mossIconFacet } from './icons';
 
 // Inline preview — the Obsidian "Live Preview" model.
 //
@@ -308,6 +309,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   const tree =
     ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
   const taskConfig = state.facet(taskCheckboxConfigFacet);
+  const iconMap = state.facet(mossIconFacet);
   const extendedHorizontalRuleLines = new Map<
     number,
     ParsedHorizontalRule
@@ -413,7 +415,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         // a normal link would hide its brackets and apply link styling.
         if (isCalloutMarkerNode(node, doc)) return false;
         const line = doc.lineAt(node.from);
-        const taskInfo = parseListTaskMarker(line.text, taskConfig);
+        const taskInfo = parseListTaskMarker(line.text, taskConfig, iconMap);
         if (
           taskInfo &&
           !isLineInsideMarkdownCode(state, line.number) &&
@@ -574,7 +576,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         // only knows the standard `[ ]` / `[x]` pair. This also lets the
         // widget replace custom statuses before their source reaches the
         // normal inline decoration pass.
-        const taskInfo = parseListTaskMarker(line.text, taskConfig);
+        const taskInfo = parseListTaskMarker(line.text, taskConfig, iconMap);
         const standardTask =
           taskInfo != null && (taskInfo.key === ' ' || taskInfo.key === 'x');
         const revealTaskSource =
@@ -778,7 +780,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       if (node.name === 'TaskMarker' && node.from < node.to) {
         const lineNum = doc.lineAt(node.from).number;
         const line = doc.line(lineNum);
-        const taskInfo = parseListTaskMarker(line.text, taskConfig);
+        const taskInfo = parseListTaskMarker(line.text, taskConfig, iconMap);
         if (!taskInfo) return;
         if (shouldRevealTaskSource(view, line.from, taskInfo)) return;
         // Keep the marker and its separator as separate atomic ranges. If

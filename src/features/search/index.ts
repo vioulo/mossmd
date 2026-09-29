@@ -9,19 +9,15 @@ import {
   search,
   setSearchQuery,
 } from '@codemirror/search';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 import {
   appendMossIcon,
-  mossLucideIcon,
+  mossIconFacet,
   type MossIconRenderer,
+  resolveMossIcon,
 } from '../../core/icons';
 
 export type MossSearchPanelPosition = 'top' | 'center' | 'bottom';
-
-const SEARCH_ICON_PREV = mossLucideIcon(ChevronLeft, { size: 18 });
-const SEARCH_ICON_NEXT = mossLucideIcon(ChevronRight, { size: 18 });
-const SEARCH_ICON_CLOSE = mossLucideIcon(X, { size: 18 });
 
 export function mossSearch(position: MossSearchPanelPosition = 'top'): Extension {
   return search({
@@ -78,17 +74,17 @@ function defaultSearchPanel(
   count.setAttribute('aria-live', 'polite');
 
   const prevBtn = makeIconButton(
-    SEARCH_ICON_PREV,
+    resolveMossIcon('search.previous', view.state.facet(mossIconFacet)),
     'Previous match',
     () => findPrevious(view),
   );
   const nextBtn = makeIconButton(
-    SEARCH_ICON_NEXT,
+    resolveMossIcon('search.next', view.state.facet(mossIconFacet)),
     'Next match',
     () => findNext(view),
   );
   const closeBtn = makeIconButton(
-    SEARCH_ICON_CLOSE,
+    resolveMossIcon('search.close', view.state.facet(mossIconFacet)),
     'Close',
     () => closeSearchPanel(view),
   );

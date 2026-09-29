@@ -129,27 +129,31 @@ const uploadCommands = mossUploadCommands(uploader);
 />
 ```
 
-用户可见的图标可以通过顶层 `icons` 统一替换；底层仍接受返回 DOM 节点的
-`MossIconRenderer`，不绑定 Lucide。使用 Lucide 时可用 `mossLucideIcon`
-做适配：
+MossMD 定义 `MossIconKey` 语义 key，图标由宿主项目通过 `icons` 提供。
+未提供的 key 会渲染为空占位。核心协议只要求 renderer 返回 DOM 节点；Lucide
+适配器是独立子路径，使用时再安装 `lucide-react`：
 
 ```tsx
-import { mossLucideIcon } from 'mossmd/icons';
-import { DownloadCloud, Paperclip } from 'lucide-react';
+import type { MossIconMap } from 'mossmd/icons';
+import { mossLucideIcon } from 'mossmd/icons/lucide';
+import { Download, File, Pencil, ScanEye, Upload } from 'lucide-react';
+
+const icons: MossIconMap = {
+  'image.edit': mossLucideIcon(Pencil),
+  'image.preview': mossLucideIcon(ScanEye),
+  'file.file': mossLucideIcon(File),
+  'file.download': mossLucideIcon(Download),
+  'upload.file': mossLucideIcon(Upload),
+  'slash.file': mossLucideIcon(File),
+};
 
 <MossMD
   markdownSource={'…'}
-  icons={{
-    file: {
-      file: mossLucideIcon(Paperclip, { size: 40 }),
-      download: mossLucideIcon(DownloadCloud, { size: 16 }),
-    },
-    upload: {
-      file: mossLucideIcon(Paperclip, { size: 22 }),
-    },
-  }}
+  icons={icons}
 />
 ```
+
+Feature config 中的 `imagesConfig.icons`、`fileBlocksConfig.icons` 等局部配置仍可覆盖对应图标。
 
 ## 阅读模式
 
@@ -266,17 +270,18 @@ export function BlueMoss() {
 独立成行的文件链接会渲染为文件块并始终隐藏源码。编辑模式下文件块提供下载和删除操作；只读模式下仅提供下载操作。
 
 任务列表支持扩展状态，例如 `- [/] In Progress`、`- [!] Important` 和
-`- [\\*] Star`。内置状态会直接渲染为对应图标；也可以通过
+`- [\\*] Star`。状态图标由顶层 `icons` 中的 `task.*` key 提供；也可以通过
 `inlinePreviewConfig.taskCheckboxes` 覆盖图标、名称、是否填充，或增加自定义状态：
 
 ```tsx
+import { mossLucideIcon } from 'mossmd/icons/lucide';
 import { CircleAlert } from 'lucide-react';
 
 <MossMD
   markdownSource={'- [!] Important'}
   inlinePreviewConfig={{
     taskCheckboxes: {
-      '!': { icon: CircleAlert, label: 'Important' },
+      '!': { icon: mossLucideIcon(CircleAlert), label: 'Important' },
     },
   }}
 />

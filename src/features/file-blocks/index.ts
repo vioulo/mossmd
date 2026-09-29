@@ -27,11 +27,11 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
-import { Download, File as FileIconLucide, Trash2 } from 'lucide-react';
 import {
   appendMossIcon,
-  mossLucideIcon,
+  type MossIconMap,
   type MossIconRenderer,
+  resolveMossIcon,
 } from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
 import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
@@ -44,13 +44,8 @@ export interface MossFileBlockIcons {
 
 export interface MossFileBlocksConfig {
   icons?: Partial<MossFileBlockIcons>;
+  iconMap?: MossIconMap;
 }
-
-const DEFAULT_FILE_BLOCK_ICONS: MossFileBlockIcons = {
-  file: mossLucideIcon(FileIconLucide, { size: 40 }),
-  download: mossLucideIcon(Download, { size: 16 }),
-  delete: mossLucideIcon(Trash2, { size: 16 }),
-};
 
 // Non-image file extensions that we'll turn into a file card. The URL
 // regex alone isn't enough — we need to skip links that are obviously
@@ -224,7 +219,7 @@ class FileBlockWidget extends WidgetType {
     } else {
       const glyph = document.createElement('span');
       glyph.className = 'cm-moss-file-block-glyph';
-      appendMossIcon(glyph, this.icons.file);
+      appendMossIcon(glyph, this.icons.file, { size: 40, strokeWidth: 2 });
       const ext = document.createElement('span');
       ext.className = 'cm-moss-file-block-ext';
       ext.textContent = this.ext || 'FILE';
@@ -256,7 +251,10 @@ class FileBlockWidget extends WidgetType {
     const download = document.createElement('button');
     download.type = 'button';
     download.className = 'cm-moss-file-block-download';
-    appendMossIcon(download, this.icons.download);
+    appendMossIcon(download, this.icons.download, {
+      size: 16,
+      strokeWidth: 2,
+    });
     download.setAttribute('aria-label', 'Download file');
     download.title = 'Download file';
     download.addEventListener('pointerdown', stopEditorEvent);
@@ -270,7 +268,10 @@ class FileBlockWidget extends WidgetType {
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'cm-moss-file-block-delete';
-      appendMossIcon(remove, this.icons.delete);
+      appendMossIcon(remove, this.icons.delete, {
+        size: 16,
+        strokeWidth: 2,
+      });
       remove.setAttribute('aria-label', 'Delete file');
       remove.title = 'Delete file';
       remove.addEventListener('pointerdown', stopEditorEvent);
@@ -348,8 +349,11 @@ function buildFileBlocks(
 ): DecorationSet {
   const ranges: Range<Decoration>[] = [];
   const icons: MossFileBlockIcons = {
-    ...DEFAULT_FILE_BLOCK_ICONS,
-    ...config.icons,
+    file: config.icons?.file ?? resolveMossIcon('file.file', config.iconMap),
+    download:
+      config.icons?.download ?? resolveMossIcon('file.download', config.iconMap),
+    delete:
+      config.icons?.delete ?? resolveMossIcon('file.delete', config.iconMap),
   };
   const tree =
     ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);

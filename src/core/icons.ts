@@ -1,7 +1,4 @@
-import type { ReactElement } from 'react';
-import type { IconNode, LucideIcon, LucideProps } from 'lucide-react';
-
-type PrimitiveAttr = string | number | boolean | null | undefined;
+import { Facet } from '@codemirror/state';
 
 export interface MossIconProps {
   document: Document;
@@ -15,123 +12,88 @@ export interface MossIconProps {
 
 export type MossIconRenderer = (props: MossIconProps) => Node;
 
-interface LucideRenderElementProps {
-  iconNode?: IconNode;
-  className?: string;
-}
+export type MossIconKey =
+  | 'code.copy'
+  | 'code.copied'
+  | 'file.delete'
+  | 'file.download'
+  | 'file.file'
+  | 'image.cancel'
+  | 'image.edit'
+  | 'image.placeholder'
+  | 'image.preview'
+  | 'image.resize'
+  | 'image.save'
+  | 'search.close'
+  | 'search.next'
+  | 'search.previous'
+  | 'slash.callout'
+  | 'slash.code'
+  | 'slash.file'
+  | 'slash.image'
+  | 'slash.list'
+  | 'slash.rule'
+  | 'slash.side-button'
+  | 'slash.snippet'
+  | 'slash.table'
+  | 'table.column-left'
+  | 'table.column-right'
+  | 'table.delete'
+  | 'table.menu'
+  | 'table.row-above'
+  | 'table.row-below'
+  | 'task.amount'
+  | 'task.bookmark'
+  | 'task.cancelled'
+  | 'task.con'
+  | 'task.done'
+  | 'task.down'
+  | 'task.empty'
+  | 'task.idea'
+  | 'task.important'
+  | 'task.in-progress'
+  | 'task.info'
+  | 'task.location'
+  | 'task.note'
+  | 'task.pro'
+  | 'task.question'
+  | 'task.quote'
+  | 'task.scheduled'
+  | 'task.star'
+  | 'task.todo'
+  | 'task.up'
+  | 'upload.cancel'
+  | 'upload.file'
+  | 'upload.retry';
 
-interface RenderableLucideIcon {
-  render?: (
-    props: LucideProps,
-    ref: unknown,
-  ) => ReactElement<LucideRenderElementProps>;
-}
+export type MossIconMap = Partial<Record<MossIconKey, MossIconRenderer>>;
 
-function attrName(name: string): string {
-  if (name === 'className') return 'class';
-  if (name === 'viewBox') return 'viewBox';
-  if (name === 'preserveAspectRatio') return 'preserveAspectRatio';
-  return name.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
-}
-
-function setAttr(
-  element: Element,
-  name: string,
-  value: unknown,
-): void {
-  if (value == null || name === 'key' || name === 'ref') return;
-  if (
-    typeof value !== 'string' &&
-    typeof value !== 'number' &&
-    typeof value !== 'boolean' &&
-    typeof value !== 'bigint'
-  ) {
-    return;
-  }
-  element.setAttribute(attrName(name), String(value));
-}
-
-function mergeClassName(...values: (string | undefined)[]): string {
-  return values.filter(Boolean).join(' ');
-}
-
-function iconNodeFromLucide(Icon: LucideIcon): IconNode {
-  const render = (Icon as unknown as RenderableLucideIcon).render;
-  const element = render?.({}, null);
-  const iconNode = element?.props.iconNode;
-  return Array.isArray(iconNode) ? iconNode : [];
-}
-
-function lucideAttrs(props: LucideProps = {}): Record<string, PrimitiveAttr> {
-  const {
-    size = 24,
-    color,
-    fill = 'none',
-    strokeWidth = 2,
-    absoluteStrokeWidth,
-    className,
-    children: _children,
-    ...rest
-  } = props;
-  const numericSize =
-    typeof size === 'number'
-      ? size
-      : Number.parseFloat(String(size));
-  const resolvedStrokeWidth =
-    absoluteStrokeWidth && Number.isFinite(numericSize) && numericSize > 0
-      ? (Number(strokeWidth) * 24) / numericSize
-      : strokeWidth;
-
-  return {
-    xmlns: 'http://www.w3.org/2000/svg',
-    width: size,
-    height: size,
-    viewBox: '0 0 24 24',
-    fill,
-    stroke: color ?? 'currentColor',
-    strokeWidth: resolvedStrokeWidth,
-    strokeLinecap: 'round',
-    strokeLinejoin: 'round',
-    className: mergeClassName('cm-moss-icon', className),
-    ...rest,
-  } as unknown as Record<string, PrimitiveAttr>;
-}
-
-export function renderLucideIcon(
-  document: Document,
-  Icon: LucideIcon,
-  props: LucideProps = {},
-): SVGSVGElement {
+export const EMPTY_MOSS_ICON: MossIconRenderer = ({
+  document,
+  size = 16,
+  className,
+  ariaHidden,
+}) => {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  const attrs = lucideAttrs(props);
-  for (const [name, value] of Object.entries(attrs)) {
-    setAttr(svg, name, value);
-  }
-
-  for (const [tag, childAttrs] of iconNodeFromLucide(Icon)) {
-    const child = document.createElementNS('http://www.w3.org/2000/svg', tag);
-    for (const [name, value] of Object.entries(childAttrs)) {
-      setAttr(child, name, value);
-    }
-    svg.appendChild(child);
-  }
-
+  svg.setAttribute('width', String(size));
+  svg.setAttribute('height', String(size));
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.classList.add('cm-moss-icon', 'cm-moss-icon-empty');
+  if (className) svg.classList.add(...className.split(/\s+/).filter(Boolean));
+  if (ariaHidden != null) svg.setAttribute('aria-hidden', String(ariaHidden));
   return svg;
-}
+};
 
-export function mossLucideIcon(
-  Icon: LucideIcon,
-  defaults: Omit<LucideProps, 'ref'> = {},
+export const mossIconFacet = Facet.define<MossIconMap, MossIconMap>({
+  combine: (values) => Object.assign({}, ...values),
+});
+
+export function resolveMossIcon(
+  key: MossIconKey,
+  icons: MossIconMap = {},
 ): MossIconRenderer {
-  return (props) =>
-    renderLucideIcon(props.document, Icon, {
-      ...defaults,
-      size: props.size ?? defaults.size,
-      strokeWidth: props.strokeWidth ?? defaults.strokeWidth,
-      className: props.className ?? defaults.className,
-      fill: props.fill ?? defaults.fill,
-      'aria-hidden': props.ariaHidden ?? defaults['aria-hidden'],
-    });
+  return icons[key] ?? EMPTY_MOSS_ICON;
 }
 
 export function renderMossIcon(

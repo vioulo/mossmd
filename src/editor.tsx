@@ -42,6 +42,7 @@ import {
 } from '@codemirror/search';
 
 import { mossTheme, mossSyntax } from './theme';
+import { mossIconFacet, type MossIconMap } from './core/icons';
 import {
   autoCloseCodeFence,
   extendEmphasisPair,
@@ -51,12 +52,10 @@ import {
 } from './core/edit-helpers';
 import {
   mossImages,
-  type MossImageIcons,
   type MossImagesConfig as ImagesConfig,
 } from './features/image';
 import {
   mossFileBlocks,
-  type MossFileBlockIcons,
   type MossFileBlocksConfig,
 } from './features/file-blocks';
 import { highlightMarkdown } from './syntax/highlight';
@@ -82,7 +81,6 @@ import type { MossTablesConfig as TablesConfig } from './features/table';
 import {
   mossFileUpload,
   type MossFileUploadConfig,
-  type MossUploadIcons,
 } from './features/upload';
 
 // Stable references so consumers that don't pass `codeLanguages` or
@@ -124,15 +122,6 @@ export interface MossMDHandle {
    */
   setReadOnly: (readOnly: boolean) => void;
   setCollabAdapter: (adapter: CollabAdapter) => Promise<void>;
-}
-
-export interface MossMDIconsConfig {
-  /** Icons rendered by image blocks and their inline controls. */
-  image?: Partial<MossImageIcons>;
-  /** Icons rendered by standalone file link blocks. */
-  file?: Partial<MossFileBlockIcons>;
-  /** Icons rendered by transient upload progress blocks. */
-  upload?: Partial<MossUploadIcons>;
 }
 
 export interface MossMDProps {
@@ -291,11 +280,8 @@ export interface MossMDProps {
   extensions?: readonly Extension[];
   customSyntax?: readonly MossCustomSyntax[];
   inlinePreviewConfig?: InlinePreviewConfig;
-  /**
-   * Unified icon overrides for the built-in React editor surface.
-   * Feature-level icon configs still work and take precedence.
-   */
-  icons?: MossMDIconsConfig;
+  /** Semantic icon renderers supplied by the consuming application. */
+  icons?: MossIconMap;
   /** Configure the floating edit control rendered on image blocks. */
   imagesConfig?: ImagesConfig;
   /** Configure rendered file link blocks. */
@@ -373,25 +359,16 @@ export function MossMD({
   const hasWikiLinksConfig = Object.keys(wikiLinksConfig).length > 0;
   const resolvedImagesConfig: ImagesConfig = {
     ...imagesConfig,
-    icons: {
-      ...icons.image,
-      ...imagesConfig.icons,
-    },
+    iconMap: { ...icons, ...imagesConfig.iconMap },
   };
   const resolvedFileBlocksConfig: MossFileBlocksConfig = {
     ...fileBlocksConfig,
-    icons: {
-      ...icons.file,
-      ...fileBlocksConfig.icons,
-    },
+    iconMap: { ...icons, ...fileBlocksConfig.iconMap },
   };
   const resolvedFileUpload: MossFileUploadConfig | undefined = fileUpload
     ? {
         ...fileUpload,
-        icons: {
-          ...icons.upload,
-          ...fileUpload.icons,
-        },
+        iconMap: { ...icons, ...fileUpload.iconMap },
       }
     : undefined;
 
@@ -532,6 +509,7 @@ export function MossMD({
           }),
           mossSyntax,
           mossTheme,
+          mossIconFacet.of(icons),
           keymap.of([
             ...closeBracketsKeymap,
             ...historyKeymap,
@@ -562,7 +540,8 @@ export function MossMD({
             ? [
                 mossSlashCommands(slashCommandsConfig, {
                   includeUploadBlocks: !resolvedFileUpload,
-                  uploadBlocksConfig: { icons: icons.upload },
+                  uploadBlocksConfig: { iconMap: icons },
+                  iconMap: icons,
                 }),
               ]
             : []),

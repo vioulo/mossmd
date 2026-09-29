@@ -1,19 +1,60 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowDownFromLine,
+  ArrowLeftFromLine,
+  ArrowRightFromLine,
   ArrowUp,
+  ArrowUpFromLine,
+  BadgeDollarSign,
+  Bookmark,
+  CalendarCheck,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  CircleAlert,
+  CircleQuestionMark,
   Code2,
   Copy,
   Download,
+  File,
+  FileImage,
+  FileText,
+  Image,
+  Info,
+  Lightbulb,
+  List,
+  LoaderCircle,
+  MapPin,
+  Maximize2,
+  MessageSquare,
+  Minus,
+  MoreHorizontal,
   Moon,
   Palette,
+  Pencil,
+  Plus,
+  Quote,
   RotateCcw,
+  ScanEye,
+  Square,
+  Star,
+  StickyNote,
   Sun,
+  Table2,
+  ThumbsDown,
+  ThumbsUp,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  X,
 } from 'lucide-react';
 import {
   MossMD,
   type MossMDHandle,
 } from 'mossmd';
+import type { MossIconMap } from 'mossmd/icons';
+import { mossLucideIcon } from 'mossmd/icons/lucide';
 import { MOSS_CODE_LANGUAGES } from 'mossmd/code-languages';
 import {
   mossCalloutSyntax,
@@ -30,6 +71,61 @@ import {
   type SampleSize,
 } from './sample-content';
 import { overrideDefaultUploads } from './custom-upload';
+
+const MOSS_DEMO_ICONS: MossIconMap = {
+  'code.copy': mossLucideIcon(Copy),
+  'code.copied': mossLucideIcon(Check),
+  'file.delete': mossLucideIcon(Trash2),
+  'file.download': mossLucideIcon(Download),
+  'file.file': mossLucideIcon(File),
+  'image.cancel': mossLucideIcon(X),
+  'image.edit': mossLucideIcon(Pencil),
+  'image.placeholder': mossLucideIcon(Image),
+  'image.preview': mossLucideIcon(ScanEye),
+  'image.resize': mossLucideIcon(Maximize2),
+  'image.save': mossLucideIcon(Check),
+  'search.close': mossLucideIcon(X),
+  'search.next': mossLucideIcon(ChevronRight),
+  'search.previous': mossLucideIcon(ChevronLeft),
+  'slash.callout': mossLucideIcon(MessageSquare),
+  'slash.code': mossLucideIcon(Code2),
+  'slash.file': mossLucideIcon(File),
+  'slash.image': mossLucideIcon(FileImage),
+  'slash.list': mossLucideIcon(List),
+  'slash.rule': mossLucideIcon(Minus),
+  'slash.side-button': mossLucideIcon(Plus),
+  'slash.snippet': mossLucideIcon(FileText),
+  'slash.table': mossLucideIcon(Table2),
+  'table.column-left': mossLucideIcon(ArrowLeftFromLine),
+  'table.column-right': mossLucideIcon(ArrowRightFromLine),
+  'table.delete': mossLucideIcon(Trash2),
+  'table.menu': mossLucideIcon(MoreHorizontal),
+  'table.row-above': mossLucideIcon(ArrowUpFromLine),
+  'table.row-below': mossLucideIcon(ArrowDownFromLine),
+  'task.amount': mossLucideIcon(BadgeDollarSign),
+  'task.bookmark': mossLucideIcon(Bookmark),
+  'task.cancelled': mossLucideIcon(Minus),
+  'task.con': mossLucideIcon(ThumbsDown),
+  'task.done': mossLucideIcon(Check),
+  'task.down': mossLucideIcon(TrendingDown),
+  'task.empty': mossLucideIcon(Circle),
+  'task.idea': mossLucideIcon(Lightbulb),
+  'task.important': mossLucideIcon(CircleAlert),
+  'task.in-progress': mossLucideIcon(LoaderCircle),
+  'task.info': mossLucideIcon(Info),
+  'task.location': mossLucideIcon(MapPin),
+  'task.note': mossLucideIcon(StickyNote),
+  'task.pro': mossLucideIcon(ThumbsUp),
+  'task.question': mossLucideIcon(CircleQuestionMark),
+  'task.quote': mossLucideIcon(Quote),
+  'task.scheduled': mossLucideIcon(CalendarCheck),
+  'task.star': mossLucideIcon(Star),
+  'task.todo': mossLucideIcon(Square),
+  'task.up': mossLucideIcon(TrendingUp),
+  'upload.cancel': mossLucideIcon(X),
+  'upload.file': mossLucideIcon(File),
+  'upload.retry': mossLucideIcon(RotateCcw),
+};
 
 // Demo-only slash commands — markdown snippet helpers shipped alongside
 // the demo, NOT in the package. The package itself only ships the
@@ -596,6 +692,7 @@ export function App() {
               onLinkClick={handleLinkClick}
               readOnly={readOnly}
               codeLanguages={MOSS_CODE_LANGUAGES}
+              icons={MOSS_DEMO_ICONS}
               customSyntax={MOSS_DEMO_SYNTAX}
               slashCommandsConfig={MOSS_DEMO_SLASH_COMMANDS}
               fileUpload={MOSS_DEMO_FILE_UPLOAD}

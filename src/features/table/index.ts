@@ -542,6 +542,7 @@ const MARK_WRAP_CLASSES = [
   'cm-moss-em-wrap',
   'cm-moss-strike-wrap',
   'cm-moss-highlight-wrap',
+  'cm-moss-code-wrap',
   'cm-moss-link-wrap',
 ];
 

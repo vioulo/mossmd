@@ -1335,6 +1335,39 @@ describe('MossMD', () => {
     expect(source?.textContent).toBe('==glow==');
   });
 
+  it('reveals table-cell inline-code delimiters when clicked', () => {
+    const markdown = [
+      '| Code | Other |',
+      '| --- | --- |',
+      '| `const value = 1` | plain |',
+    ].join('\n');
+    const { host } = mount(<MossMD markdownSource={markdown} />);
+    const wrap = host.querySelector<HTMLElement>(
+      'tbody .cm-moss-code-wrap',
+    );
+    const code = wrap?.querySelector<HTMLElement>('.cm-moss-inline-code');
+    const text = code?.firstChild;
+    const source = wrap?.closest<HTMLElement>('.cm-moss-table-cell-source');
+
+    expect(wrap).not.toBeNull();
+    expect(text?.nodeType).toBe(Node.TEXT_NODE);
+    expect(wrap?.classList.contains('active')).toBe(false);
+
+    act(() => {
+      source!.focus();
+      const range = document.createRange();
+      range.setStart(text!, 3);
+      range.collapse(true);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      source!.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+
+    expect(wrap?.classList.contains('active')).toBe(true);
+    expect(source?.textContent).toBe('`const value = 1`');
+  });
+
   it('reveals escaped punctuation when a table cell enters edit mode', () => {
     const markdown = [
       '| Escaped | Other |',

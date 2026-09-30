@@ -1002,7 +1002,7 @@ function openCellMenu(
 
   if (!isHeader) {
     items.push({
-      label: 'Insert row above',
+      label: 'Row above',
       icon: tableIcon(view, 'table.row-above'),
       action: () => {
         const m = readModelFromDom(wrap);
@@ -1011,7 +1011,7 @@ function openCellMenu(
       },
     });
     items.push({
-      label: 'Insert row below',
+      label: 'Row below',
       icon: tableIcon(view, 'table.row-below'),
       action: () => {
         const m = readModelFromDom(wrap);
@@ -1023,7 +1023,7 @@ function openCellMenu(
   }
 
   items.push({
-    label: 'Insert column left',
+    label: 'Column left',
     icon: tableIcon(view, 'table.column-left'),
     action: () => {
       const m = readModelFromDom(wrap);
@@ -1033,7 +1033,7 @@ function openCellMenu(
     },
   });
   items.push({
-    label: 'Insert column right',
+    label: 'Column right',
     icon: tableIcon(view, 'table.column-right'),
     action: () => {
       const m = readModelFromDom(wrap);
@@ -1115,13 +1115,17 @@ function openCellMenu(
 
   document.body.appendChild(menu);
 
-  // Clip the menu inside the viewport if it overflows.
+  // Keep the menu below the trigger and clip it inside the viewport.
   const rect = menu.getBoundingClientRect();
   if (rect.right > window.innerWidth) {
     menu.style.left = `${Math.max(4, window.innerWidth - rect.width - 4)}px`;
+  } else {
+    menu.style.left = `${x}px`;
   }
   if (rect.bottom > window.innerHeight) {
     menu.style.top = `${Math.max(4, window.innerHeight - rect.height - 4)}px`;
+  } else {
+    menu.style.top = `${y}px`;
   }
 
   // Deferred listener attach so the trigger click's document mousedown

@@ -1200,7 +1200,7 @@ describe('MossMD', () => {
 
     const insertAbove = Array.from(
       document.querySelectorAll<HTMLButtonElement>('.cm-moss-table-menu-item'),
-    ).find((button) => button.textContent === 'Insert row above');
+    ).find((button) => button.textContent === 'Row above');
     expect(insertAbove).not.toBeNull();
     expect(insertAbove?.querySelector('svg')).not.toBeNull();
     act(() => insertAbove?.click());

@@ -1647,7 +1647,7 @@ input.cm-moss-task-checkbox:focus-visible {
  * height. */
 .cm-moss-table-menu-trigger {
   position: absolute;
-  top: -0.7em;
+  top: 50%;
   right: -0.7em;
   z-index: 2;
   width: 1.6em;
@@ -1663,6 +1663,7 @@ input.cm-moss-task-checkbox:focus-visible {
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
+  transform: translateY(-50%);
   transition: opacity 0.12s ease, background-color 0.12s ease,
     color 0.12s ease, transform 0.12s ease;
 }
@@ -1677,7 +1678,7 @@ input.cm-moss-task-checkbox:focus-visible {
 .cm-moss-table-menu-trigger:focus-visible {
   background: var(--moss-bg-surface, #2d2d2d);
   color: var(--moss-fg, #dcddde);
-  transform: scale(1.05);
+  transform: translateY(-50%) scale(1.05);
 }
 
 .cm-moss-table-menu-trigger:focus-visible {
@@ -1789,7 +1790,7 @@ input.cm-moss-task-checkbox:focus-visible {
   cursor: pointer;
 }
 
-/* Table actions menu — opened from the focused cell's upper-right trigger.
+/* Table actions menu — opened from the focused cell's right-side trigger.
  * Mounted on document.body so positioning isn't affected by CM6's overflow
  * scroll. */
 .cm-moss-table-menu {

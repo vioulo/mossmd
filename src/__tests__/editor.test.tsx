@@ -1208,6 +1208,9 @@ describe('MossMD', () => {
     expect(handleRef.current?.getMarkdown()).toBe(
       '| A | B |\n| --- | --- |\n|  |  |\n| 1 | 2 |',
     );
+
+    act(() => handleRef.current?.undo());
+    expect(handleRef.current?.getMarkdown()).toBe(markdown);
   });
 
   it('does not partially highlight a triple-equals span', () => {

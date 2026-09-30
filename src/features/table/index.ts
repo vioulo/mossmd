@@ -1108,6 +1108,9 @@ function openCellMenu(
     btn.append(icon, label);
     btn.addEventListener('click', () => {
       item.action();
+      // Menu buttons live on document.body, so their click would otherwise
+      // leave focus outside CodeMirror and make Ctrl+Z miss the history keymap.
+      view.focus();
       dismiss();
     });
     menu.appendChild(btn);

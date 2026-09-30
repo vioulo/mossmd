@@ -1,4 +1,5 @@
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
+import { redo, undo } from '@codemirror/commands';
 import {
   EditorSelection,
   Facet,
@@ -646,6 +647,22 @@ function findCurrentTableRange(
   return null;
 }
 
+// Table cells use their own contenteditable rather than CodeMirror's hidden
+// input. Keep the CM selection at the table when a cell receives focus so the
+// next history event does not restore and scroll to a stale selection (usually
+// document position 0 after a refresh).
+function syncTableHistoryAnchor(view: EditorView, cell: HTMLElement): void {
+  const wrap = cell.closest<HTMLElement>('.cm-moss-table');
+  if (!wrap) return;
+  const range = findCurrentTableRange(view, wrap);
+  if (!range || view.state.selection.main.head === range.from) return;
+
+  view.dispatch({
+    selection: { anchor: range.from },
+    annotations: Transaction.addToHistory.of(false),
+  });
+}
+
 // ---- DOM helpers ----------------------------------------------------
 
 function placeCaretAtEnd(el: HTMLElement): void {
@@ -665,7 +682,11 @@ function getAllCells(wrap: HTMLElement): HTMLElement[] {
 // ---- widget ---------------------------------------------------------
 
 class TableWidget extends WidgetType {
-  constructor(readonly model: TableModel, readonly readOnly: boolean) {
+  constructor(
+    readonly model: TableModel,
+    readonly readOnly: boolean,
+    readonly syncDom: boolean,
+  ) {
     super();
   }
 
@@ -680,6 +701,11 @@ class TableWidget extends WidgetType {
   // DOM rather than reusing the stale (editable) one.
   eq(other: TableWidget): boolean {
     if (other.readOnly !== this.readOnly) return false;
+    // History restores the source document behind the contenteditable cell.
+    // Force a fresh widget for that transaction so the restored cell text is
+    // reflected in the DOM. Normal input keeps the existing DOM so the
+    // browser's native caret survives each per-keystroke rewrite.
+    if (other.syncDom) return false;
     if (other.model.header.length !== this.model.header.length) return false;
     if (other.model.rows.length !== this.model.rows.length) return false;
     return true;
@@ -891,7 +917,10 @@ function attachCellEditing(
   // three ways the caret can land in a new mark without firing an
   // input event (click-to-place, arrow-key nav, tab-into-cell). The
   // update is idempotent — redundant calls cost nothing.
-  source.addEventListener('focus', () => updateActiveMarkForSource(source));
+  source.addEventListener('focus', () => {
+    syncTableHistoryAnchor(view, cell);
+    updateActiveMarkForSource(source);
+  });
   source.addEventListener('mouseup', () => updateActiveMarkForSource(source));
   source.addEventListener('keyup', () => updateActiveMarkForSource(source));
 
@@ -900,6 +929,21 @@ function attachCellEditing(
   source.addEventListener('blur', () => clearActiveMarksInSource(source));
 
   source.addEventListener('keydown', (event) => {
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      event.key.toLowerCase() === 'z'
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      const target = captureTableFocus(view, cell, source);
+      if (event.shiftKey) {
+        redo(view);
+      } else {
+        undo(view);
+      }
+      if (target) restoreTableFocus(view, target);
+      return;
+    }
     // Enter mirrors Tab — advance to the next cell (appending a row past
     // the last one) instead of inserting a line break a single-line cell
     // can't represent. Shift reverses direction for both.
@@ -1107,10 +1151,15 @@ function openCellMenu(
     label.textContent = item.label;
     btn.append(icon, label);
     btn.addEventListener('click', () => {
+      const target = getCellSource(cell)
+        ? captureTableFocus(view, cell, getCellSource(cell)!)
+        : null;
       item.action();
-      // Menu buttons live on document.body, so their click would otherwise
-      // leave focus outside CodeMirror and make Ctrl+Z miss the history keymap.
-      view.focus();
+      // Menu buttons live on document.body. Restore the cell focus after the
+      // table widget has been replaced instead of focusing the CM selection,
+      // which normally points at the start of the document.
+      if (!target) view.focus();
+      if (target) restoreTableFocus(view, target);
       dismiss();
     });
     menu.appendChild(btn);
@@ -1286,9 +1335,83 @@ function backspaceAtTableBoundary(view: EditorView): boolean {
   return true;
 }
 
+interface TableFocusTarget {
+  tableFrom: number;
+  row: number;
+  column: number;
+  offset: number;
+}
+
+function captureTableFocus(
+  view: EditorView,
+  cell: HTMLElement,
+  source: HTMLElement,
+): TableFocusTarget | null {
+  const wrap = cell.closest<HTMLElement>('.cm-moss-table');
+  const rowElement = cell.closest<HTMLTableRowElement>('tr');
+  if (!wrap || !rowElement) return null;
+
+  const tableRange = findCurrentTableRange(view, wrap);
+  if (!tableRange) return null;
+  const tableFrom = tableRange.from;
+
+  const row =
+    cell.tagName === 'TH'
+      ? 0
+      : Array.from(wrap.querySelectorAll<HTMLTableRowElement>('tbody tr')).indexOf(
+          rowElement,
+        ) + 1;
+  const column = Array.from(rowElement.querySelectorAll('th, td')).indexOf(cell);
+  if (row < 0 || column < 0) return null;
+
+  return {
+    tableFrom,
+    row,
+    column,
+    offset: getCaretCharOffset(source) ?? source.textContent?.length ?? 0,
+  };
+}
+
+function restoreTableFocus(view: EditorView, target: TableFocusTarget): void {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const wrap = Array.from(
+        view.dom.querySelectorAll<HTMLElement>('.cm-moss-table'),
+      ).find((candidate) => {
+        return findCurrentTableRange(view, candidate)?.from === target.tableFrom;
+      });
+      if (!wrap) return;
+
+      const headerRow = wrap.querySelector<HTMLTableRowElement>('thead tr');
+      const bodyRows = wrap.querySelectorAll<HTMLTableRowElement>('tbody tr');
+      const row =
+        target.row === 0
+          ? headerRow
+          : bodyRows.length > 0
+            ? bodyRows[Math.min(target.row - 1, bodyRows.length - 1)]
+            : headerRow;
+      if (!row) return;
+      const cells = row.querySelectorAll<HTMLElement>('th, td');
+      if (cells.length === 0) return;
+      const cell = cells[Math.min(target.column, cells.length - 1)];
+      const source = getCellSource(cell);
+      if (!source) return;
+      source.focus();
+      setCaretCharOffset(
+        source,
+        Math.min(target.offset, source.textContent?.length ?? 0),
+      );
+      updateActiveMarkForSource(source);
+    });
+  });
+}
+
 // ---- state field ----------------------------------------------------
 
-function buildTableWidgets(state: EditorState): DecorationSet {
+function buildTableWidgets(
+  state: EditorState,
+  syncDom = false,
+): DecorationSet {
   const ranges: Range<Decoration>[] = [];
   const readOnly = state.facet(readOnlyFacet);
   // Force full-doc parse so tables past the initial parsed region
@@ -1312,7 +1435,7 @@ function buildTableWidgets(state: EditorState): DecorationSet {
       const endLine = doc.lineAt(node.to);
       ranges.push(
         Decoration.replace({
-          widget: new TableWidget(model, readOnly),
+          widget: new TableWidget(model, readOnly, syncDom),
           block: true,
         }).range(startLine.from, endLine.to),
       );
@@ -1377,6 +1500,9 @@ const tableField = StateField.define<DecorationSet>({
       tr.startState.facet(readOnlyFacet) !== tr.state.facet(readOnlyFacet)
     ) {
       return buildTableWidgets(tr.state);
+    }
+    if (tr.isUserEvent('undo') || tr.isUserEvent('redo')) {
+      return buildTableWidgets(tr.state, true);
     }
     if (!tr.docChanged) return deco;
     const mapped = deco.map(tr.changes);

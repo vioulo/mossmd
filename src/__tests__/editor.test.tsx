@@ -1213,6 +1213,68 @@ describe('MossMD', () => {
     expect(handleRef.current?.getMarkdown()).toBe(markdown);
   });
 
+  it('undoes cell edits and restores the rendered cell source', () => {
+    const markdown = '| A | B |\n| --- | --- |\n| 1 | 2 |';
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
+    };
+    const { host } = mount(
+      <MossMD markdownSource={markdown} editorHandleRef={handleRef} />,
+    );
+    const source = host.querySelector<HTMLElement>(
+      'tbody td .cm-moss-table-cell-source',
+    );
+    expect(source).not.toBeNull();
+
+    act(() => {
+      source!.focus();
+      source!.textContent = 'changed';
+      source!.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(handleRef.current?.getMarkdown()).toContain('| changed | 2 |');
+
+    act(() => handleRef.current?.undo());
+    expect(handleRef.current?.getMarkdown()).toBe(markdown);
+    expect(
+      host.querySelector<HTMLElement>('tbody td .cm-moss-table-cell-source')
+        ?.textContent,
+    ).toBe('1');
+  });
+
+  it('anchors direct table edits to the table after a fresh mount', () => {
+    const markdown = '# Header\n\n| A | B |\n| --- | --- |\n| 1 | 2 |';
+    const handleRef = createRef<MossMDHandle | null>() as {
+      current: MossMDHandle | null;
+    };
+    const { host } = mount(
+      <MossMD markdownSource={markdown} editorHandleRef={handleRef} />,
+    );
+    const source = host.querySelector<HTMLElement>(
+      'tbody td .cm-moss-table-cell-source',
+    );
+    const view = EditorView.findFromDOM(host.querySelector('.cm-editor')!);
+    expect(source).not.toBeNull();
+    expect(view).not.toBeNull();
+
+    const tableFrom = markdown.indexOf('| A |');
+    expect(view!.state.selection.main.head).toBe(0);
+
+    act(() => {
+      source!.focus();
+      source!.textContent = 'changed';
+      source!.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(view!.state.selection.main.head).toBe(tableFrom);
+
+    act(() => handleRef.current?.undo());
+    expect(handleRef.current?.getMarkdown()).toBe(markdown);
+    expect(view!.state.selection.main.head).toBe(tableFrom);
+    expect(
+      host.querySelector<HTMLElement>('tbody td .cm-moss-table-cell-source')
+        ?.textContent,
+    ).toBe('1');
+  });
+
   it('does not partially highlight a triple-equals span', () => {
     const { host } = mount(
       <MossMD markdownSource={'This is ===not highlighted===.'} />,

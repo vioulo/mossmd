@@ -1335,6 +1335,30 @@ describe('MossMD', () => {
     expect(source?.textContent).toBe('==glow==');
   });
 
+  it('reveals escaped punctuation when a table cell enters edit mode', () => {
+    const markdown = [
+      '| Escaped | Other |',
+      '| --- | --- |',
+      String.raw`| \=\=not highlight\=\= | \*literal stars\* |`,
+    ].join('\n');
+    const { host } = mount(<MossMD markdownSource={markdown} />);
+    const sources = host.querySelectorAll<HTMLElement>(
+      'tbody .cm-moss-table-cell-source',
+    );
+    const source = sources[0];
+    expect(source).not.toBeUndefined();
+    expect(source?.textContent).toBe(String.raw`\=\=not highlight\=\=`);
+    expect(
+      source?.querySelectorAll('.cm-moss-escape-wrap > .cm-moss-mark'),
+    ).toHaveLength(4);
+    expect(source?.classList.contains('is-focused')).toBe(false);
+
+    act(() => source?.focus());
+
+    expect(source?.classList.contains('is-focused')).toBe(true);
+    expect(source?.textContent).toBe(String.raw`\=\=not highlight\=\=`);
+  });
+
   it('renders a code copy button that copies the fenced body only', async () => {
     const markdown = ['```ts', 'const answer = 42;', 'console.log(answer);', '```'].join('\n');
     const writeText = vi.fn().mockResolvedValue(undefined);

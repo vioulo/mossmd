@@ -138,9 +138,11 @@ describe('parseCellInline', () => {
     ]);
   });
 
-  it('strips backslash escapes so the delimiter renders literally', () => {
+  it('keeps backslash escapes as literal text without opening marks', () => {
     expect(parseCellInline('\\*not bold\\*')).toEqual([
-      { type: 'text', text: '*not bold*' },
+      { type: 'escape', text: '\\*' },
+      { type: 'text', text: 'not bold' },
+      { type: 'escape', text: '\\*' },
     ]);
   });
 

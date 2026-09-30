@@ -164,13 +164,9 @@ function readModelFromDom(wrap: HTMLElement): TableModel {
 // A cell's raw markdown lives in `dataset.raw` — the source of truth
 // that `readModelFromDom` reads when serializing the table back to
 // markdown. The inner `.cm-moss-table-cell-source` element displays
-// an escape-stripped view of that raw text so RSS-ingested cells
-// don't show `\.` / `\(` / `\-` style literal backslashes in the
-// reader; the input handler pulls innerText back to dataset.raw on
-// every keystroke (any escapes the user types get preserved there,
-// but won't round-trip back through stripEscapes on re-render —
-// acceptable tradeoff because the escapes are typically ingestion
-// artifacts users don't want to preserve anyway).
+// backslash escapes in its textContent so the raw source round-trips;
+// CSS hides only the backslash while the cell is unfocused, and reveals
+// it when editing starts.
 function readCellSource(cell: HTMLElement): string {
   return (cell.dataset.raw ?? '').trim();
 }
@@ -182,9 +178,8 @@ function getCellSource(cell: HTMLElement): HTMLElement | null {
 // ---- inline-mark parsing for cell source --------------------------------
 
 // Cells render a subset of inline markdown — bold, italic, strikethrough,
-// highlight, and links. No code spans (the `|` inside a backtick would silently
-// break row parsing), no lists/blocks (cells are single-line by
-// construction), no images (handled by the separate cell-preview strip).
+// inline code, highlight, and links. No lists/blocks (cells are single-line
+// by construction), no images (handled by the separate cell-preview strip).
 //
 // The parser is recursive so `**[text](url)**` nests cleanly, but each
 // mark is a straightforward delimiter pair. Highlights share their
@@ -193,6 +188,8 @@ function getCellSource(cell: HTMLElement): HTMLElement | null {
 
 type CellToken =
   | { type: 'text'; text: string }
+  | { type: 'escape'; text: string }
+  | { type: 'code'; delim: string; text: string }
   | { type: 'strong'; delim: '**' | '__'; children: CellToken[] }
   | { type: 'em'; delim: '*' | '_'; children: CellToken[] }
   | { type: 'strike'; children: CellToken[] }
@@ -213,9 +210,11 @@ export function parseCellInline(raw: string): CellToken[] {
 
   while (i < raw.length) {
     // CommonMark backslash escape — the following char is emitted
-    // literally and can't open/close a mark. Pair is consumed.
+    // Keep the pair in the DOM so the source can reveal the backslash while
+    // editing, but don't let the escaped character open or close a mark.
     if (raw[i] === '\\' && i + 1 < raw.length && /[!-/:-@[-`{-~]/.test(raw[i + 1])) {
-      textBuf += raw[i + 1];
+      flushText();
+      tokens.push({ type: 'escape', text: raw.slice(i, i + 2) });
       i += 2;
       continue;
     }
@@ -241,6 +240,26 @@ function matchCellMarkAt(
   from: number,
 ): { token: CellToken; end: number } | null {
   const rest = raw.slice(from);
+
+  // Inline code consumes its contents as literal text, so emphasis and
+  // highlight markers inside the span stay inert. Support matching runs of
+  // backticks so both `code` and ``code`` use the same source contract.
+  if (raw[from] === '`') {
+    let runLength = 1;
+    while (raw[from + runLength] === '`') runLength++;
+    const delim = '`'.repeat(runLength);
+    const close = raw.indexOf(delim, from + runLength);
+    if (close > from + runLength) {
+      return {
+        token: {
+          type: 'code',
+          delim,
+          text: raw.slice(from + runLength, close),
+        },
+        end: close + runLength,
+      };
+    }
+  }
 
   // Bold with `**` or `__` — greedy on the outside, lazy on the
   // content so we catch the nearest closer.
@@ -325,14 +344,10 @@ function matchCellMarkAt(
   return null;
 }
 
-// Build the decorated DOM for a cell's source. The parser strips
-// CommonMark backslash escapes inline (so `\*` emits a literal `*`
-// text node); the fragment's `textContent` equals the escape-stripped
-// raw. The cell's input handler reads `textContent` to update
-// `dataset.raw` — round-trip is one-way for escapes (same as the
-// pre-markdown-in-cells behavior), but fully preserves every inline
-// mark delimiter because those live in `display: none` spans inside
-// the DOM rather than being derived on serialize.
+// Build the decorated DOM for a cell's source. Backslash escapes are
+// represented by a hidden `.cm-moss-mark` plus the escaped character,
+// so `textContent` remains identical to the raw markdown while the
+// unfocused cell still reads like rendered Markdown.
 function buildCellSourceDom(raw: string): DocumentFragment {
   const frag = document.createDocumentFragment();
   const tokens = parseCellInline(raw);
@@ -343,6 +358,26 @@ function buildCellSourceDom(raw: string): DocumentFragment {
 function renderCellToken(tok: CellToken): Node {
   if (tok.type === 'text') {
     return document.createTextNode(tok.text);
+  }
+
+  if (tok.type === 'escape') {
+    const wrap = document.createElement('span');
+    wrap.className = 'cm-moss-escape-wrap';
+    wrap.appendChild(makeCellMark(tok.text[0] ?? '\\'));
+    wrap.appendChild(document.createTextNode(tok.text.slice(1)));
+    return wrap;
+  }
+
+  if (tok.type === 'code') {
+    const wrap = document.createElement('span');
+    wrap.className = 'cm-moss-code-wrap';
+    wrap.appendChild(makeCellMark(tok.delim));
+    const inner = document.createElement('span');
+    inner.className = 'cm-moss-inline-code';
+    inner.textContent = tok.text;
+    wrap.appendChild(inner);
+    wrap.appendChild(makeCellMark(tok.delim));
+    return wrap;
   }
 
   if (tok.type === 'strong') {
@@ -918,6 +953,7 @@ function attachCellEditing(
   // input event (click-to-place, arrow-key nav, tab-into-cell). The
   // update is idempotent — redundant calls cost nothing.
   source.addEventListener('focus', () => {
+    source.classList.add('is-focused');
     syncTableHistoryAnchor(view, cell);
     updateActiveMarkForSource(source);
   });
@@ -926,7 +962,10 @@ function attachCellEditing(
 
   // Blur: collapse every active wrap so the reader-resting state
   // hides all delimiters.
-  source.addEventListener('blur', () => clearActiveMarksInSource(source));
+  source.addEventListener('blur', () => {
+    source.classList.remove('is-focused');
+    clearActiveMarksInSource(source);
+  });
 
   source.addEventListener('keydown', (event) => {
     if (

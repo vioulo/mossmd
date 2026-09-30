@@ -1717,10 +1717,22 @@ input.cm-moss-task-checkbox:focus-visible {
   display: none;
 }
 
+/* Escaped punctuation is rendered as its literal character while the
+ * cell is resting. Entering the cell reveals the backslash so escaped
+ * text is distinguishable from actual Markdown formatting during edit. */
+.cm-moss-table-cell-source.is-focused .cm-moss-escape-wrap > .cm-moss-mark {
+  display: inline;
+  color: var(--moss-fg-faint, #666);
+  font-weight: normal;
+  font-style: normal;
+  text-decoration: none;
+}
+
 .cm-moss-table-cell-source .cm-moss-strong-wrap.active > .cm-moss-mark,
 .cm-moss-table-cell-source .cm-moss-em-wrap.active > .cm-moss-mark,
 .cm-moss-table-cell-source .cm-moss-strike-wrap.active > .cm-moss-mark,
 .cm-moss-table-cell-source .cm-moss-highlight-wrap.active > .cm-moss-mark,
+.cm-moss-table-cell-source .cm-moss-code-wrap.active > .cm-moss-mark,
 .cm-moss-table-cell-source .cm-moss-link-wrap.active > .cm-moss-mark {
   display: inline;
   color: var(--moss-fg-faint, #666);

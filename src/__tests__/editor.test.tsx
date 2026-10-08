@@ -526,6 +526,8 @@ describe('MossMD', () => {
 
       expect(copyLink).not.toBeNull();
       expect(copyLink?.getAttribute('aria-label')).toBe('Copy image link');
+      expect(copyLink?.querySelector('svg')?.getAttribute('width')).toBe('16');
+      expect(copyLink?.querySelector('svg')?.getAttribute('height')).toBe('16');
 
       await act(async () => {
         copyLink?.dispatchEvent(
@@ -537,6 +539,8 @@ describe('MossMD', () => {
 
       expect(writeText).toHaveBeenCalledWith('https://example.com/image.png');
       expect(copyLink?.getAttribute('aria-label')).toBe('Copied');
+      expect(copyLink?.querySelector('svg')?.getAttribute('width')).toBe('16');
+      expect(copyLink?.querySelector('svg')?.getAttribute('height')).toBe('16');
     } finally {
       if (originalClipboard) {
         Object.defineProperty(navigator, 'clipboard', originalClipboard);
@@ -741,6 +745,8 @@ describe('MossMD', () => {
 
       expect(writeText).toHaveBeenCalledWith('https://example.com/old-report.pdf');
       expect(copyLink?.getAttribute('aria-label')).toBe('Copied');
+      expect(copyLink?.querySelector('svg')?.getAttribute('width')).toBe('16');
+      expect(copyLink?.querySelector('svg')?.getAttribute('height')).toBe('16');
     } finally {
       if (originalClipboard) {
         Object.defineProperty(navigator, 'clipboard', originalClipboard);

@@ -566,6 +566,7 @@ class ImageWidget extends WidgetType {
       appendMossIcon(
         copyLink,
         resolveMossIcon('code.copied', view.state.facet(mossIconFacet)),
+        { size: 16, strokeWidth: 2 },
       );
       if (this.copyLinkTimer != null) window.clearTimeout(this.copyLinkTimer);
       this.copyLinkTimer = window.setTimeout(() => {
@@ -573,7 +574,10 @@ class ImageWidget extends WidgetType {
         copyLink.classList.remove('is-copied');
         copyLink.setAttribute('aria-label', 'Copy image link');
         copyLink.title = 'Copy image link';
-        appendMossIcon(copyLink, this.icons.copyLink);
+        appendMossIcon(copyLink, this.icons.copyLink, {
+          size: 16,
+          strokeWidth: 2,
+        });
       }, 1200);
     });
     frame.appendChild(copyLink);

@@ -508,6 +508,44 @@ describe('MossMD', () => {
     expect(document.querySelector('.cm-moss-image-preview-backdrop')).toBeNull();
   });
 
+  it('copies the image URL from the image block action', async () => {
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    try {
+      const { host } = mount(
+        <MossMD markdownSource="![Alt](https://example.com/image.png)" />,
+      );
+      const copyLink = host.querySelector<HTMLButtonElement>(
+        '.cm-moss-image-copy-link',
+      );
+
+      expect(copyLink).not.toBeNull();
+      expect(copyLink?.getAttribute('aria-label')).toBe('Copy image link');
+
+      await act(async () => {
+        copyLink?.dispatchEvent(
+          new MouseEvent('click', { bubbles: true, cancelable: true }),
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(writeText).toHaveBeenCalledWith('https://example.com/image.png');
+      expect(copyLink?.getAttribute('aria-label')).toBe('Copied');
+    } finally {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, 'clipboard', originalClipboard);
+      } else {
+        Reflect.deleteProperty(navigator, 'clipboard');
+      }
+    }
+  });
+
   it('keeps a remote image block visible while the image is loading', () => {
     const { host } = mount(
       <MossMD markdownSource={'![Remote](https://example.com/remote.png)'} />,
@@ -633,44 +671,83 @@ describe('MossMD', () => {
     );
   });
 
-  it('renders only file block actions and deletes the raw link', () => {
+  it('selects the file source and renders download and copy-link actions', async () => {
     const markdown = '[old-report.pdf](https://example.com/old-report.pdf)\n\nAfter.';
-    const handleRef = createRef<MossMDHandle | null>() as {
-      current: MossMDHandle | null;
-    };
-    const { host } = mount(
-      <MossMD markdownSource={markdown} editorHandleRef={handleRef} />,
-    );
-
-    const sourceLine = host.querySelector<HTMLElement>('.cm-line');
-    const download = host.querySelector<HTMLButtonElement>('.cm-moss-file-block-download');
-    const remove = host.querySelector<HTMLButtonElement>('.cm-moss-file-block-delete');
-    expect(download).not.toBeNull();
-    expect(remove).not.toBeNull();
-    expect(host.querySelector('.cm-moss-file-block-edit')).toBeNull();
-    expect(host.querySelector('.cm-moss-file-block-editor')).toBeNull();
-    expect(sourceLine?.textContent).not.toContain('old-report.pdf');
-
-    act(() => {
-      EditorView.findFromDOM(host.querySelector('.cm-editor')!)?.dispatch({
-        selection: { anchor: markdown.indexOf('old-report') },
-      });
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
     });
 
-    expect(host.querySelector('.cm-line.cm-moss-file-block-source-line')).not.toBeNull();
-    expect(host.querySelector('.cm-line')?.textContent).not.toContain('old-report.pdf');
+    try {
+      const { host } = mount(<MossMD markdownSource={markdown} />);
 
-    const anchorClick = vi
-      .spyOn(HTMLAnchorElement.prototype, 'click')
-      .mockImplementation(() => undefined);
-    act(() => download?.click());
-    expect(anchorClick).toHaveBeenCalledTimes(1);
-    anchorClick.mockRestore();
+      const sourceLine = host.querySelector<HTMLElement>('.cm-line');
+      const card = host.querySelector<HTMLElement>('.cm-moss-file-block');
+      const download = host.querySelector<HTMLButtonElement>(
+        '.cm-moss-file-block-download',
+      );
+      const copyLink = host.querySelector<HTMLButtonElement>(
+        '.cm-moss-file-block-copy-link',
+      );
+      expect(download).not.toBeNull();
+      expect(copyLink).not.toBeNull();
+      expect(host.querySelector('.cm-moss-file-block-delete')).toBeNull();
+      expect(host.querySelector('.cm-moss-file-block-edit')).toBeNull();
+      expect(host.querySelector('.cm-moss-file-block-editor')).toBeNull();
+      expect(sourceLine?.textContent).not.toContain('old-report.pdf');
 
-    act(() => remove?.click());
+      act(() => {
+        card?.dispatchEvent(
+          new MouseEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+          }),
+        );
+      });
 
-    expect(handleRef.current?.getMarkdown()).toBe('After.');
-    expect(host.querySelector('.cm-moss-file-block')).toBeNull();
+      const view = EditorView.findFromDOM(host.querySelector('.cm-editor')!);
+      expect(
+        view?.state.sliceDoc(
+          view.state.selection.main.from,
+          view.state.selection.main.to,
+        ),
+      ).toBe(
+        '[old-report.pdf](https://example.com/old-report.pdf)',
+      );
+      expect(card?.classList.contains('cm-moss-file-block-selected')).toBe(true);
+      expect(
+        host
+          .querySelector('.moss-cm-editor')
+          ?.classList.contains('moss-cm-file-selection-active'),
+      ).toBe(true);
+
+      const anchorClick = vi
+        .spyOn(HTMLAnchorElement.prototype, 'click')
+        .mockImplementation(() => undefined);
+      act(() => download?.click());
+      expect(anchorClick).toHaveBeenCalledTimes(1);
+      anchorClick.mockRestore();
+
+      await act(async () => {
+        copyLink?.dispatchEvent(
+          new MouseEvent('click', { bubbles: true, cancelable: true }),
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(writeText).toHaveBeenCalledWith('https://example.com/old-report.pdf');
+      expect(copyLink?.getAttribute('aria-label')).toBe('Copied');
+    } finally {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, 'clipboard', originalClipboard);
+      } else {
+        Reflect.deleteProperty(navigator, 'clipboard');
+      }
+    }
   });
 
   it('renders consumer-provided icon renderers on user-facing surfaces', async () => {
@@ -690,7 +767,7 @@ describe('MossMD', () => {
           icons: {
             file: testIcon('file-block-file'),
             download: testIcon('file-block-download'),
-            delete: testIcon('file-block-delete'),
+            copyLink: testIcon('file-block-copy-link'),
           },
         }}
       />,
@@ -706,7 +783,7 @@ describe('MossMD', () => {
       host.querySelector('[data-moss-test-icon="file-block-download"]'),
     ).not.toBeNull();
     expect(
-      host.querySelector('[data-moss-test-icon="file-block-delete"]'),
+      host.querySelector('[data-moss-test-icon="file-block-copy-link"]'),
     ).not.toBeNull();
 
     const slash = mount(
@@ -760,7 +837,7 @@ describe('MossMD', () => {
           'image.placeholder': testIcon('top-image-placeholder'),
           'file.file': testIcon('top-file-block-file'),
           'file.download': testIcon('top-file-block-download'),
-          'file.delete': testIcon('top-file-block-delete'),
+          'file.copy-link': testIcon('top-file-block-copy-link'),
         }}
       />,
     );
@@ -775,7 +852,7 @@ describe('MossMD', () => {
       host.querySelector('[data-moss-test-icon="top-file-block-download"]'),
     ).not.toBeNull();
     expect(
-      host.querySelector('[data-moss-test-icon="top-file-block-delete"]'),
+      host.querySelector('[data-moss-test-icon="top-file-block-copy-link"]'),
     ).not.toBeNull();
   });
 

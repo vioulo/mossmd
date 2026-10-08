@@ -15,10 +15,11 @@ export type MossIconRenderer = (props: MossIconProps) => Node;
 export type MossIconKey =
   | 'code.copy'
   | 'code.copied'
-  | 'file.delete'
+  | 'file.copy-link'
   | 'file.download'
   | 'file.file'
   | 'image.cancel'
+  | 'image.copy-link'
   | 'image.edit'
   | 'image.placeholder'
   | 'image.preview'

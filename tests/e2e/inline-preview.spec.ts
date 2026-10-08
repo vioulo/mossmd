@@ -26,4 +26,50 @@ test.describe('Inline preview', () => {
     const content = await page.locator('.cm-content').textContent();
     expect(content).toContain('# Heading');
   });
+
+  test('ArrowUp moves through a blank separator before the previous block', async ({ page }) => {
+    await page.evaluate(() =>
+      window.mossHarness!.load(
+        '## The Road Not Taken\n\nTwo roads diverged\nIn a yellow wood',
+      ),
+    );
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+Home');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('.cm-line.cm-activeLine')).toContainText(
+      'Two roads diverged',
+    );
+
+    await page.keyboard.press('ArrowUp');
+    await expect(page.locator('.cm-line.cm-activeLine')).toHaveClass(
+      /cm-moss-empty-line/,
+    );
+
+    await page.keyboard.press('ArrowUp');
+    await expect(page.locator('.cm-line.cm-activeLine')).toHaveClass(
+      /cm-moss-h2/,
+    );
+  });
+
+  test('keeps vertical movement aligned after a file block', async ({ page }) => {
+    await page.evaluate(() =>
+      window.mossHarness!.load(
+        '[brief.pdf](https://example.org/brief.pdf)\n\n[notes.zip](https://example.org/notes.zip)\n\n## The Road\n\nFirst line\nMiddle line\nLast line',
+      ),
+    );
+
+    const middle = page.locator('.cm-line').filter({ hasText: 'Middle line' });
+    await middle.scrollIntoViewIfNeeded();
+    await middle.click({ position: { x: 40, y: 12 } });
+    await expect(page.locator('.cm-line.cm-activeLine')).toContainText(
+      'Middle line',
+    );
+
+    await page.keyboard.press('ArrowUp');
+    await expect(page.locator('.cm-line.cm-activeLine')).toContainText(
+      'First line',
+    );
+  });
 });

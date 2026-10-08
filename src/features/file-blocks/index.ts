@@ -31,6 +31,7 @@ import {
   appendMossIcon,
   type MossIconMap,
   type MossIconRenderer,
+  mossIconFacet,
   resolveMossIcon,
 } from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
@@ -39,7 +40,7 @@ import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
 export interface MossFileBlockIcons {
   file: MossIconRenderer;
   download: MossIconRenderer;
-  delete: MossIconRenderer;
+  copyLink: MossIconRenderer;
 }
 
 export interface MossFileBlocksConfig {
@@ -132,41 +133,107 @@ function downloadFile(file: FileLink): void {
   link.remove();
 }
 
-function deleteFileBlock(view: EditorView, wrap: HTMLElement, expectedUrl: string): void {
-  if (view.state.facet(readOnlyFacet)) return;
-  const range = fileRangeAtWidget(view, wrap, expectedUrl);
-  if (!range) return;
-
-  const line = view.state.doc.lineAt(range.from);
-  let from = line.from;
-  let to = line.to;
-
-  // Remove the source line break as well. If the block has a blank line
-  // directly after it, consume that separator too so deletion does not
-  // leave an empty row where the block used to be.
-  if (line.to < view.state.doc.length) {
-    to = line.to + 1;
-    const nextLine = view.state.doc.lineAt(to);
-    if (nextLine.text.trim() === '') {
-      to = nextLine.to < view.state.doc.length ? nextLine.to + 1 : nextLine.to;
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
     }
-  } else if (line.from > 0) {
-    from = line.from - 1;
-    const previousLine = view.state.doc.lineAt(from);
-    if (previousLine.text.trim() === '') {
-      from = previousLine.from > 0 ? previousLine.from - 1 : previousLine.from;
-    }
+  } catch {
+    // Fall back to the legacy copy command below.
   }
 
-  view.dispatch({ changes: { from, to } });
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    return document.execCommand('copy');
+  } finally {
+    textarea.remove();
+  }
+}
+
+function fileRangeIsSelected(view: EditorView, wrap: HTMLElement): boolean {
+  if (!view.hasFocus || view.state.facet(readOnlyFacet)) return false;
+  const range = fileRangeAtWidget(view, wrap, wrap.dataset.url ?? '');
+  return (
+    !!range &&
+    view.state.selection.ranges.some(
+      (selection) =>
+        selection.from === range.from && selection.to === range.to,
+    )
+  );
+}
+
+const fileSelectionPlugin = ViewPlugin.fromClass(
+  class {
+    private readonly editorRoot: HTMLElement | null;
+
+    constructor(readonly view: EditorView) {
+      this.editorRoot = view.dom.parentElement;
+      this.sync();
+    }
+
+    update(update: ViewUpdate): void {
+      const readOnlyChanged =
+        update.startState.facet(readOnlyFacet) !==
+        update.state.facet(readOnlyFacet);
+      if (
+        update.docChanged ||
+        update.selectionSet ||
+        update.focusChanged ||
+        readOnlyChanged
+      ) {
+        this.sync();
+      }
+    }
+
+    private sync(): void {
+      let hasSelectedFile = false;
+      for (const wrap of this.view.dom.querySelectorAll<HTMLElement>(
+        '.cm-moss-file-block',
+      )) {
+        const selected = fileRangeIsSelected(this.view, wrap);
+        wrap.classList.toggle(
+          'cm-moss-file-block-selected',
+          selected,
+        );
+        hasSelectedFile ||= selected;
+      }
+      this.editorRoot?.classList.toggle(
+        'moss-cm-file-selection-active',
+        hasSelectedFile,
+      );
+    }
+
+    destroy(): void {
+      this.editorRoot?.classList.remove('moss-cm-file-selection-active');
+    }
+  },
+);
+
+function selectFileSource(view: EditorView, wrap: HTMLElement): void {
+  if (view.state.facet(readOnlyFacet)) return;
+  const range = fileRangeAtWidget(view, wrap, wrap.dataset.url ?? '');
+  if (!range) return;
+  view.focus();
+  view.dispatch({
+    selection: { anchor: range.from, head: range.to },
+    userEvent: 'select.pointer',
+  });
 }
 
 class FileBlockWidget extends WidgetType {
+  private copyLinkTimer: number | null = null;
+
   constructor(
     readonly label: string,
     readonly url: string,
     readonly ext: string,
-    readonly canDelete: boolean,
     readonly icons: MossFileBlockIcons,
   ) {
     super();
@@ -177,16 +244,27 @@ class FileBlockWidget extends WidgetType {
       other.label === this.label &&
       other.url === this.url &&
       other.ext === this.ext &&
-      other.canDelete === this.canDelete &&
       other.icons.file === this.icons.file &&
       other.icons.download === this.icons.download &&
-      other.icons.delete === this.icons.delete
+      other.icons.copyLink === this.icons.copyLink
     );
   }
 
   toDOM(view: EditorView): HTMLElement {
+    const slot = document.createElement('div');
+    slot.className = 'cm-moss-file-block-slot';
+
     const wrap = document.createElement('div');
     wrap.className = 'cm-moss-file-block';
+    wrap.dataset.url = this.url;
+    wrap.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || view.state.facet(readOnlyFacet)) return;
+      const target = event.target;
+      if (target instanceof Element && target.closest('button')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      selectFileSource(view, wrap);
+    });
 
     const preview = document.createElement('div');
     preview.className = 'cm-moss-file-block-preview';
@@ -264,29 +342,48 @@ class FileBlockWidget extends WidgetType {
     });
     actions.appendChild(download);
 
-    if (this.canDelete) {
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'cm-moss-file-block-delete';
-      appendMossIcon(remove, this.icons.delete, {
-        size: 16,
-        strokeWidth: 2,
-      });
-      remove.setAttribute('aria-label', 'Delete file');
-      remove.title = 'Delete file';
-      remove.addEventListener('pointerdown', stopEditorEvent);
-      remove.addEventListener('click', (event) => {
-        stopEditorEvent(event);
-        deleteFileBlock(view, wrap, this.url);
-      });
-      actions.appendChild(remove);
-    }
+    const copyLink = document.createElement('button');
+    copyLink.type = 'button';
+    copyLink.className = 'cm-moss-file-block-copy-link';
+    appendMossIcon(copyLink, this.icons.copyLink, {
+      size: 16,
+      strokeWidth: 2,
+    });
+    copyLink.setAttribute('aria-label', 'Copy link');
+    copyLink.title = 'Copy link';
+    copyLink.addEventListener('pointerdown', stopEditorEvent);
+    copyLink.addEventListener('click', async (event) => {
+      stopEditorEvent(event);
+      if (!(await copyTextToClipboard(this.url))) return;
+      copyLink.classList.add('is-copied');
+      copyLink.setAttribute('aria-label', 'Copied');
+      copyLink.title = 'Copied';
+      appendMossIcon(
+        copyLink,
+        resolveMossIcon('code.copied', view.state.facet(mossIconFacet)),
+      );
+      if (this.copyLinkTimer != null) window.clearTimeout(this.copyLinkTimer);
+      this.copyLinkTimer = window.setTimeout(() => {
+        this.copyLinkTimer = null;
+        copyLink.classList.remove('is-copied');
+        copyLink.setAttribute('aria-label', 'Copy link');
+        copyLink.title = 'Copy link';
+        appendMossIcon(copyLink, this.icons.copyLink);
+      }, 1200);
+    });
+    actions.appendChild(copyLink);
     wrap.appendChild(actions);
-    return wrap;
+    slot.appendChild(wrap);
+    return slot;
   }
 
   ignoreEvent(): boolean {
     return true;
+  }
+
+  destroy(): void {
+    if (this.copyLinkTimer != null) window.clearTimeout(this.copyLinkTimer);
+    this.copyLinkTimer = null;
   }
 }
 
@@ -352,8 +449,9 @@ function buildFileBlocks(
     file: config.icons?.file ?? resolveMossIcon('file.file', config.iconMap),
     download:
       config.icons?.download ?? resolveMossIcon('file.download', config.iconMap),
-    delete:
-      config.icons?.delete ?? resolveMossIcon('file.delete', config.iconMap),
+    copyLink:
+      config.icons?.copyLink ??
+      resolveMossIcon('file.copy-link', config.iconMap),
   };
   const tree =
     ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
@@ -381,7 +479,6 @@ function buildFileBlocks(
             file.label,
             file.url,
             ext,
-            !state.facet(readOnlyFacet),
             icons,
           ),
           block: true,
@@ -441,5 +538,10 @@ export function mossFileBlocks(config: MossFileBlocksConfig = {}): Extension {
     provide: (f) => EditorView.decorations.from(f),
   });
 
-  return [fileBlocksField, Prec.highest(fileSourcePreviewPlugin), treeProgressPlugin];
+  return [
+    fileBlocksField,
+    Prec.highest(fileSourcePreviewPlugin),
+    fileSelectionPlugin,
+    treeProgressPlugin,
+  ];
 }

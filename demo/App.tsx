@@ -75,10 +75,11 @@ import { overrideDefaultUploads } from './custom-upload';
 const MOSS_DEMO_ICONS: MossIconMap = {
   'code.copy': mossLucideIcon(Copy),
   'code.copied': mossLucideIcon(Check),
-  'file.delete': mossLucideIcon(Trash2),
+  'file.copy-link': mossLucideIcon(Copy),
   'file.download': mossLucideIcon(Download),
   'file.file': mossLucideIcon(File),
   'image.cancel': mossLucideIcon(X),
+  'image.copy-link': mossLucideIcon(Copy),
   'image.edit': mossLucideIcon(Pencil),
   'image.placeholder': mossLucideIcon(Image),
   'image.preview': mossLucideIcon(ScanEye),

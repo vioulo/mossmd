@@ -92,7 +92,13 @@ describe('content styles', () => {
     expect(editorStyles).toContain('backdrop-filter: blur(2px);');
     expect(editorStyles).toContain('.cm-moss-image-frame-placeholder');
     expect(editorStyles).toContain(
-      '.moss-cm-editor.moss-cm-image-selection-active .cm-cursorLayer',
+      '.moss-cm-editor.moss-cm-image-selection-active .cm-cursorLayer,\n.moss-cm-editor.moss-cm-file-selection-active .cm-cursorLayer',
+    );
+    expect(editorStyles).toContain(
+      '.cm-moss-image.cm-moss-image-selected .cm-moss-image-copy-link',
+    );
+    expect(editorStyles).toContain(
+      '.cm-moss-file-block.cm-moss-file-block-selected .cm-moss-file-block-actions',
     );
     expect(editorStyles).toContain(
       '.moss-cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul {\n  min-width: 0;',

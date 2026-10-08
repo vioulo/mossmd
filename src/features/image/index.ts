@@ -18,6 +18,7 @@ import {
   appendMossIcon,
   type MossIconMap,
   type MossIconRenderer,
+  mossIconFacet,
   resolveMossIcon,
 } from '../../core/icons';
 import { readOnlyFacet } from '../../core/read-only';
@@ -26,6 +27,7 @@ import { treeGrowthEffect, treeProgressPlugin } from '../../core/tree-progress';
 export interface MossImageIcons {
   edit: MossIconRenderer;
   preview: MossIconRenderer;
+  copyLink: MossIconRenderer;
   resize: MossIconRenderer;
   save: MossIconRenderer;
   cancel: MossIconRenderer;
@@ -94,6 +96,8 @@ function resolveImageIcons(config: MossImagesConfig): MossImageIcons {
     edit: config.icons?.edit ?? resolveMossIcon('image.edit', config.iconMap),
     preview:
       config.icons?.preview ?? resolveMossIcon('image.preview', config.iconMap),
+    copyLink:
+      config.icons?.copyLink ?? resolveMossIcon('image.copy-link', config.iconMap),
     resize:
       config.icons?.resize ?? resolveMossIcon('image.resize', config.iconMap),
     save: config.icons?.save ?? resolveMossIcon('image.save', config.iconMap),
@@ -103,6 +107,30 @@ function resolveImageIcons(config: MossImagesConfig): MossImageIcons {
       config.icons?.placeholder ??
       resolveMossIcon('image.placeholder', config.iconMap),
   };
+}
+
+async function copyImageLink(url: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      return true;
+    }
+  } catch {
+    // Fall back to the legacy copy command below.
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = url;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    return document.execCommand('copy');
+  } finally {
+    textarea.remove();
+  }
 }
 
 function openImagePreview(
@@ -421,6 +449,8 @@ function openImageEditor(
 }
 
 class ImageWidget extends WidgetType {
+  private copyLinkTimer: number | null = null;
+
   constructor(
     readonly src: string,
     readonly alt: string,
@@ -445,6 +475,7 @@ class ImageWidget extends WidgetType {
       other.canPreview === this.canPreview &&
       other.icons.edit === this.icons.edit &&
       other.icons.preview === this.icons.preview &&
+      other.icons.copyLink === this.icons.copyLink &&
       other.icons.resize === this.icons.resize &&
       other.icons.save === this.icons.save &&
       other.icons.cancel === this.icons.cancel &&
@@ -511,6 +542,41 @@ class ImageWidget extends WidgetType {
     }
     img.src = this.src;
     frame.appendChild(img);
+
+    const copyLink = document.createElement('button');
+    copyLink.type = 'button';
+    copyLink.className = 'cm-moss-image-copy-link';
+    appendMossIcon(copyLink, this.icons.copyLink, {
+      size: 16,
+      strokeWidth: 2,
+    });
+    copyLink.setAttribute('aria-label', 'Copy image link');
+    copyLink.title = 'Copy image link';
+    copyLink.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    copyLink.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!(await copyImageLink(this.src))) return;
+      copyLink.classList.add('is-copied');
+      copyLink.setAttribute('aria-label', 'Copied');
+      copyLink.title = 'Copied';
+      appendMossIcon(
+        copyLink,
+        resolveMossIcon('code.copied', view.state.facet(mossIconFacet)),
+      );
+      if (this.copyLinkTimer != null) window.clearTimeout(this.copyLinkTimer);
+      this.copyLinkTimer = window.setTimeout(() => {
+        this.copyLinkTimer = null;
+        copyLink.classList.remove('is-copied');
+        copyLink.setAttribute('aria-label', 'Copy image link');
+        copyLink.title = 'Copy image link';
+        appendMossIcon(copyLink, this.icons.copyLink);
+      }, 1200);
+    });
+    frame.appendChild(copyLink);
     wrap.appendChild(frame);
 
     wrap.addEventListener('pointerdown', (event) => {
@@ -631,6 +697,11 @@ class ImageWidget extends WidgetType {
   ignoreEvent(): boolean {
     return true;
   }
+
+  destroy(): void {
+    if (this.copyLinkTimer != null) window.clearTimeout(this.copyLinkTimer);
+    this.copyLinkTimer = null;
+  }
 }
 
 function imageRangeIsSelected(view: EditorView, wrap: HTMLElement): boolean {
@@ -652,7 +723,15 @@ const imageSelectionPlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate): void {
-      if (update.docChanged || update.selectionSet || update.focusChanged) {
+      const readOnlyChanged =
+        update.startState.facet(readOnlyFacet) !==
+        update.state.facet(readOnlyFacet);
+      if (
+        update.docChanged ||
+        update.selectionSet ||
+        update.focusChanged ||
+        readOnlyChanged
+      ) {
         this.sync();
       }
     }

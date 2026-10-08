@@ -61,6 +61,7 @@
 }
 
 .cm-line.cm-moss-empty-line {
+  box-sizing: border-box;
   font-size: var(--moss-body-size, 1.0625rem);
   line-height: 1.25;
   min-height: calc(var(--moss-body-size, 1.0625rem) * var(--moss-body-leading, 1.7));
@@ -604,16 +605,13 @@
 /* The source line is kept at zero height for position mapping. When its
  * entire range is selected through the rendered widget, suppress CM6's
  * caret layer so the caret cannot appear at the line's top-left corner. */
-.moss-cm-editor.moss-cm-image-selection-active .cm-cursorLayer {
+.moss-cm-editor.moss-cm-image-selection-active .cm-cursorLayer,
+.moss-cm-editor.moss-cm-file-selection-active .cm-cursorLayer {
   visibility: hidden;
 }
 
 .cm-moss-image.cm-moss-image-selected .cm-moss-image-frame {
-  outline: 1px solid color-mix(
-    in srgb,
-    var(--moss-accent, #7c3aed) 52%,
-    var(--moss-border, #3d3d3d) 48%
-  );
+  outline: 2px solid var(--moss-accent, #7c3aed);
   outline-offset: 2px;
   border-radius: 0.45em;
 }
@@ -646,8 +644,17 @@
 .cm-moss-image-frame:focus-within .cm-moss-image-edit,
 .cm-moss-image-frame:hover .cm-moss-image-preview,
 .cm-moss-image-frame:focus-within .cm-moss-image-preview,
+.cm-moss-image-frame:hover .cm-moss-image-copy-link,
+.cm-moss-image-frame:focus-within .cm-moss-image-copy-link,
 .cm-moss-image-frame:hover .cm-moss-image-resize,
 .cm-moss-image-frame:focus-within .cm-moss-image-resize {
+  opacity: 1;
+}
+
+.cm-moss-image.cm-moss-image-selected .cm-moss-image-edit,
+.cm-moss-image.cm-moss-image-selected .cm-moss-image-preview,
+.cm-moss-image.cm-moss-image-selected .cm-moss-image-copy-link,
+.cm-moss-image.cm-moss-image-selected .cm-moss-image-resize {
   opacity: 1;
 }
 
@@ -676,6 +683,31 @@
 }
 
 .cm-moss-image-preview:hover {
+  background: var(--moss-bg-surface, #2d2d2d);
+}
+
+.cm-moss-image-copy-link {
+  position: absolute;
+  left: 0.55em;
+  bottom: 0.55em;
+  z-index: 1;
+  width: 2em;
+  height: 2em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
+  border-radius: 0.35em;
+  background: var(--moss-bg-panel, #252525);
+  color: var(--moss-fg, #dcddde);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+
+.cm-moss-image-copy-link:hover,
+.cm-moss-image-copy-link.is-copied {
   background: var(--moss-bg-surface, #2d2d2d);
 }
 
@@ -713,6 +745,7 @@
 @media (hover: none), (pointer: coarse) {
   .cm-moss-image-edit,
   .cm-moss-image-preview,
+  .cm-moss-image-copy-link,
   .cm-moss-image-resize {
     width: 2.75rem;
     height: 2.75rem;
@@ -722,6 +755,7 @@
 
 .cm-moss-image-edit:focus-visible,
 .cm-moss-image-preview:focus-visible,
+.cm-moss-image-copy-link:focus-visible,
 .cm-moss-image-editor-button:focus-visible,
 .cm-moss-image-editor input:focus-visible {
   outline: 2px solid var(--moss-accent, #7c3aed);
@@ -912,13 +946,21 @@
  * widget" looks like a single continuous transition rather than a
  * pop-and-replace. Left: preview (thumb for image URLs, glyph+ext
  * badge for generic files). Right: name + info row. */
+.cm-moss-file-block-slot {
+  padding: 0.25em 0;
+}
+
 .cm-moss-file-block {
   position: relative;
   display: flex;
   align-items: center;
   gap: 0.85em;
   padding: 0.6em 3.5em 0.6em 0.9em;
-  margin: 0.25em 0;
+  /* Block-widget height measurements exclude margins. Keeping the
+   * card margin here makes the DOM sit lower than CodeMirror's height
+   * map, so clicks and vertical cursor movement drift after a file
+   * block. Use padding on the widget's measured box instead. */
+  margin: 0;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.22));
   border-radius: 0.55em;
   background: var(--moss-file-block-bg, rgba(127, 127, 127, 0.06));
@@ -928,6 +970,16 @@
 .cm-moss-file-block:hover {
   background: var(--moss-file-block-hover-bg, rgba(127, 127, 127, 0.1));
   border-color: var(--moss-border, rgba(127, 127, 127, 0.35));
+}
+
+.cm-moss-file-block.cm-moss-file-block-selected {
+  outline: 2px solid var(--moss-accent, #7c3aed);
+  outline-offset: 2px;
+  background: color-mix(
+    in srgb,
+    var(--moss-accent, #7c3aed) 10%,
+    var(--moss-file-block-bg, rgba(127, 127, 127, 0.06)) 90%
+  );
 }
 
 .cm-moss-file-block-preview {
@@ -1019,15 +1071,16 @@
   right: 0.7em;
   z-index: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.3em;
+  gap: 0.35em;
   transform: translateY(-50%);
   opacity: 0;
   transition: opacity 0.12s ease;
 }
 
 .cm-moss-file-block-download,
-.cm-moss-file-block-delete {
+.cm-moss-file-block-copy-link {
   width: 2em;
   height: 2em;
   display: inline-flex;
@@ -1042,29 +1095,35 @@
 }
 
 .cm-moss-file-block:hover .cm-moss-file-block-actions,
-.cm-moss-file-block:focus-within .cm-moss-file-block-actions {
+.cm-moss-file-block:focus-within .cm-moss-file-block-actions,
+.cm-moss-file-block.cm-moss-file-block-selected .cm-moss-file-block-actions {
   opacity: 1;
 }
 
 .cm-moss-file-block-download:hover,
-.cm-moss-file-block-delete:hover {
+.cm-moss-file-block-copy-link:hover,
+.cm-moss-file-block-copy-link.is-copied {
   background: var(--moss-bg-surface, #2d2d2d);
 }
 
 @media (hover: none), (pointer: coarse) {
+  .cm-moss-file-block {
+    padding-block: 0.8em;
+  }
+
   .cm-moss-file-block-actions {
     opacity: 1;
   }
 
   .cm-moss-file-block-download,
-  .cm-moss-file-block-delete {
+  .cm-moss-file-block-copy-link {
     width: 2.75rem;
     height: 2.75rem;
   }
 }
 
 .cm-moss-file-block-download:focus-visible,
-.cm-moss-file-block-delete:focus-visible {
+.cm-moss-file-block-copy-link:focus-visible {
   outline: 2px solid var(--moss-accent, #7c3aed);
   outline-offset: 2px;
 }

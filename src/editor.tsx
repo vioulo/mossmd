@@ -505,7 +505,7 @@ export function MossMD({
           }),
           // Extend closeBrackets to markdown's symmetric delimiters.
           markdownLanguage.data.of({
-            closeBrackets: { brackets: ['(', '[', '{', "'", '"', '*', '_', '`'] },
+            closeBrackets: { brackets: ['(', '[', '{', "'", '"', '*', '_', '`', '='] },
           }),
           mossSyntax,
           mossTheme,

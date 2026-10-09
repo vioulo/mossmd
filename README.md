@@ -3,31 +3,18 @@
 [![npm version](https://img.shields.io/npm/v/mossmd?color=7c3aed&labelColor=2d2d2d)](https://www.npmjs.com/package/mossmd)
 [![license](https://img.shields.io/npm/l/mossmd?color=7c3aed&labelColor=2d2d2d)](./LICENSE)
 
-MossMD （苔藓 markdown） 是一个基于 CodeMirror 6 的 Obsidian live-view 风格 Markdown 编辑器，支持自定义块语法扩展。
+MossMD 是一个基于 CodeMirror 6 的 React Markdown 编辑器，提供接近 Obsidian Live Preview 的编辑体验。Markdown 原文始终是唯一数据源，预览内容由只读装饰生成。
 
-起初是想在自己的博客系统中集成一款 markdown 编辑器，使用过 milkdown 等，但是与 obsidian 在书写体验上还是有差距，且或多或少存在不顺畅的点，于是想自己构建一款 live-view 风格的编辑器。
-
-ChatGPT 推荐了 [atomic-editor](https://github.com/kenforthewin/atomic-editor)， 当前项目可以看作是它的 fork 版本，不过后续会在 AI 协作下添加了更多自定义功能，贴近 obsidian 的使用体验，构造一些自己需要的功能点。
+项目起源和演进过程见 [项目起源](./docs/project-origin.md)。
 
 ## 特性
 
-- **实时预览**：标题、强调、`==高亮==`、链接、图片和表格会直接在编辑区内渲染，语法只在光标所在行显露。
-- **原始 Markdown 为唯一数据源**：所有装饰都只读，复制、保存、往返其它 Markdown 工具时都保持原文。
-- **布局稳定**：行高只由 CSS 类决定，点击、编辑、滚动不会让页面抖动。
-- **所见即所得表格**：单元格可直接编辑，宽表会在自身容器内横向滚动。
-- **图片块**：`Image` 节点在源码行下方渲染为块级 Widget，并缓存自然尺寸以减少虚拟滚动抖动。
-- **文件块**：单独成段的非图片文件链接渲染为带图标和扩展名徽章的卡片。
-- **Wiki 链接**：支持 `[[target]]`、`[[target|label]]`、异步解析、自动补全和点击打开。
-- **斜杠命令**：行首输入 `/` 或点击行首 `+` 触发命令面板，内置上传图片 / 文件骨架，可拼装自己的片段集。
-- **上传块**：上传过程中显示带进度与状态的块级 Widget，成功后落回最终 Markdown，失败可重试或取消；上传器由消费方注入。
-- **Callout**：识别 `> [!TYPE]` 形式的 Obsidian 风格块，非激活行收起为标签。
-- **智能列表**：Enter 可延续紧凑列表和任务列表，空条目上按 Enter 会缩出列表。
-- **代码高亮**：围栏代码块的语法在首次使用时才动态加载。
-- **自定义语法**：通过 `MossCustomSyntax` 注册额外块，适合 Callout、Mermaid、Kanban 等扩展。
-- **主题可配置**：全部颜色、字体、字号都来自 `--moss-*` CSS 变量。
-- **查找面板**：内置轻量查找面板，样式与编辑器统一。
-- **阅读模式**：`readOnly` 会把编辑器切成阅读表面，保留滚动和搜索状态。
-- **协作接口**：`CollabAdapter` 预留给 yjs、Automerge 或自定义同步层。
+- 标题、强调、链接、图片、表格、任务列表、Callout 等内容在编辑区内实时预览。
+- 光标所在位置显示 Markdown 语法，复制、保存和协作同步始终使用原始 Markdown。
+- 图片和文件链接渲染为块级组件，支持预览、编辑、缩放、下载和复制链接。
+- 所见即所得表格、智能列表编辑、Wiki 链接、查找面板和阅读模式。
+- 通过斜杠命令、上传器、图标协议、自定义语法和 CodeMirror 扩展进行组合。
+- 主题使用 `--moss-*` CSS 变量，内置默认和蓝色明暗主题 preset。
 
 ## 安装
 
@@ -40,9 +27,9 @@ bun add mossmd \
   react react-dom
 ```
 
-CodeMirror 和 React 相关包都是对等依赖，需要和编辑器一起安装。围栏代码语言语法包（例如 `@codemirror/lang-javascript`、`@codemirror/lang-python`）也是按需安装。
+CodeMirror、Lezer 和 React 相关包是对等依赖，需要由应用一并安装。围栏代码语言包按需安装；也可以使用 `mossmd/code-languages` 提供的精选列表。
 
-## 使用
+## 快速开始
 
 ```tsx
 import { MossMD } from 'mossmd';
@@ -52,154 +39,142 @@ export function App() {
   return (
     <MossMD
       markdownSource={'# Hello\n\nA paragraph.'}
-      onMarkdownChange={(md) => console.log(md)}
+      onMarkdownChange={(markdown) => console.log(markdown)}
     />
   );
 }
 ```
 
-编辑器会撑满父容器，外层请放在有高度约束的 flex 或 grid 容器里。渲染后的 Markdown 内容如果要在编辑器外复用，请配合 `mossmd/content.css` 和 `mossmd/tokens.css`。
+编辑器会填满父容器，外层应提供明确的高度约束，例如 flex 或 grid 容器。
+编辑器外渲染 Markdown 时，可组合使用 `mossmd/content.css` 和 `mossmd/tokens.css`。
 
-## 命令式句柄
+## 常用配置
 
-如果需要从外部控制编辑器，可以传 `editorHandleRef`。
+### 受控 Markdown 与文档身份
+
+`markdownSource` 用于打开文档，`onMarkdownChange` 接收编辑后的完整 Markdown。编辑器挂载后以内部 `state.doc` 为数据源；需要切换文档时，请同时改变 `documentId`，避免光标、撤销记录和搜索状态泄漏到另一份文档。
+
+```tsx
+<MossMD
+  documentId={note.id}
+  markdownSource={note.markdown}
+  onMarkdownChange={(markdown) => saveNote(note.id, markdown)}
+/>
+```
+
+### 阅读模式
+
+```tsx
+<MossMD markdownSource={markdown} readOnly />
+```
+
+阅读模式会保持整篇文档的预览状态，禁用文本编辑；链接仍可打开，任务复选框和查找功能仍可使用。也可以通过命令式句柄动态切换。
+
+### 命令式句柄
 
 ```tsx
 import { useRef } from 'react';
 import { MossMD, type MossMDHandle } from 'mossmd';
 
-export function ToolbarDemo() {
+export function Toolbar({ markdown }: { markdown: string }) {
   const editor = useRef<MossMDHandle | null>(null);
 
   return (
     <>
       <button onClick={() => editor.current?.openSearch()}>搜索</button>
-      <MossMD markdownSource={'…'} editorHandleRef={editor} />
+      <button onClick={() => editor.current?.undo()}>撤销</button>
+      <MossMD markdownSource={markdown} editorHandleRef={editor} />
     </>
   );
 }
 ```
 
-可用方法包括：`focus`、`undo`、`redo`、`openSearch(query?)`、`closeSearch`、`revealText(query)`、`isSearchOpen`、`getMarkdown`、`getContentDOM`、`setReadOnly(readOnly)`、`setCollabAdapter(adapter)`。
+句柄提供 `focus`、`undo`、`redo`、`openSearch`、`closeSearch`、`revealText`、`isSearchOpen`、`getMarkdown`、`getContentDOM`、`setReadOnly` 和 `setCollabAdapter`。
 
-## 斜杠命令与上传
+### 搜索与定位
 
-`slashCommandsConfig` 接收一个命令数组和一个 `sideButton` 开关。行首输入 `/` 或点击行首 `+` 会弹出命令面板；选中后 `apply` 回调负责把 `/query` 范围替换成最终片段。`+` 按钮由编辑器 overlay 管理，不参与正文排版，也不要求宿主为文档额外预留 gutter。
+- `initialSearchText`：挂载时打开搜索面板并填入查询。
+- `initialRevealText`：挂载时滚动到第一个匹配位置，并显示短暂高亮，不打开面板。
+- `searchPanelPosition`：设置为 `top`、`center` 或 `bottom`。
+
+```tsx
+<MossMD
+  markdownSource={markdown}
+  initialRevealText="需要定位的内容"
+  searchPanelPosition="bottom"
+/>
+```
+
+## 内置功能
+
+### 图片与文件块
+
+独立成行的图片和非图片文件链接会渲染为块级组件，源码仍保留在文档中。
+
+- 图片块支持预览、编辑 alt/标题/URL、调整宽度和复制图片链接。
+- 文件块支持下载、复制链接，以及点击后选中完整 Markdown 源码。
+- 图片宽度使用扩展语法保存，例如 `![alt|caption|width=72%](url)`。
+- 可通过 `imagesConfig` 和 `fileBlocksConfig` 局部关闭或覆盖对应能力。
+
+```tsx
+<MossMD
+  markdownSource={markdown}
+  imagesConfig={{ editable: false, resizable: false, previewable: true }}
+  fileBlocksConfig={{}}
+/>
+```
+
+### 上传与斜杠命令
+
+`slashCommandsConfig` 可配置行首 `/` 和 `+` 按钮触发的命令面板。上传器由应用注入，上传过程显示为临时 Widget，完成后写入最终 Markdown。
 
 ```tsx
 import { MossMD } from 'mossmd';
-import { mossDefaultSlashCommands, mossUploadCommands } from 'mossmd/features';
-import type { MossUploader } from 'mossmd/features';
+import {
+  mossDefaultSlashCommands,
+  mossUploadCommands,
+  type MossUploader,
+} from 'mossmd/features';
 
-const uploader: MossUploader = async (file, onProgress) => {
+const uploader: MossUploader = async (file, onProgress, signal) => {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch('/api/upload', { method: 'POST', body: form });
+  const response = await fetch('/api/upload', {
+    method: 'POST',
+    body: form,
+    signal,
+  });
   onProgress(1);
-  return { url: (await res.json()).url };
+  return { url: (await response.json()).url };
 };
 
-const uploadCommands = mossUploadCommands(uploader);
-
 <MossMD
-  markdownSource={'…'}
+  markdownSource={markdown}
   slashCommandsConfig={{
-    commands: [...mossDefaultSlashCommands, ...uploadCommands],
+    commands: [...mossDefaultSlashCommands, ...mossUploadCommands(uploader)],
     sideButton: true,
   }}
+  fileUpload={{ uploader, maxConcurrency: 3, maxFiles: 20 }}
 />
 ```
 
-上传在 pending 期间显示一个块级进度 Widget，成功后落回最终 Markdown，失败可重试或取消。pending 状态只活在编辑器内部，不会污染原文。
+`fileUpload` 还支持图片和普通文件的粘贴、拖拽及批量上传。图片生成 `![name](url)`，普通文件生成 `[name](url)`；只读模式不会启动上传。
 
-如果需要直接支持图片和普通文件的粘贴、拖拽及批量上传，可以把同一个 uploader
-传给 `fileUpload`。输入统一为 `File[]`，默认按 MIME 类型分流：图片生成
-`![name](url)`，普通文件生成 `[name](url)`；图片不会自动生成空的 `|caption`，
-用户仍可在图片名后输入 `|caption` 或 `|width=72%`。
+### 表格、任务列表与分隔线
 
-```tsx
-<MossMD
-  markdownSource={'…'}
-  fileUpload={{
-    uploader,
-    maxConcurrency: 3,
-    maxFiles: 20,
-    maxFileSize: 20 * 1024 * 1024,
-  }}
-/>
-```
+- 表格单元格可直接编辑，宽表在自身容器中横向滚动。
+- 任务列表支持标准状态和扩展状态，例如 `- [/] In Progress`、`- [!] Important`。
+- `---`、`***`、`___` 分别提供直线、波浪线和普通分隔线；对称语法可携带原文图标，例如 `---⭐---`。
 
-MossMD 定义 `MossIconKey` 语义 key，图标由宿主项目通过 `icons` 提供。
-未提供的 key 会渲染为空占位。核心协议只要求 renderer 返回 DOM 节点；Lucide
-适配器是独立子路径，使用时再安装 `lucide-react`：
-
-```tsx
-import type { MossIconMap } from 'mossmd/icons';
-import { mossLucideIcon } from 'mossmd/icons/lucide';
-import { Download, File, Pencil, ScanEye, Upload } from 'lucide-react';
-
-const icons: MossIconMap = {
-  'image.edit': mossLucideIcon(Pencil),
-  'image.preview': mossLucideIcon(ScanEye),
-  'file.file': mossLucideIcon(File),
-  'file.download': mossLucideIcon(Download),
-  'upload.file': mossLucideIcon(Upload),
-  'slash.file': mossLucideIcon(File),
-};
-
-<MossMD
-  markdownSource={'…'}
-  icons={icons}
-/>
-```
-
-Feature config 中的 `imagesConfig.icons`、`fileBlocksConfig.icons` 等局部配置仍可覆盖对应图标。
-
-## 阅读模式
-
-```tsx
-<MossMD markdownSource={'…'} readOnly />
-```
-
-阅读模式会保持整篇文档渲染，不显示光标下的源码。链接可直接打开，任务复选框仍可切换，查找功能也正常工作。`readOnly` 通过 `Compartment` 动态切换，不会重挂载编辑器。
-
-## 搜索结果落地
-
-两个 prop 可以在挂载时把用户带到相关位置：
-
-- `initialSearchText`：预填查询并打开搜索面板。
-- `initialRevealText`：直接滚动到第一个命中处，并给一个淡出高亮，不打开面板。
-
-两者都接受 `string | null`。`revealText(query)` 也可以在挂载后通过句柄触发。
-
-搜索面板默认显示在编辑器顶部，也可以放到中间或底部：
-
-```tsx
-<MossMD markdownSource={'…'} searchPanelPosition="center" />
-<MossMD markdownSource={'…'} searchPanelPosition="bottom" />
-```
-
-## 语法高亮
-
-围栏代码块默认只是等宽文本。要启用高亮，传入 `codeLanguages` 数组。
+### Wiki 链接与 Callout
 
 ```tsx
 import { MossMD } from 'mossmd';
-import { MOSS_CODE_LANGUAGES } from 'mossmd/code-languages';
-
-<MossMD markdownSource={'…'} codeLanguages={MOSS_CODE_LANGUAGES} />
-```
-
-如果你想自己组装语言列表，也可以直接传 `LanguageDescription[]`。
-
-## Wiki 链接
-
-```tsx
-import { MossMD } from 'mossmd';
-import { mossWikiLinks } from 'mossmd/features';
+import { mossCalloutSyntax, mossWikiLinks } from 'mossmd/features';
 
 <MossMD
-  markdownSource={'See [[project-atlas|the design doc]] for details.'}
+  markdownSource={'> [!NOTE]\n> Read [[project-atlas|the design doc]].'}
+  customSyntax={[mossCalloutSyntax()]}
   extensions={[
     mossWikiLinks({
       suggest: async (query) => store.search(query),
@@ -210,131 +185,108 @@ import { mossWikiLinks } from 'mossmd/features';
 />
 ```
 
-## 自定义语法
+### 围栏代码高亮
 
-MossMD 提供自定义语法注册层。公开入口是 `mossmd/syntax`，源码对应的协议实现落在 `src/syntax/index.ts`。语法模块会把 `markdown` 交给 `@codemirror/lang-markdown`，把 `extensions` 追加到编辑器扩展集合之后。
+```tsx
+import { MOSS_CODE_LANGUAGES } from 'mossmd/code-languages';
+
+<MossMD markdownSource={markdown} codeLanguages={MOSS_CODE_LANGUAGES} />
+```
+
+也可以传入自行组装的 `LanguageDescription[]`。语言包在匹配到对应围栏时按需加载。
+
+## 定制外观与图标
+
+### 主题
+
+```tsx
+import 'mossmd/editor.css';
+import 'mossmd/tokens.css';
+
+<div data-theme="blue-light">
+  <MossMD markdownSource="# Blue Moss" />
+</div>
+```
+
+可用主题属性包括 `dark`、`light`、`blue` 和 `blue-light`。`tokens.css` 提供共享颜色、字体和字号变量；`editor.css` 提供编辑器表面样式；`content.css` 提供编辑器外 Markdown 内容样式。
+
+### 图标
+
+图标通过语义化 `MossIconMap` 提供，未配置的图标会显示为空占位。Lucide 适配器是可选依赖：
+
+```tsx
+import type { MossIconMap } from 'mossmd/icons';
+import { mossLucideIcon } from 'mossmd/icons/lucide';
+import { Copy, Download, File, Pencil, ScanEye } from 'lucide-react';
+
+const icons: MossIconMap = {
+  'image.edit': mossLucideIcon(Pencil),
+  'image.preview': mossLucideIcon(ScanEye),
+  'image.copy-link': mossLucideIcon(Copy),
+  'file.file': mossLucideIcon(File),
+  'file.download': mossLucideIcon(Download),
+  'file.copy-link': mossLucideIcon(Copy),
+};
+
+<MossMD markdownSource={markdown} icons={icons} />
+```
+
+完整的 renderer 类型、优先级和全部语义 key 见 [图标方案](./docs/icon-customization.md)。
+
+## 扩展 MossMD
+
+### 自定义语法
+
+完整功能通常放在 feature 模块中；简单语法可以通过 `customSyntax` 注册：
 
 ```tsx
 import { MossMD } from 'mossmd';
-import { mossCalloutSyntax } from 'mossmd/features';
-
-<MossMD
-  markdownSource={markdown}
-  customSyntax={[mossCalloutSyntax()]}
-/>
-```
-
-如果你要自己定义模块，可以从 `mossmd/syntax` 引入 `defineMossSyntax`：
-
-```ts
 import { defineMossSyntax } from 'mossmd/syntax';
 
-export const calloutSyntax = defineMossSyntax({
-  name: 'callout',
-  description: 'Callout 块',
-  markdown: calloutMarkdown,
-  extensions: calloutDecorations(),
+const syntax = defineMossSyntax({
+  name: 'example',
+  description: 'Example syntax',
+  markdown: exampleMarkdown,
+  extensions: exampleDecorations(),
 });
+
+<MossMD markdownSource={markdown} customSyntax={[syntax]} />
 ```
 
-内置的 Callout 模块识别 `> [!TYPE]` 这种 blockquote 结构。非激活行会显示紧凑标签，点回首行后再恢复原始标记，方便继续编辑。
+### CodeMirror 组合
 
-## 主题
+`MossMD` 暴露 `extensions`，可追加 autocomplete、装饰、keymap、vim mode 或协作扩展。也可以直接组合 `mossInlinePreview`、`mossTheme`、`mossSyntax` 和 `mossmd/features` 中的各个 feature。
 
-所有颜色、字体、字号都来自 CSS 自定义属性。你可以在编辑器祖先节点上覆盖这些变量，也可以通过 `data-theme="light"` 切换到浅色配色。MossMD 还提供两个蓝色 preset：`data-theme="blue"` 是深海蓝主题，`data-theme="blue-light"` 是浅蓝主题；它们只改变主题 token，不增加编辑器配置。蓝色 preset 与明暗模式是两个独立维度，可以分别选择配色和明暗：
+### 协作
 
-- `data-theme="blue"`：蓝色深色
-- `data-theme="blue-light"`：蓝色浅色
-- `data-theme="dark"`：默认深色
-- `data-theme="light"`：默认浅色
-
-`mossmd/tokens.css` 提供共享主题令牌，`mossmd/editor.css` 负责编辑器表面样式，`mossmd/content.css` 负责渲染后的 Markdown。
-
-```tsx
-import { MossMD } from 'mossmd';
-import 'mossmd/editor.css';
-
-export function BlueMoss() {
-  return (
-    <div data-theme="blue">
-      <MossMD markdownSource="# Blue Moss" />
-    </div>
-  );
-}
-```
-
-图片块会在图片上显示预览按钮；点击后在编辑器外打开大图预览，不会修改 Markdown 或改变文档布局。编辑模式下还会显示编辑和缩放按钮，可修改 alt 文本、图片标题、宽度和 URL。点击图片会选中完整的原始图片语法，因此复制、删除仍然作用于 Markdown 源文。触摸设备上按钮会自动使用较大的常驻触控目标；如需关闭编辑、缩放或预览，可以传入 `imagesConfig={{ editable: false, resizable: false, previewable: false }}`。
-
-宽度会使用 MossMD 的扩展图片语法保存，例如 `![alt|caption|width=72%](url)`。旧的 `![alt](url)` 和 `![alt|caption](url)` 格式仍然兼容。
-
-独立成行的文件链接会渲染为文件块并始终隐藏源码。编辑模式下文件块提供下载和删除操作；只读模式下仅提供下载操作。
-
-任务列表支持扩展状态，例如 `- [/] In Progress`、`- [!] Important` 和
-`- [\\*] Star`。状态图标由顶层 `icons` 中的 `task.*` key 提供；也可以通过
-`inlinePreviewConfig.taskCheckboxes` 覆盖图标、名称、是否填充，或增加自定义状态：
-
-```tsx
-import { mossLucideIcon } from 'mossmd/icons/lucide';
-import { CircleAlert } from 'lucide-react';
-
-<MossMD
-  markdownSource={'- [!] Important'}
-  inlinePreviewConfig={{
-    taskCheckboxes: {
-      '!': { icon: mossLucideIcon(CircleAlert), label: 'Important' },
-    },
-  }}
-/>
-```
-
-标准 `[ ]`/`[x]` 会互相切换；自定义状态使用状态字符和带 `-` 前缀的状态字符表示填充态与空白态，例如 `[A]` 和 `[-A]`。用户也可以通过 `toggleTo` 自定义两个状态之间的切换。
-
-水平分隔线支持普通语法和对称图标语法。默认语法不带图标：`---` 为普通直线，`***` 为舒缓波浪线，`___` 为普通分隔线。需要图标时，将图标放在两侧相同的分隔符之间：
-
-```tsx
-<MossMD
-  markdownSource={'---⭐---\n***🌿***'}
-/>
-```
-
-`---⭐---` 会渲染为带 `⭐` 的直线，`***🌿***` 会渲染为带 `🌿` 的波浪线。图标内容来自 Markdown 原文，因此复制、保存和协作同步都能保留它。
-
-## 底层组合
-
-如果你不想使用完整的 React 包装，可以直接把各个模块拼起来：
+通过 `collabAdapter` 接入协作同步层。适配器实现 `attach`、`detach` 和 `onRemoteChange`，可在其中接入 yjs、Automerge 或自定义同步服务。
 
 ```ts
-import {
-  mossInlinePreview,
-  mossTheme,
-  mossSyntax,
-  extendEmphasisPair,
-} from 'mossmd';
-import {
-  mossImages,
-  mossFileBlocks,
-  mossTables,
-  mossWikiLinks,
-  mossCallouts,
-  mossSlashCommands,
-  mossUploadBlocks,
-} from 'mossmd/features';
+import type { CollabAdapter } from 'mossmd/collab';
 ```
 
-上述函数都是独立的 CM6 模块，可以按需组合。
+## 入口与深入文档
 
-## 协作
+| 入口 | 内容 |
+| --- | --- |
+| `mossmd` | `MossMD`、主题、输入辅助、阅读模式、语法协议和代码语言注册表 |
+| `mossmd/features` | 图片、文件块、表格、Wiki 链接、Callout、斜杠命令和上传功能 |
+| `mossmd/syntax` | 自定义语法注册协议 |
+| `mossmd/code-languages` | 精选围栏代码语言列表 |
+| `mossmd/collab` | 协作适配器接口 |
+| `mossmd/editor.css` | 编辑器样式 |
+| `mossmd/content.css` | 编辑器外 Markdown 内容样式 |
+| `mossmd/tokens.css` | 主题令牌 |
 
-`CollabAdapter` 预留给协作同步层。默认实现是 `noopCollabAdapter`，只是不做任何事。未来如果接入 yjs 或别的同步方案，只要实现 `attach`、`detach`、`onRemoteChange` 就行。
-
-## 设计说明
-
-更完整的架构说明见 [docs/architecture.md](./docs/architecture.md)。
-
-- 原始 Markdown 是唯一数据源
-- 行高只由 CSS 类控制
-- 鼠标按下后会短暂冻结装饰重建
-- 装饰重建只覆盖受影响的范围
+- [项目起源](./docs/project-origin.md)
+- [架构说明](./docs/architecture.md)
+- [实时预览架构](./docs/inline-preview-architecture.md)
+- [实时预览规则](./docs/live-preview-rules.md)
+- [列表编辑优化 TODO](./docs/list-editing-todo.md)
+- [图标方案](./docs/icon-customization.md)
+- [上传实现](./docs/file-upload-implementation.md)
+- [公式与 HTML roadmap](./docs/math-html-roadmap.md)
+- [测试说明](./docs/testing.md)
 
 ## 许可证
 

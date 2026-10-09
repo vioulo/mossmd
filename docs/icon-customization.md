@@ -8,7 +8,7 @@ MossMD 的图标只属于视图层：它们可以影响按钮、占位符和命�
 - 编辑器核心不携带具体图标源；宿主项目通过 `MossIconMap` 补全语义 key。
 - `icons/lucide.ts` 是可选适配层，使用 Lucide 时从 `mossmd/icons/lucide` 引入。
 - Widget 和按钮通过 DOM `Node` 插入图标，不要求消费方使用 Lucide。
-- 只暴露用户能明显感知的图标定制点；搜索、表格菜单等内部控件先保持内置视觉。
+- 用户可见的图片、文件、上传、搜索、表格、Slash command、任务和代码块图标都可以通过语义 key 覆盖。
 
 ## 轻量化约束
 
@@ -53,8 +53,7 @@ Feature 级配置仍然保留，适合手工组合 CodeMirror extensions 或只�
 - 文件块：`fileBlocksConfig.icons` / `mossFileBlocks({ icons })`
 - 上传进度块：`MossUploadBlockConfig.icons` / `mossUploadBlocks({ icons })`
 
-外链图标仍由 CSS mask/data URI 管理，后续如要开放，应走 link/theme 配置而不是复用 block icon 配置。
-- 外链图标。它仍由 CSS mask/data URI 管理，后续如要开放，应走 link/theme 配置而不是复用 block icon 配置。
+外链图标仍由 CSS mask/data URI 管理；它不属于 block icon 配置，后续如要开放应走 link/theme 配置。
 
 ## 配置示例
 

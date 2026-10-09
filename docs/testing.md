@@ -12,7 +12,7 @@
 
 `bun run test:e2e` 针对 `demo/harness.html` 运行 `tests/e2e` 下的规格。该 fixture 刻意排除了交互式 demo 的控制项和示例数据，给每个测试一个固定的视口、隔离的编辑器以及明确的 load/focus/source API。
 
-Chromium 运行每个规格。Firefox 和 WebKit 运行标记为 `@smoke` 的测试，覆盖挂载、渲染、编辑和只读行为。失败会保留 trace、video 和截图（`test-results`）以及 HTML 报告（`playwright-report`）。
+Chromium 运行完整规格。Firefox 和 WebKit 只运行标记为 `@smoke` 的基础兼容性测试，覆盖挂载、基础渲染和搜索面板。失败会保留 trace、video 和截图（`test-results`）以及 HTML 报告（`playwright-report`）。
 
 使用 `bun run test:e2e:headed` 交互式调试 Chromium 套件。
 

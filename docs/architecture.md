@@ -61,6 +61,7 @@ src/
     callout/index.ts
     slash-commands/index.ts
     upload/index.ts
+    search/index.ts
   syntax/
     index.ts
     highlight.ts
@@ -99,7 +100,7 @@ src/
 - 把列表符号、任务复选框、水平线等渲染为更接近阅读状态的表现。
 - 遍历语法树并组装实时预览装饰。
 
-列表编辑和导航位于 `list-editing.ts`、`list-navigation.ts`，列表源码模型位于 `list-model.ts`；任务和代码块 Widget 位于 `preview-widgets.ts`，焦点与鼠标冻结位于 `preview-activity.ts`。详细边界见 [`inline-preview-architecture.md`](./inline-preview-architecture.md)。
+列表编辑和导航位于 `list-editing.ts`、`list-navigation.ts`，列表源码模型位于 `list-model.ts`；任务和代码块 Widget 位于 `preview-widgets.ts`，焦点与鼠标冻结位于 `preview-activity.ts`。详细边界见 [`inline-preview-architecture.md`](./inline-preview-architecture.md) 和 [`list-editing-todo.md`](./list-editing-todo.md)。
 
 装饰构建会调用 `ensureSyntaxTree(state, state.doc.length, 200)`，尽量保证全文解析覆盖。若解析在首次构建时没有到达文末，`treeProgressPlugin` 会在解析树增长后触发补建。
 
@@ -115,7 +116,7 @@ src/
 
 ### 文件块
 
-`features/file-blocks/index.ts` 把单独成段的非图片文件链接（按扩展名识别）渲染为卡片 Widget：大文件图标 + 扩展名徽章 + 文件名 + 大小提示。点击卡片会把光标落到源码行以便编辑，遵循光标显露约定。
+`features/file-blocks/index.ts` 把单独成段的非图片文件链接（按扩展名识别）渲染为卡片 Widget：大文件图标 + 扩展名徽章 + 文件名 + 信息提示。编辑模式下点击卡片会选中完整 Markdown 源码，下载和复制链接按钮只操作视图，不改变原文；只读模式不提供源码选中。
 
 ### 表格
 

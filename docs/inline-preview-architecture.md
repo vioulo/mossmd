@@ -38,7 +38,7 @@ separatorFrom .. separatorTo 分隔空白源码
 contentFrom                  列表正文的稳定源码起点
 ```
 
-列表标记可以被 mark 或 Widget 重新呈现，结构性缩进可以被 replace 隐藏，但这些变化不能改变原文位置的含义。导航命令优先通过 `list-model` 计算源码边界；当前上下移动的相邻行兜底是对视觉布局的保护策略，待真实浏览器几何测试完善后再评估是否移除。
+列表标记可以被 mark 或 Widget 重新呈现，结构性缩进可以被 replace 隐藏，但这些变化不能改变原文位置的含义。导航命令优先通过 `list-model` 计算源码边界；`list-navigation.ts` 对上下移动保留正文偏移，并在预览几何与源码几何不一致时使用相邻源码行兜底。
 
 ## 当前策略与后续边界
 
@@ -46,4 +46,4 @@ contentFrom                  列表正文的稳定源码起点
 - 标准链接使用链接范围判断显露，不继承整行激活；Wiki 链接范围由 Wiki feature 独占。
 - 图片、表格、文件块和上传块由各自 feature 的 Widget 负责。
 - `isWikiLinkNode()` 目前仍是核心装饰层的过渡性排除判断。长期应由 feature 注册独占源码范围，届时再移除这项具体语法知识。
-- `nearInlineRanges` 和通用 `decoration-policy` 尚未建立。本轮先统一已有 activity 生命周期和列表模型，避免在行为契约尚未覆盖时引入更大的策略抽象。
+- `PreviewActivity` 当前提供编辑器焦点、当前行和冻结状态；`nearInlineRanges` 与通用 `decoration-policy` 仍是后续抽象，不应在没有行为测试的情况下提前引入。

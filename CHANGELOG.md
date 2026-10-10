@@ -6,6 +6,7 @@
 
 - 新增 `contentWidth`，支持默认阅读宽度、自定义 CSS 宽度和 `full` 全宽模式。
 - 新增统一的图标与操作按钮尺寸 token。
+- `closeBrackets add '='`
 
 ### 调整
 

@@ -15,6 +15,10 @@ import {
 } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType, keymap, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 import { readOnlyFacet } from '../../core/read-only';
+import {
+  isPreviewRangeActive,
+  previewFrozenField,
+} from '../../core/preview-activity';
 
 export type WikiLinkStatus = 'resolved' | 'loading' | 'missing' | 'unresolved';
 
@@ -140,7 +144,7 @@ class WikiLinkResolverPlugin {
     for (const link of links) {
       if (
         link.label ||
-        (!readOnly && isSelectionInsideLink(this.view.state, link)) ||
+        (!readOnly && isPreviewRangeActive(this.view.state, link, this.view.hasFocus)) ||
         !shouldResolveWikiLink(this.config, link.target) ||
         this.pending.has(link.target) ||
         resolved.has(link.target)
@@ -183,10 +187,11 @@ export function wikiLinks(config: WikiLinksConfig = {}): Extension {
       let resolutionChanged = false;
 
       for (const effect of transaction.effects) {
-        if (!effect.is(wikiLinkResolved)) continue;
-        if (resolved === value.resolved) resolved = new Map(value.resolved);
-        resolved.set(effect.value.target, effect.value.resolved);
-        resolutionChanged = true;
+        if (effect.is(wikiLinkResolved)) {
+          if (resolved === value.resolved) resolved = new Map(value.resolved);
+          resolved.set(effect.value.target, effect.value.resolved);
+          resolutionChanged = true;
+        }
       }
 
       // Evict oldest insertions (Map preserves insertion order) once the
@@ -202,11 +207,23 @@ export function wikiLinks(config: WikiLinksConfig = {}): Extension {
       const readOnlyChanged =
         transaction.startState.facet(readOnlyFacet) !==
         transaction.state.facet(readOnlyFacet);
+      const frozenChanged =
+        (transaction.startState.field(previewFrozenField, false) ?? false) !==
+        (transaction.state.field(previewFrozenField, false) ?? false);
+      if (
+        transaction.selection &&
+        (transaction.state.field(previewFrozenField, false) ?? false) &&
+        !transaction.docChanged &&
+        !readOnlyChanged
+      ) {
+        return { resolved, decorations: value.decorations.map(transaction.changes) };
+      }
       if (
         transaction.docChanged ||
         transaction.selection ||
         resolutionChanged ||
-        readOnlyChanged
+        readOnlyChanged ||
+        (frozenChanged && !(transaction.state.field(previewFrozenField, false) ?? false))
       ) {
         return { resolved, decorations: buildDecorations(transaction.state, resolved, config) };
       }
@@ -391,7 +408,7 @@ function buildDecorations(
   for (const link of links) {
     if (!isSingleLineRange(state, link.from, link.to)) continue;
 
-    if (!readOnly && isSelectionNearLink(state, link)) {
+    if (!readOnly && isPreviewRangeActive(state, link, true)) {
       builder.add(link.from, link.to, Decoration.mark({ class: 'cm-moss-wiki-link-active' }));
       continue;
     }
@@ -591,24 +608,6 @@ function inlineCodeSpans(text: string): { from: number; to: number }[] {
   }
 
   return spans;
-}
-
-function isSelectionInsideLink(state: EditorState, link: ParsedWikiLink): boolean {
-  return state.selection.ranges.some((range) => {
-    const from = Math.min(range.from, range.to);
-    const to = Math.max(range.from, range.to);
-    if (from === to) return from > link.from && from < link.to;
-    return from < link.to && to > link.from;
-  });
-}
-
-function isSelectionNearLink(state: EditorState, link: ParsedWikiLink): boolean {
-  return state.selection.ranges.some((range) => {
-    const from = Math.min(range.from, range.to);
-    const to = Math.max(range.from, range.to);
-    if (from === to) return from >= link.from && from <= link.to;
-    return from <= link.to && to >= link.from;
-  });
 }
 
 function isSingleLineRange(state: EditorState, from: number, to: number): boolean {

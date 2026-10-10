@@ -42,6 +42,20 @@ afterEach(() => {
 });
 
 describe('MossMD', () => {
+  it('applies content width modes to the editor root', () => {
+    const { host } = mount(
+      <MossMD markdownSource="content" contentWidth="full" />,
+    );
+    const root = host.querySelector<HTMLElement>('.moss-cm-editor');
+    expect(root?.dataset.contentWidth).toBe('full');
+
+    const custom = mount(
+      <MossMD markdownSource="content" contentWidth="960px" />,
+    ).host.querySelector<HTMLElement>('.moss-cm-editor');
+    expect(custom?.dataset.contentWidth).toBeUndefined();
+    expect(custom?.style.getPropertyValue('--moss-content-width')).toBe('960px');
+  });
+
   it('mounts and exposes the initial markdown via the imperative handle', () => {
     const handleRef = createRef<MossMDHandle | null>() as {
       current: MossMDHandle | null;
@@ -1294,6 +1308,29 @@ describe('MossMD', () => {
 
     act(() => handleRef.current?.undo());
     expect(handleRef.current?.getMarkdown()).toBe(markdown);
+  });
+
+  it('copies the editor theme tokens to a body-mounted table menu', () => {
+    const host = document.createElement('div');
+    host.dataset.theme = 'light';
+    host.style.setProperty('--moss-bg-panel', 'rgb(250, 250, 250)');
+    host.style.width = '600px';
+    host.style.height = '400px';
+    document.body.appendChild(host);
+    hosts.push(host);
+    const root = createRoot(host);
+    act(() => root.render(<MossMD markdownSource={'| A |\n| --- |\n| 1 |'} />));
+
+    const source = host.querySelector<HTMLElement>('.cm-moss-table-cell-source');
+    const trigger = host.querySelector<HTMLButtonElement>('.cm-moss-table-menu-trigger');
+    act(() => source?.focus());
+    act(() => trigger?.click());
+
+    const menu = document.querySelector<HTMLElement>('.cm-moss-table-menu');
+    expect(menu?.getAttribute('data-theme')).toBe('light');
+    expect(menu?.style.getPropertyValue('--moss-bg-panel')).toBe('rgb(250, 250, 250)');
+    menu?.remove();
+    act(() => root.unmount());
   });
 
   it('undoes cell edits and restores the rendered cell source', () => {

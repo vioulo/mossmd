@@ -12,6 +12,7 @@ type HarnessTheme = 'dark' | 'light';
 interface HarnessOptions {
   readOnly?: boolean;
   theme?: HarnessTheme;
+  contentWidth?: 'full' | string;
 }
 
 interface HarnessController {
@@ -35,6 +36,7 @@ interface HarnessState {
   readOnly: boolean;
   revision: number;
   theme: HarnessTheme;
+  contentWidth?: 'full' | string;
 }
 
 function Harness() {
@@ -59,6 +61,7 @@ function Harness() {
             readOnly: options.readOnly ?? false,
             revision: current.revision + 1,
             theme: options.theme ?? 'dark',
+            contentWidth: options.contentWidth,
           }));
         });
       },
@@ -104,6 +107,7 @@ function Harness() {
           markdownSource={state.markdown}
           onLinkClick={(url) => openedUrls.current.push(url)}
           readOnly={state.readOnly}
+          contentWidth={state.contentWidth}
         />
       </div>
     </main>

@@ -72,4 +72,11 @@ test.describe('Inline preview', () => {
       'First line',
     );
   });
+
+  test('hides side plus when full-width content leaves no left gutter', async ({ page }) => {
+    await page.evaluate(() => window.mossHarness!.load('', { contentWidth: 'full' }));
+    await page.evaluate(() => window.mossHarness!.focus());
+    await page.waitForTimeout(100);
+    await expect(page.locator('.cm-moss-side-plus')).toBeHidden();
+  });
 });

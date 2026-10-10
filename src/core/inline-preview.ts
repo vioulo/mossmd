@@ -21,6 +21,7 @@ import {
   getPreviewActivity,
   linkElementFromEvent,
   linkIconHitTarget,
+  isPreviewRangeActive,
   previewActivityExtension,
   previewFrozenField,
   refreshInlinePreview,
@@ -444,16 +445,11 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
           }).range(doc.line(firstLine).from),
         );
       }
-      if (node.name === 'Link' && view.hasFocus) {
-        for (const range of state.selection.ranges) {
-          // Inclusive overlap: cursor sitting exactly on either
-          // boundary counts as inside, matching the UX where the
-          // next keystroke affects the link.
-          if (range.from <= node.to && range.to >= node.from) {
-            activeLinkStarts.add(node.from);
-            break;
-          }
-        }
+      if (
+        node.name === 'Link' &&
+        isPreviewRangeActive(state, node, view.hasFocus)
+      ) {
+        activeLinkStarts.add(node.from);
       }
       if (node.name === 'FencedCode') {
         const firstLine = doc.lineAt(node.from);

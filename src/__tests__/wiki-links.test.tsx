@@ -10,6 +10,7 @@ import {
 import { EditorView } from '@codemirror/view';
 import { MossMD } from '../editor';
 import { readOnlyExtension } from '../core/read-only';
+import { previewActivityExtension } from '../core/preview-activity';
 import { mossWikiLinks as wikiLinks } from '../features/wiki-links';
 
 type Mounted = { host: HTMLElement; root: Root };
@@ -93,10 +94,11 @@ describe('wikiLinks', () => {
     const firstLinkFrom = doc.indexOf('[[demo-project-atlas');
     const firstLinkTo = doc.indexOf(']]', firstLinkFrom) + 2;
     const secondLinkFrom = doc.indexOf('[[demo-meeting-notes]]');
-    const view = makeView(doc, [wikiLinks()], { anchor: doc.indexOf('In code') });
+    const view = makeView(doc, [previewActivityExtension(), wikiLinks()], { anchor: doc.indexOf('In code') });
 
     expect(view.dom.querySelectorAll('.cm-moss-wiki-link-active')).toHaveLength(0);
 
+    view.focus();
     view.dispatch({ selection: { anchor: firstLinkTo } });
     expect(view.dom.querySelectorAll('.cm-moss-wiki-link-active')).toHaveLength(1);
     expect(view.dom.querySelector('.cm-moss-wiki-link-active')?.textContent).toContain(
@@ -149,14 +151,17 @@ describe('wikiLinks', () => {
     expect(onOpen).toHaveBeenCalledWith('atom-123');
   });
 
-  it('collapses active wiki-link source when reading mode is enabled', () => {
+  it('collapses active wiki-link source when reading mode is enabled', async () => {
     const doc = 'Before [[atom-123|Project Atlas]] after';
     const readOnly = new Compartment();
     const view = makeView(
       doc,
-      [wikiLinks(), readOnly.of(readOnlyExtension(false))],
+      [previewActivityExtension(), wikiLinks(), readOnly.of(readOnlyExtension(false))],
       { anchor: doc.indexOf('atom-123') + 2 },
     );
+
+    view.focus();
+    await new Promise((resolve) => setTimeout(resolve, 25));
 
     expect(view.dom.querySelector('.cm-moss-wiki-link-active')).not.toBeNull();
 
@@ -181,18 +186,22 @@ describe('wikiLinks', () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
-  it('does not resolve a bare wiki link while the cursor is inside it', () => {
+  it('does not resolve a bare wiki link while the cursor is inside it', async () => {
     const resolve = vi.fn(async (target: string) => ({ target, label: 'Resolved Target', status: 'resolved' as const }));
     const cursorInsideTarget = 'Draft: [['.length + 2;
     const view = makeView(
       'Draft: [[atom-123]]',
-      [wikiLinks({ resolve })],
+      [previewActivityExtension(), wikiLinks({ resolve })],
       { anchor: cursorInsideTarget },
     );
+
+    view.focus();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(resolve).not.toHaveBeenCalled();
 
     view.dispatch({ selection: { anchor: view.state.doc.length } });
+    await new Promise((resolve) => setTimeout(resolve, 25));
 
     expect(resolve).toHaveBeenCalledOnce();
     expect(resolve).toHaveBeenCalledWith('atom-123');
@@ -201,7 +210,7 @@ describe('wikiLinks', () => {
   it('does not resolve or decorate bare links rejected by the resolver policy', () => {
     const resolve = vi.fn(async (target: string) => ({ target, label: 'Resolved Target', status: 'resolved' as const }));
     const view = makeView('Draft: [[not-an-atom-id]]', [
-      wikiLinks({
+      previewActivityExtension(), wikiLinks({
         resolve,
         shouldResolve: () => false,
       }),
@@ -217,6 +226,7 @@ describe('wikiLinks', () => {
     const view = makeView(
       doc,
       [
+        previewActivityExtension(),
         wikiLinks({
           resolve: async (target) => ({ target, label: 'Missing atom', status: 'missing' }),
         }),

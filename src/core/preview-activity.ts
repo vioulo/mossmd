@@ -1,12 +1,12 @@
 import {
   EditorView,
   ViewPlugin,
-  type ViewUpdate,
 } from '@codemirror/view';
 import {
   StateEffect,
   StateField,
   type Extension,
+  type EditorState,
 } from '@codemirror/state';
 import { readOnlyFacet } from './read-only';
 import type { ParsedTaskMarker } from './preview-widgets';
@@ -30,6 +30,25 @@ export interface PreviewActivity {
   editorFocused: boolean;
   activeLines: ReadonlySet<number>;
   frozen: boolean;
+}
+
+export interface PreviewSourceRange {
+  from: number;
+  to: number;
+}
+
+export function isPreviewRangeActive(
+  state: EditorState,
+  range: PreviewSourceRange,
+  editorFocused: boolean,
+): boolean {
+  if (!editorFocused || state.facet(readOnlyFacet)) return false;
+  const from = Math.min(range.from, range.to);
+  const to = Math.max(range.from, range.to);
+  return state.selection.ranges.some((selection) => {
+    if (selection.empty) return selection.head >= from && selection.head <= to;
+    return selection.from <= to && selection.to >= from;
+  });
 }
 
 export function getPreviewActivity(view: EditorView): PreviewActivity {
@@ -189,8 +208,6 @@ const freezeMousePlugin = ViewPlugin.fromClass(
       window.addEventListener('pointerup', this.onUp);
       window.addEventListener('pointercancel', this.onUp);
     }
-
-    update(_: ViewUpdate) {}
 
     destroy() {
       this.view.dom.removeEventListener('pointerdown', this.onDown, true);

@@ -50,7 +50,9 @@
  * frame can still be wide (for search UI, sidebars, etc.) — only the
  * text column is narrowed. */
 .moss-cm-editor .cm-content {
-  max-width: var(--moss-measure, 70ch);
+  width: min(100%, var(--moss-content-width, var(--moss-measure, 70ch)));
+  max-width: var(--moss-content-width, var(--moss-measure, 70ch));
+  box-sizing: border-box;
   margin-inline: auto;
   padding-inline: 0.5rem;
   font-family: var(--moss-font, system-ui, -apple-system, BlinkMacSystemFont, sans-serif);
@@ -58,6 +60,12 @@
   line-height: var(--moss-body-leading, 1.7);
   color: var(--moss-fg, #dcddde);
   text-wrap: pretty;
+}
+
+.moss-cm-editor[data-content-width="full"] .cm-content {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
 }
 
 .cm-line.cm-moss-empty-line {
@@ -294,12 +302,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
+  width: var(--moss-control-size, 24px);
+  height: var(--moss-control-size, 24px);
   padding: 0;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--moss-radius, 6px);
+  border-radius: var(--moss-control-radius, 6px);
   color: var(--moss-fg-muted, #888);
   cursor: pointer;
   opacity: 0.7;
@@ -322,8 +330,8 @@
 }
 
 .cm-moss-code-copy svg {
-  width: 1rem;
-  height: 1rem;
+  width: var(--moss-control-icon-size, 16px);
+  height: var(--moss-control-icon-size, 16px);
 }
 
 /* Inline content marks — applied on the text inside **…**, *…*, `…`,
@@ -625,14 +633,14 @@
   top: 0.7em;
   right: 0.7em;
   z-index: 1;
-  width: 2em;
-  height: 2em;
+  width: var(--moss-control-size, 24px);
+  height: var(--moss-control-size, 24px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
-  border-radius: 0.35em;
+  border-radius: var(--moss-control-radius, 6px);
   background: var(--moss-bg-panel, #252525);
   color: var(--moss-fg, #dcddde);
   cursor: pointer;
@@ -667,14 +675,14 @@
   top: 0.7em;
   left: 0.7em;
   z-index: 1;
-  width: 2em;
-  height: 2em;
+  width: var(--moss-control-size, 24px);
+  height: var(--moss-control-size, 24px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
-  border-radius: 0.35em;
+  border-radius: var(--moss-control-radius, 6px);
   background: var(--moss-bg-panel, #252525);
   color: var(--moss-fg, #dcddde);
   cursor: pointer;
@@ -691,14 +699,14 @@
   left: 0.55em;
   bottom: 0.55em;
   z-index: 1;
-  width: 2em;
-  height: 2em;
+  width: var(--moss-control-size, 24px);
+  height: var(--moss-control-size, 24px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
-  border-radius: 0.35em;
+  border-radius: var(--moss-control-radius, 6px);
   background: var(--moss-bg-panel, #252525);
   color: var(--moss-fg, #dcddde);
   cursor: pointer;
@@ -716,14 +724,14 @@
   right: 0.55em;
   bottom: 0.55em;
   z-index: 1;
-  width: 2em;
-  height: 2em;
+  width: var(--moss-control-size, 24px);
+  height: var(--moss-control-size, 24px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 1px solid var(--moss-border, rgba(127, 127, 127, 0.45));
-  border-radius: 0.35em;
+  border-radius: var(--moss-control-radius, 6px);
   background: var(--moss-bg-panel, #252525);
   color: var(--moss-fg, #dcddde);
   cursor: nwse-resize;
@@ -747,8 +755,8 @@
   .cm-moss-image-preview,
   .cm-moss-image-copy-link,
   .cm-moss-image-resize {
-    width: 2.75rem;
-    height: 2.75rem;
+    padding: 10px;
+    margin: -10px;
     opacity: 1;
   }
 }
@@ -814,8 +822,8 @@
 }
 
 .cm-moss-image-editor-button {
-  width: 1.9em;
-  height: 1.9em;
+  width: var(--moss-control-size, 24px);
+  height: var(--moss-control-size, 24px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1081,8 +1089,8 @@
 
 .cm-moss-file-block-download,
 .cm-moss-file-block-copy-link {
-  width: 2em;
-  height: 2em;
+  width: var(--moss-control-size, 24px);
+  height: var(--moss-control-size, 24px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1117,8 +1125,8 @@
 
   .cm-moss-file-block-download,
   .cm-moss-file-block-copy-link {
-    width: 2.75rem;
-    height: 2.75rem;
+    padding: 10px;
+    margin: -10px;
   }
 }
 
@@ -1305,8 +1313,8 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 1.4em;
-  height: 1.4em;
+  width: var(--moss-control-size, 24px);
+  height: var(--moss-control-size, 24px);
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -1318,7 +1326,7 @@
   background: var(--moss-side-plus-bg, rgba(127, 127, 127, 0.22));
   color: var(--moss-fg-muted, #b4b8bf);
   font: inherit;
-  font-size: 1em;
+  font-size: var(--moss-control-icon-size, 16px);
   line-height: 1;
   cursor: pointer;
   user-select: none;
@@ -1329,8 +1337,8 @@
 }
 
 .cm-moss-side-plus svg {
-  width: 1em;
-  height: 1em;
+  width: var(--moss-control-icon-size, 16px);
+  height: var(--moss-control-icon-size, 16px);
   display: block;
 }
 
@@ -1709,14 +1717,14 @@ input.cm-moss-task-checkbox:focus-visible {
   top: 50%;
   right: -0.7em;
   z-index: 2;
-  width: 1.6em;
-  height: 1.6em;
+  width: var(--moss-control-size, 24px);
+  height: var(--moss-control-size, 24px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 1px solid var(--moss-border, #3d3d3d);
-  border-radius: 0.35em;
+  border-radius: var(--moss-control-radius, 6px);
   background: var(--moss-bg-panel, #252525);
   color: var(--moss-fg-muted, #888);
   cursor: pointer;
@@ -1746,8 +1754,8 @@ input.cm-moss-task-checkbox:focus-visible {
 }
 
 .cm-moss-table-menu-trigger svg {
-  width: 1em;
-  height: 1em;
+  width: var(--moss-control-icon-size, 16px);
+  height: var(--moss-control-icon-size, 16px);
 }
 
 /* The editable source inside a cell — always shows the raw markdown
@@ -1876,6 +1884,7 @@ input.cm-moss-task-checkbox:focus-visible {
   font-family: var(--moss-font, system-ui, sans-serif);
   font-size: 0.82rem;
   color: var(--moss-fg, #dcddde);
+  box-sizing: border-box;
 }
 
 .cm-moss-table-menu-item {

@@ -1071,6 +1071,22 @@ function openCellMenu(
 
   const menu = document.createElement('div');
   menu.className = 'cm-moss-table-menu';
+  const owner = wrap.closest<HTMLElement>('.moss-cm-editor') ?? wrap;
+  const themeOwner = owner.closest<HTMLElement>('[data-theme]');
+  const theme = themeOwner?.getAttribute('data-theme');
+  if (theme) menu.setAttribute('data-theme', theme);
+  const computed = owner.ownerDocument.defaultView?.getComputedStyle(owner);
+  if (computed) {
+    for (const name of [
+      '--moss-font', '--moss-fg', '--moss-fg-muted', '--moss-bg-panel',
+      '--moss-bg-surface', '--moss-border', '--moss-accent',
+      '--moss-hl-invalid', '--moss-radius', '--moss-control-size',
+      '--moss-control-icon-size', '--moss-control-radius', '--moss-control-gap',
+    ]) {
+      const value = computed.getPropertyValue(name);
+      if (value) menu.style.setProperty(name, value);
+    }
+  }
   menu.style.left = `${x}px`;
   menu.style.top = `${y}px`;
 

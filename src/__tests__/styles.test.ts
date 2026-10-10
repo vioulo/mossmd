@@ -10,6 +10,10 @@ const tokenStyles = readFileSync(
   resolve(process.cwd(), 'src/styles/tokens.css'),
   'utf8',
 );
+const editorStyles = readFileSync(
+  resolve(process.cwd(), 'src/styles/inline-preview.css'),
+  'utf8',
+);
 
 describe('content styles', () => {
   it('exposes dark and light blue theme presets through shared tokens', () => {
@@ -19,6 +23,13 @@ describe('content styles', () => {
     expect(tokenStyles).toContain('--moss-bg: #f7fbff;');
     expect(tokenStyles).toContain('--moss-accent: #2d6dc3;');
     expect(tokenStyles).toContain('--moss-search-bg: rgba(250, 209, 59, 0.28);');
+  });
+
+  it('exposes shared control tokens and content width modes', () => {
+    expect(tokenStyles).toContain('--moss-control-size: 24px;');
+    expect(tokenStyles).toContain('--moss-control-icon-size: 16px;');
+    expect(editorStyles).toContain('data-content-width="full"');
+    expect(editorStyles).toContain('--moss-content-width, var(--moss-measure, 70ch)');
   });
 
   it('themes ordered-list markers with the shared list token', () => {

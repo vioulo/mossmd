@@ -104,7 +104,7 @@ interface SlashCommandCompletion extends Completion {
 
 interface SidePlusMeasure {
   button: HTMLButtonElement;
-  left: number;
+  left: number | null;
   top: number;
 }
 
@@ -358,7 +358,7 @@ function createSidePlusButton(
   appendMossIcon(
     btn,
     resolveMossIcon('slash.side-button', view.state.facet(mossIconFacet)),
-    { size: 18, strokeWidth: 2 },
+    { size: 16, strokeWidth: 2 },
   );
   btn.title = 'Add a block (or type /)';
   btn.setAttribute('aria-label', 'Add a block');
@@ -471,15 +471,17 @@ const sidePlusButtonPlugin = ViewPlugin.fromClass(
           const buttonRect = this.button.getBoundingClientRect();
           return {
             button: this.button,
-            left: Math.max(
-              0,
-              coords.left - hostRect.left - buttonRect.width - 8,
-            ),
+            left:
+              coords.left - hostRect.left >= buttonRect.width + 8
+                ? coords.left - hostRect.left - buttonRect.width - 8
+                : null,
             top: Math.max(0, coords.top - hostRect.top),
           };
         },
         write: (measure) => {
           if (!measure || measure.button !== this.button) return;
+          measure.button.hidden = measure.left == null;
+          if (measure.left == null) return;
           measure.button.style.left = `${measure.left}px`;
           measure.button.style.top = `${measure.top}px`;
         },

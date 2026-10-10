@@ -14,6 +14,10 @@
   --moss-body-leading: 1.7;
   --moss-measure: 70ch;
   --moss-radius: 6px;
+  --moss-control-size: 24px;
+  --moss-control-icon-size: 16px;
+  --moss-control-radius: 6px;
+  --moss-control-gap: 6px;
 
   --moss-fg: #dcddde;
   --moss-fg-muted: #888888;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MutableRefObject } from 'react';
+import { useEffect, useRef, type CSSProperties, type MutableRefObject } from 'react';
 import {
   Decoration,
   EditorView,
@@ -125,6 +125,8 @@ export interface MossMDHandle {
 }
 
 export interface MossMDProps {
+  /** Width of the rendered Markdown column. Defaults to the 70ch reading measure. */
+  contentWidth?: 'full' | string;
   /**
    * Opaque identity for the document. Swapping `documentId` tears down
    * and re-mounts the view so cursor / undo state from a previous
@@ -305,6 +307,7 @@ export interface MossMDProps {
  */
 export function MossMD({
   markdownSource,
+  contentWidth,
   documentId,
   initialSearchText,
   searchPanelPosition = 'top',
@@ -705,7 +708,18 @@ export function MossMD({
     };
   }, [editorHandleRef]);
 
-  return <div ref={rootRef} className="moss-cm-editor" />;
+  return (
+    <div
+      ref={rootRef}
+      className="moss-cm-editor"
+      data-content-width={contentWidth === 'full' ? 'full' : undefined}
+      style={
+        contentWidth && contentWidth !== 'full'
+          ? ({ '--moss-content-width': contentWidth } as CSSProperties)
+          : undefined
+      }
+    />
+  );
 }
 
 // ---------------------------------------------------------------------

@@ -4,7 +4,13 @@
 
 ## 快速集成测试
 
-`bun test` 在 Happy DOM 上运行测试。这一层用于解析、装饰、编辑器状态和不依赖真实浏览器布局的渲染契约。
+`bun run test` 通过 Vitest 配置在 Happy DOM 上运行测试。这一层用于解析、装饰、编辑器状态和不依赖真实浏览器布局的渲染契约。
+
+不要使用 `bun test` 代替它。`bun test` 会直接启动 Bun 原生测试运行器，不读取 `vitest.config.ts`，不会加载 Happy DOM，还可能把 `tests/e2e` 中的 Playwright 规格当作普通测试扫描。需要筛选单个文件时使用：
+
+```bash
+bun run test -- src/__tests__/editor.test.tsx
+```
 
 与浏览器套件共享的 Markdown 边界情形位于 `src/__tests__/fixtures/markdown-contracts.ts`。当同一输入/输出规则应该在两个环境中都被强制时，在那里添加用例。
 
@@ -24,7 +30,7 @@ Chromium 运行完整规格。Firefox 和 WebKit 只运行标记为 `@smoke` 的
 
 对每个 bug 修复，选择能复现失败的最低层：
 
-1. 为逻辑、状态和 DOM 契约添加 `bun test` 用例。
+1. 为逻辑、状态和 DOM 契约添加 `bun run test` 用例。
 2. 如果它也是可见的浏览器渲染契约，把输入加入共享 Markdown 语料。
 3. 为焦点、键盘、几何、无障碍媒体或浏览器特定行为添加确定性 Playwright 规格。
 4. 仅在涉及公共 tarball 或导出时添加包冒烟断言。

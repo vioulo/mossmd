@@ -90,7 +90,7 @@ interface CollabAdapter {
 bun run dev
 bun run build
 bun run typecheck
-bun test
+bun run test
 bun run test:e2e
 bun run test:package
 ```
@@ -99,7 +99,7 @@ Demo 位于 `demo/App.tsx`，用于手工验证；Harness 位于 `demo/harness.t
 
 ## 测试策略
 
-1. `bun test` 覆盖逻辑、状态和 Happy DOM 下的 DOM 契约。
+1. `bun run test` 使用 Vitest 配置，覆盖逻辑、状态和 Happy DOM 下的 DOM 契约。不要使用 `bun test`：它会直接启动 Bun 原生测试运行器，不读取 `vitest.config.ts`，也不会加载 Happy DOM。
 2. `bun run test:e2e` 覆盖真实浏览器行为。
 3. `bun run test:package` 覆盖打包、导出映射和干净消费方构建。
 4. 共享 Markdown 契约放在 `src/__tests__/fixtures/markdown-contracts.ts`。

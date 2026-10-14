@@ -319,13 +319,13 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
 
   for (let number = 1; number <= doc.lines; number++) {
     const line = doc.line(number);
+    if (isLineInsideMarkdownCode(state, number)) continue;
+
     if (line.length === 0) {
       ranges.push(
         Decoration.line({ class: 'cm-moss-empty-line' }).range(line.from),
       );
     }
-
-    if (isLineInsideMarkdownCode(state, number)) continue;
 
     const extendedHorizontalRule = parseExtendedHorizontalRule(line.text);
     if (!extendedHorizontalRule) {

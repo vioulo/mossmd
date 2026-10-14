@@ -151,7 +151,7 @@ describe('wikiLinks', () => {
     expect(onOpen).toHaveBeenCalledWith('atom-123');
   });
 
-  it('collapses active wiki-link source when reading mode is enabled', async () => {
+  it('collapses active wiki-link source when reading mode is enabled', () => {
     const doc = 'Before [[atom-123|Project Atlas]] after';
     const readOnly = new Compartment();
     const view = makeView(
@@ -159,9 +159,6 @@ describe('wikiLinks', () => {
       [previewActivityExtension(), wikiLinks(), readOnly.of(readOnlyExtension(false))],
       { anchor: doc.indexOf('atom-123') + 2 },
     );
-
-    view.focus();
-    await new Promise((resolve) => setTimeout(resolve, 25));
 
     expect(view.dom.querySelector('.cm-moss-wiki-link-active')).not.toBeNull();
 
@@ -195,7 +192,6 @@ describe('wikiLinks', () => {
       { anchor: cursorInsideTarget },
     );
 
-    view.focus();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(resolve).not.toHaveBeenCalled();

@@ -106,6 +106,15 @@ class WikiLinkWidget extends WidgetType {
   }
 }
 
+function isSelectionInsideLink(state: EditorState, link: ParsedWikiLink): boolean {
+  return state.selection.ranges.some((range) => {
+    const from = Math.min(range.from, range.to);
+    const to = Math.max(range.from, range.to);
+    if (from === to) return from > link.from && from < link.to;
+    return from < link.to && to > link.from;
+  });
+}
+
 class WikiLinkResolverPlugin {
   private readonly pending = new Set<string>();
   private destroyed = false;
@@ -141,10 +150,11 @@ class WikiLinkResolverPlugin {
     const links = findWikiLinksInVisibleRanges(this.view.state.doc, this.view.visibleRanges);
     const resolved = this.view.state.field(this.decorationField).resolved;
     const readOnly = this.view.state.facet(readOnlyFacet);
+
     for (const link of links) {
       if (
         link.label ||
-        (!readOnly && isPreviewRangeActive(this.view.state, link, this.view.hasFocus)) ||
+        (!readOnly && isSelectionInsideLink(this.view.state, link)) ||
         !shouldResolveWikiLink(this.config, link.target) ||
         this.pending.has(link.target) ||
         resolved.has(link.target)

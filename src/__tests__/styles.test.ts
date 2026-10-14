@@ -71,14 +71,14 @@ describe('content styles', () => {
       'utf8',
     );
 
-    expect(themeSource).toContain("lineHeight: 'var(--moss-body-leading, 1.7)'");
+    expect(themeSource).toContain("lineHeight: 'var(--moss-body-leading, 1.75)'");
     expect(themeSource).toContain("minHeight: '1lh'");
     expect(editorStyles).toContain('.cm-line.cm-moss-empty-line');
     expect(editorStyles).toContain(
-      'min-height: calc(var(--moss-body-size, 1.0625rem) * var(--moss-body-leading, 1.7));',
+      'min-height: calc(var(--moss-body-size, 1rem) * var(--moss-body-leading, 1.75));',
     );
     expect(editorStyles).toContain(
-      'padding-top: max(0px, calc(var(--moss-body-size, 1.0625rem) * (var(--moss-body-leading, 1.7) - 1.25) / 2));',
+      'padding-top: max(0px, calc(var(--moss-body-size, 1rem) * (var(--moss-body-leading, 1.75) - 1.25) / 2));',
     );
   });
 

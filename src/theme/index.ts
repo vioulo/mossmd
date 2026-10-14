@@ -20,7 +20,7 @@ export const mossTheme: Extension = EditorView.theme(
     },
     '.cm-scroller': {
       fontFamily: 'var(--moss-font, system-ui, -apple-system, BlinkMacSystemFont, sans-serif)',
-      lineHeight: 'var(--moss-body-leading, 1.7)',
+      lineHeight: 'var(--moss-body-leading, 1.75)',
       overflow: 'auto',
     },
     '.cm-content': {
@@ -47,7 +47,7 @@ export const mossTheme: Extension = EditorView.theme(
       // Keep blank lines on the same vertical rhythm as the line's own
       // computed line-height. Without this, an empty line's break widget
       // can be shorter than a text-bearing line and shift posAtCoords.
-      lineHeight: 'var(--moss-body-leading, 1.7)',
+      lineHeight: 'var(--moss-body-leading, 1.75)',
       minHeight: '1lh',
       // Force-wrap words that have no natural break opportunity —
       // long URLs, base64 chunks, and code tokens that would

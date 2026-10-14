@@ -334,7 +334,6 @@ export function generateSampleMarkdown(
 
   const bannerIntro = [
     `# ${title}`,
-    '',
     `![MossMD banner|MossMD](${bannerImageUrl})`,
     'MossMD — CodeMirror 6 Markdown editor with Obsidian-style live preview. [GitHub](https://github.com/vioulo/mossmd)',
   ].join('\n');
@@ -346,7 +345,7 @@ export function generateSampleMarkdown(
   sections.push('***𓇼***');
 
   sections.push(
-    '# Custom syntax',
+    '## Custom syntax',
     'Callouts keep Obsidian-style blocks readable while the source stays plain markdown:',
     [
       '> [!NOTE] Custom syntax extension',

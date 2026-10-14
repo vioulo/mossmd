@@ -143,6 +143,17 @@ describe('MossMD', () => {
     expect(lines[2]?.classList.contains('cm-moss-empty-line')).toBe(false);
   });
 
+  it('does not mark blank lines inside fenced code as prose empty lines', () => {
+    const { host } = mount(
+      <MossMD markdownSource={'```ts\nconst a = 1;\n\nconst b = 2;\n```'} />,
+    );
+
+    const lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines).toHaveLength(5);
+    expect(lines[2]?.classList.contains('cm-moss-fenced-code')).toBe(true);
+    expect(lines[2]?.classList.contains('cm-moss-empty-line')).toBe(false);
+  });
+
   it('can render the search panel at the bottom of the editor', () => {
     const handleRef = createRef<MossMDHandle | null>() as {
       current: MossMDHandle | null;

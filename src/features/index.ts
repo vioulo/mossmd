@@ -55,3 +55,17 @@ export type {
   MossUploadBlockConfig,
   MossUploadIcons,
 } from './upload';
+export {
+  mossMath,
+  mossMathSyntax,
+  createKatexRenderer,
+  defaultMathRenderer,
+  mossMathMarkdown,
+} from './math';
+export type {
+  MossMathConfig,
+  MossMathRenderer,
+  KatexLike,
+  KatexOptions,
+} from './math';
+

@@ -2246,3 +2246,70 @@ input.cm-moss-task-checkbox:focus-visible {
 .cm-moss-readonly .cm-moss-table-cell-source {
   cursor: default;
 }
+
+/* --------------------------------------------------------------------------
+ * Math formulas (LaTeX)
+ * ----------------------------------------------------------------------- */
+
+.cm-moss-math {
+  cursor: pointer;
+  user-select: none;
+}
+
+.cm-moss-readonly .cm-moss-math {
+  cursor: default;
+}
+
+.cm-moss-math-inline {
+  display: inline-block;
+  vertical-align: -0.1em;
+  padding: 0 0.15em;
+  line-height: normal;
+}
+
+.cm-moss-math-block {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin: 0.85em 0;
+  padding: 0.6em 1em;
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
+}
+
+.cm-moss-math-block.cm-moss-math-block-preview {
+  margin-top: 0.4em;
+  padding: 0.5em 1em;
+  border-top: 1px dashed var(--moss-border, rgba(255, 255, 255, 0.15));
+  opacity: 0.95;
+  background: var(--moss-bg-subtle, rgba(255, 255, 255, 0.02));
+  border-radius: 0 0 var(--moss-control-radius, 4px) var(--moss-control-radius, 4px);
+}
+
+.cm-moss-math-fallback {
+  font-family: var(--moss-font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+  color: var(--moss-accent-bright, #a78bfa);
+  background: var(--moss-bg-subtle, rgba(255, 255, 255, 0.05));
+  padding: 0.1em 0.35em;
+  border-radius: var(--moss-control-radius, 4px);
+}
+
+.cm-moss-math-block.cm-moss-math-fallback {
+  display: block;
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cm-moss-math-error {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+  padding: 0.1em 0.35em;
+  border-radius: var(--moss-control-radius, 4px);
+  font-family: var(--moss-font-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+}
+

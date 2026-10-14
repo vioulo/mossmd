@@ -244,3 +244,21 @@
   background: color-mix(in srgb, var(--moss-accent-bright, #a78bfa) 20%, transparent 80%);
   color: var(--moss-fg, #dcddde);
 }
+
+.moss-markdown .cm-moss-math-inline,
+.moss-markdown .katex-inline {
+  display: inline-block;
+  vertical-align: -0.1em;
+  padding: 0 0.15em;
+}
+
+.moss-markdown .cm-moss-math-block,
+.moss-markdown .katex-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0.85em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+

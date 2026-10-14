@@ -58,12 +58,16 @@ import { mossLucideIcon } from 'mossmd/icons/lucide';
 import { MOSS_CODE_LANGUAGES } from 'mossmd/code-languages';
 import {
   mossCalloutSyntax,
+  mossMathSyntax,
+  createKatexRenderer,
   mossDefaultSlashCommands,
   mossUploadCommands,
   type MossSlashCommand,
   type MossUploader,
   type WikiLinkSuggestion,
 } from 'mossmd/features';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import 'mossmd/editor.css';
 import {
   SAMPLE_SIZES,
@@ -275,7 +279,12 @@ const WIKI_SNIPPETS: Record<string, string> = {
   'search-fallback': 'Fallback result for testing content-like matching in the demo.',
 };
 
-const MOSS_DEMO_SYNTAX = [mossCalloutSyntax()];
+const MOSS_DEMO_SYNTAX = [
+  mossCalloutSyntax(),
+  mossMathSyntax({
+    renderer: createKatexRenderer(katex),
+  }),
+];
 
 // Compose the package's default upload skeletons with a demo-specific
 // uploader that uses the new widget flow (`mossUploadCommands`). The

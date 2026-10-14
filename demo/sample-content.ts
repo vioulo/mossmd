@@ -352,6 +352,18 @@ export function generateSampleMarkdown(
       '> This block is installed through `customSyntax`, not hard-coded into the editor shell.',
       '> Click into the first line to reveal the original `> [!NOTE]` marker.',
     ].join('\n'),
+    'Math formulas can also be installed as custom syntax via `mossMathSyntax`. Inline formula $E = mc^2$ or $\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1$ folds automatically until focused. Block formulas render in display mode:',
+    [
+      '$$',
+      'i\\hbar \\frac{\\partial}{\\partial t} \\Psi(\\mathbf{r}, t) = \\left[ -\\frac{\\hbar^2}{2m} \\nabla^2 + V(\\mathbf{r}, t) \\right] \\Psi(\\mathbf{r}, t)',
+      '$$',
+    ].join('\n'),
+    'Complex nested structures like Ramanujan’s continued fraction render cleanly:',
+    [
+      '$$',
+      '\\frac{1}{1 + \\frac{e^{-2\\pi}}{1 + \\frac{e^{-4\\pi}}{1 + \\frac{e^{-6\\pi}}{\\ddots}}}} = \\left( \\sqrt{\\frac{5+\\sqrt{5}}{2}} - \\frac{\\sqrt{5}+1}{2} \\right) e^{2\\pi/5}',
+      '$$',
+    ].join('\n'),
   );
   // 1. Fenced code block — shows per-grammar syntax highlighting.
   if (includeCodeBlocks) {

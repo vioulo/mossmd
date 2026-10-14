@@ -285,7 +285,7 @@ import type { CollabAdapter } from 'mossmd/collab';
 - [列表编辑优化 TODO](./docs/list-editing-todo.md)
 - [图标方案](./docs/icon-customization.md)
 - [上传实现](./docs/file-upload-implementation.md)
-- [公式与 HTML roadmap](./docs/math-html-roadmap.md)
+- [功能规划 (Roadmap)](./docs/roadmap/README.md)
 - [行内链接激活协议](./docs/inline-link-activation.md)
 - [测试说明](./docs/testing.md)
 

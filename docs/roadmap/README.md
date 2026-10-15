@@ -20,11 +20,13 @@
 | 功能模块 | 目标与范围 | 状态 | 规范文档 |
 | --- | --- | :---: | --- |
 | **数学公式 (LaTeX)** | 行内 `$...$` 与块级 `$$...$$` 预览、排除定界符全选、块级预览卡片对照、可插拔渲染器适配 | ✅ **已落地 (v0.10.0)** | [math.md](./math.md) |
+| **架构调优与内核重构** | 图标/语言模块对齐、高亮收归 Core 内置、List 瘦身与 CM6 原生 atomicRanges 演进、Editor 装配解耦（`inline-preview.ts` 拆分已评估否决） | ⏳ **规划中** | [architecture-refactor.md](./architecture-refactor.md) |
 | **HTML 安全渲染** | 行内 `<mark>`, `<u>`, `<kbd>` 与块级 `<details>` 等 Obsidian 风格标签支持，严格 Allowlist 白名单 | ⏳ **规划中** | [html.md](./html.md) |
 
 ---
 
 ## 模块文档索引
 
+- [架构调优与内核重构规划](./architecture-refactor.md)
 - [数学公式（LaTeX）Roadmap 与架构规范](./math.md)
 - [HTML 安全渲染 Roadmap 与安全规范](./html.md)

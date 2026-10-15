@@ -1,6 +1,6 @@
 # 列表编辑与导航
 
-本文档记录 MossMD 列表功能当前的实现边界、源码模型和剩余风险。它保留长期有效的设计约束，不再记录已经完成的阶段性 TODO。源码显隐规则见 [`live-preview-rules.md`](./live-preview-rules.md)，实时预览模块边界见 [`inline-preview-architecture.md`](./inline-preview-architecture.md)。
+本文档记录 MossMD 列表功能当前的实现边界、源码模型和剩余风险。它保留长期有效的设计约束。实时预览架构与源码显隐规则见 [`live-preview.md`](./live-preview.md)。
 
 ## 模块职责
 
@@ -97,4 +97,4 @@ DOM 位置       装饰隐藏或重排后的节点位置
 - `src/__tests__/edit-helpers.test.ts`：中文标点归一化、IME 和空有序标记退格。
 - `tests/e2e/inline-preview.spec.ts`：真实浏览器中的方向键和块级装饰高度。
 
-新增列表行为时，至少同时断言 Markdown 原文、可见 DOM 和最终光标位置。Wiki 链接等行内语法的显隐规则不在本文重复描述，统一遵循 [`live-preview-rules.md`](./live-preview-rules.md)。
+新增列表行为时，至少同时断言 Markdown 原文、可见 DOM 和最终光标位置。Wiki 链接等行内语法的显隐规则统一遵循 [`live-preview.md`](./live-preview.md)。

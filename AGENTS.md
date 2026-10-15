@@ -40,6 +40,8 @@ src/
     callout/index.ts       Obsidian 风格 Callout 装饰
     slash-commands/index.ts  行首 `/` 与 `+` 触发的命令面板
     upload/index.ts        上传进度块 widget 与上传命令
+    search/index.ts        查找替换面板与精准定位
+    math/index.ts          数学公式行内与块级实时预览
   syntax/
     index.ts               `MossCustomSyntax`、`defineMossSyntax()`、`registerMossSyntax()`
     highlight.ts           `==highlight==` Markdown 扩展
@@ -53,8 +55,8 @@ src/
 ## 公开入口
 
 - `mossmd`：`MossMD`、`MossMDHandle`/`MossMDProps`、主题、输入辅助、阅读模式、语法注册协议、代码语言注册表。
-- `mossmd/features`：图片、文件块、表格、Wiki 链接、Callout、斜杠命令、上传块等用户功能。
-- `mossmd/features/image`、`mossmd/features/table`、`mossmd/features/wiki-links`、`mossmd/features/callout`、`mossmd/features/slash-commands`：单个 feature 的子路径。
+- `mossmd/features`：图片、文件块、表格、Wiki 链接、Callout、斜杠命令、上传块、数学公式等用户功能。
+- `mossmd/features/image`、`mossmd/features/table`、`mossmd/features/wiki-links`、`mossmd/features/callout`、`mossmd/features/slash-commands`、`mossmd/features/math`：单个 feature 的子路径。
 - `mossmd/syntax`：自定义语法注册协议；`mossmd/syntax/highlight`：`==highlight==` 扩展。
 - `mossmd/code-languages`：精选围栏代码语言列表。
 - `mossmd/theme`：主题扩展。

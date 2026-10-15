@@ -62,6 +62,7 @@ src/
     slash-commands/index.ts
     upload/index.ts
     search/index.ts
+    math/index.ts
   syntax/
     index.ts
     highlight.ts
@@ -75,20 +76,100 @@ src/
     content.css
 ```
 
-`core` 放基础机制，`features` 按用户功能聚合，`syntax` 放语法注册协议和 `==highlight==` 扩展。图片和表格复用 Markdown 原生节点；Callout 复用 blockquote 结构并提供自己的装饰；文件块、斜杠命令、上传块同样作为 feature 落地。未来 Mermaid 或 Kanban 如果需要新语法，也应作为 feature 落地。
+`core` 放基础机制，`features` 按用户功能聚合，`syntax` 放语法注册协议和 `==highlight==` 扩展。图片、表格、数学公式复用 Markdown 原生或扩展语法；Callout 复用 blockquote 结构并提供自己的装饰；文件块、斜杠命令、上传块同样作为 feature 落地。
 
-## `MossMD`
+## 公共入口
+
+### 根入口 `mossmd`
+
+- `MossMD`
+- `mossInlinePreview`
+- `mossHighlightMarkdown`
+- `mossTheme`、`mossSyntax`
+- `autoCloseCodeFence`、`extendEmphasisPair`、`startAsteriskList`
+- `mossReadOnlyExtension`、`mossReadOnlyFacet`
+- `noopCollabAdapter`、`CollabAdapter`
+- `defineMossSyntax`、`registerMossSyntax`
+- `MOSS_CODE_LANGUAGES`
+- `setFrozen`、`defaultOnLinkClick`
+
+### 功能入口 `mossmd/features`
+
+聚合导出：
+
+- `mossImages`、`MossImagesConfig`
+- `mossFileBlocks`、`MossFileBlocksConfig`
+- `mossTables`、`MossTablesConfig`
+- `mossWikiLinks` 及配套类型
+- `mossCallouts`、`mossCalloutSyntax` 及配套类型
+- `mossSlashCommands`、`mossDefaultSlashCommands` 及配套类型
+- `mossUploadBlocks`、`mossUploadCommands`、`beginUpload`、`retryUpload`、`cancelUpload` 及配套类型
+- `mossMath`、`mossMathSyntax`、`MossMathConfig` 及配套类型
+
+### 子路径导出
+
+- `mossmd/features/image`
+- `mossmd/features/table`
+- `mossmd/features/wiki-links`
+- `mossmd/features/callout`
+- `mossmd/features/slash-commands`
+- `mossmd/features/math`
+- `mossmd/syntax`
+- `mossmd/syntax/highlight`
+- `mossmd/collab`
+- `mossmd/code-languages`
+- `mossmd/theme`
+- `mossmd/icons`
+- `mossmd/icons/lucide`
+- `mossmd/editor.css` / `mossmd/styles.css`（别名）
+- `mossmd/content.css`
+- `mossmd/tokens.css`
+
+## `MossMD` 编辑器契约
 
 `editor.tsx` 是 React 包装层，负责创建和销毁 `EditorView`，并把内置扩展装配到同一个 `EditorState` 中。
 
 文档身份使用 `documentId ?? markdownSource`。身份改变时重建编辑器，避免上一份文档的光标、撤销栈和搜索状态泄漏。
 
-主要职责：
+### Props 契约 (`MossMDProps`)
 
-- 装配 Markdown 语言、主题、输入辅助、搜索、图片、文件块、表格、Wiki 链接、Callout、斜杠命令、上传块、实时预览、阅读模式和自定义语法。
-- 通过 `editorHandleRef` 暴露命令式方法。
-- 管理 `readOnly` 的 `Compartment`，实现不重挂载切换。
-- 管理 `collabAdapter` 的 attach/detach 生命周期。
+- `markdownSource`：当前文档的纯文本 Markdown。
+- `documentId`：文档唯一标识，变化时触发编辑器重建。
+- `initialSearchText`：挂载时自动打开搜索面板并填入查询词。
+- `initialRevealText`：挂载时自动定位并高亮目标文本（不打开搜索面板）。
+- `searchPanelPosition`：搜索面板位置（`top` | `center` | `bottom`）。
+- `blurEditorOnMount`：挂载时是否主动放弃焦点。
+- `readOnly`：是否处于只读/阅读模式。
+- `onMarkdownChange`：内容变更回调 `(doc: string) => void`。
+- `onLinkClick`：链接点击拦截回调。
+- `editorHandleRef`：React 引用，接收命令式句柄 `MossMDHandle`。
+- `codeLanguages`：围栏代码语言包注册表（默认支持按需加载）。
+- `extensions`：外部注入的自定义 CodeMirror 6 Extension 数组。
+- `customSyntax`：外部注册的自定义语法插件集合 (`MossCustomSyntax[]`)。
+- `icons`：统一图标语义表 (`MossIconMap`)。
+- `inlinePreviewConfig`：实时预览细节配置（如 taskCheckboxes 定制）。
+- `imagesConfig`：图片块配置（可编辑性、尺寸调整、渲染器等）。
+- `fileBlocksConfig`：文件卡片块配置。
+- `tablesConfig`：交互表格配置。
+- `wikiLinksConfig`：Wiki 双链补全与解析配置。
+- `slashCommandsConfig`：快捷命令面板配置与触发开关。
+- `fileUpload`：统一文件上传配置（粘贴、拖拽、上传并发控制）。
+- `mathConfig`：数学公式配置（可插拔渲染器、错误提示等）。
+- `collabAdapter`：协作同步适配器实例。
+
+### 命令式句柄 (`MossMDHandle`)
+
+- `focus()`：聚焦编辑器。
+- `undo()`：撤销上次编辑。
+- `redo()`：重做编辑。
+- `openSearch(text?)`：打开搜索面板。
+- `closeSearch()`：关闭搜索面板。
+- `revealText(query)`：精准定位并闪烁高亮匹配文本（不打开搜索框）。
+- `isSearchOpen()`：检查搜索面板是否处于打开状态。
+- `getMarkdown()`：获取当前编辑器的最新原始 Markdown 文本。
+- `getContentDOM()`：获取编辑器内容区的原生 DOM 节点。
+- `setReadOnly(readOnly)`：热插拔动态切换只读模式。
+- `setCollabAdapter(adapter)`：动态切换协同适配器。
 
 ## 实时预览
 
@@ -100,11 +181,11 @@ src/
 - 把列表符号、任务复选框、水平线等渲染为更接近阅读状态的表现。
 - 遍历语法树并组装实时预览装饰。
 
-列表编辑和导航位于 `list-editing.ts`、`list-navigation.ts`，列表源码模型位于 `list-model.ts`；任务和代码块 Widget 位于 `preview-widgets.ts`，焦点与鼠标冻结位于 `preview-activity.ts`。详细边界见 [`inline-preview-architecture.md`](./inline-preview-architecture.md) 和 [`list-editing-todo.md`](./list-editing-todo.md)。
+列表编辑和导航位于 `list-editing.ts`、`list-navigation.ts`，列表源码模型位于 `list-model.ts`；任务和代码块 Widget 位于 `preview-widgets.ts`，焦点与鼠标冻结位于 `preview-activity.ts`。详细架构边界见 [`core/live-preview.md`](./core/live-preview.md)，列表模型与几何规范见 [`core/list-editing.md`](./core/list-editing.md)。
 
 装饰构建会调用 `ensureSyntaxTree(state, state.doc.length, 200)`，尽量保证全文解析覆盖。若解析在首次构建时没有到达文末，`treeProgressPlugin` 会在解析树增长后触发补建。
 
-源码显隐的交互规则见 [`live-preview-rules.md`](./live-preview-rules.md)。其中明确区分编辑器焦点、当前行激活和行内语法贴近；链接类语法不能直接复用整行显露条件。
+源码显隐与链接激活交互规则详见 [`core/live-preview.md`](./core/live-preview.md)。其中明确区分编辑器焦点、当前行激活和行内语法贴近；链接类语法不能直接复用整行显露条件。
 
 ## 功能模块
 
@@ -142,9 +223,25 @@ src/
 
 ### 上传块
 
-`features/upload/index.ts` 与斜杠命令的上传命令配合，在 pending 期间渲染带本地预览和进度 / 状态的块级 Widget。成功后落回最终 Markdown，失败可重试或取消。
+`features/upload/index.ts` 与斜杠命令的上传命令配合，在 pending 期间渲染带本地预览和进度 / 状态的块级 Widget。成功后落回最终 Markdown，失败可重试或取消。详细上传输入、并发队列与生命周期见 [`features/upload.md`](./features/upload.md)。
 
 上传器由消费方注入 `mossUploadCommands(uploader)`，S3 / OSS / Supabase / 自建 `/api/upload` 均可适配。pending 状态只活在编辑器 state 中（不写回原文），因此刷新页面会丢失在途 Widget；对瞬时交互而言可接受。
+
+### 数学公式 (LaTeX)
+
+`features/math/index.ts` 提供 Obsidian 风格的行内 `$...$` 与块级 `$$...$$` 数学公式实时预览：
+
+- **行内公式**：
+  - 非激活态渲染为行内排版公式 Widget。
+  - 光标贴近或选区相交时恢复 Markdown 源码。
+  - 鼠标点击时自动选中文本源码（排除 `$` 定界符），方便直接替换或编辑。
+- **块级公式**：
+  - 非激活态替换为独立居中排版的公式块。
+  - 光标进入或点击时，在源码行上方显露源码，并自动选中公式内容（排除 `$$` 定界符），下方保持渲染卡片对照。
+- **可插拔渲染器**：
+  - 核心不内置体积庞大的 KaTeX/MathJax，主包保持零依赖。
+  - 默认提供优雅的占位排版，宿主可通过 `mathConfig.render` 注入 KaTeX（支持 `katex.renderToString`）。
+  - 详细设计与生命周期见 [`docs/roadmap/math.md`](./roadmap/math.md)。
 
 ## 自定义语法注册
 
@@ -161,12 +258,14 @@ src/
 - `extensions` 会追加到编辑器扩展集合。
 - `name` 必须非空且不能重复。
 
-## 主题
+## 主题与图标
 
 `theme/index.ts` 导出两类扩展：
 
 - `mossTheme`：CodeMirror 主题，绑定 `--moss-*` CSS 变量。
 - `mossSyntax`：语法高亮样式，覆盖 Markdown 令牌和围栏代码内的语言令牌。
+
+语义化图标协议（`MossIconMap`）与渲染器规范详见 [`features/icons.md`](./features/icons.md)。
 
 样式文件分三类：
 
@@ -206,3 +305,15 @@ interface CollabAdapter {
 ```
 
 当前远程变更以整文档快照应用，并标记为 `Transaction.remote`。未来接入 yjs 时，可以在 `attach(view)` 内安装更细粒度的 CM6 扩展。
+
+## 开发与验证命令
+
+```bash
+bun run dev          # 启动 Demo 交互开发服务器
+bun run build        # 构建 ESM 产物与样式
+bun run typecheck    # 严格 TypeScript 类型检查
+bun run test         # Vitest 单元与 Happy DOM 状态契约测试（不要用原生 bun test）
+bun run test:e2e     # Playwright 真实浏览器端到端测试
+bun run test:package # 干净消费方安装与导出映射构建测试
+```
+

@@ -9,10 +9,10 @@ MossMD 是一个基于 CodeMirror 6 的 React Markdown 编辑器，提供接近 
 
 ## 特性
 
-- 标题、强调、链接、图片、表格、任务列表、Callout 等内容在编辑区内实时预览。
+- 标题、强调、链接、图片、表格、任务列表、Callout、数学公式（LaTeX）等内容在编辑区内实时预览。
 - 光标所在位置显示 Markdown 语法，复制、保存和协作同步始终使用原始 Markdown。
 - 图片和文件链接渲染为块级组件，支持预览、编辑、缩放、下载和复制链接。
-- 所见即所得表格、智能列表编辑、Wiki 链接、查找面板和阅读模式。
+- 所见即所得表格、智能列表编辑、行内与块级数学公式、Wiki 链接、查找面板和阅读模式。
 - 通过斜杠命令、上传器、图标协议、自定义语法和 CodeMirror 扩展进行组合。
 - 主题使用 `--moss-*` CSS 变量，内置默认和蓝色明暗主题 preset。
 
@@ -231,7 +231,7 @@ const icons: MossIconMap = {
 <MossMD markdownSource={markdown} icons={icons} />
 ```
 
-完整的 renderer 类型、优先级和全部语义 key 见 [图标方案](./docs/icon-customization.md)。
+完整的 renderer 类型、优先级和全部语义 key 见 [图标方案](./docs/features/icons.md)。
 
 ## 扩展 MossMD
 
@@ -270,7 +270,8 @@ import type { CollabAdapter } from 'mossmd/collab';
 | 入口 | 内容 |
 | --- | --- |
 | `mossmd` | `MossMD`、主题、输入辅助、阅读模式、语法协议和代码语言注册表 |
-| `mossmd/features` | 图片、文件块、表格、Wiki 链接、Callout、斜杠命令和上传功能 |
+| `mossmd/features` | 图片、文件块、表格、Wiki 链接、Callout、斜杠命令、上传和数学公式功能 |
+| `mossmd/features/math` | 数学公式独立子路径 |
 | `mossmd/syntax` | 自定义语法注册协议 |
 | `mossmd/code-languages` | 精选围栏代码语言列表 |
 | `mossmd/collab` | 协作适配器接口 |
@@ -278,16 +279,19 @@ import type { CollabAdapter } from 'mossmd/collab';
 | `mossmd/content.css` | 编辑器外 Markdown 内容样式 |
 | `mossmd/tokens.css` | 主题令牌 |
 
+### 架构与规范
 - [项目起源](./docs/project-origin.md)
-- [架构说明](./docs/architecture.md)
-- [实时预览架构](./docs/inline-preview-architecture.md)
-- [实时预览规则](./docs/live-preview-rules.md)
-- [列表编辑优化 TODO](./docs/list-editing-todo.md)
-- [图标方案](./docs/icon-customization.md)
-- [上传实现](./docs/file-upload-implementation.md)
-- [功能规划 (Roadmap)](./docs/roadmap/README.md)
-- [行内链接激活协议](./docs/inline-link-activation.md)
-- [测试说明](./docs/testing.md)
+- [全局架构与技术规格](./docs/architecture.md)
+- [测试策略规范](./docs/testing.md)
+- [功能规划与架构演进 (Roadmap)](./docs/roadmap/README.md)
+
+### 核心引擎机制 (`docs/core/`)
+- [实时预览架构与交互规范](./docs/core/live-preview.md)
+- [列表编辑与导航模型](./docs/core/list-editing.md)
+
+### 功能模块设计 (`docs/features/`)
+- [文件上传实现](./docs/features/upload.md)
+- [编辑器图标方案](./docs/features/icons.md)
 
 ## 许可证
 

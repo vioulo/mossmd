@@ -106,6 +106,23 @@ Demo 位于 `demo/App.tsx`，用于手工验证；Harness 位于 `demo/harness.t
 3. `bun run test:package` 覆盖打包、导出映射和干净消费方构建。
 4. 共享 Markdown 契约放在 `src/__tests__/fixtures/markdown-contracts.ts`。
 
+## 探针实测与反推测原则 (Probe-First Engineering)
+
+Agent 在进行架构设计、重构或性能调优时，**严禁依赖纸面推演与“乐观假设”，必须以真实探针（Probe）数据和运行期表现为唯一真理**：
+
+1. **探针先行，拒绝纸面断言 (Probe Before Refactor)**：
+   - 在改造 CodeMirror 底层机制（如 Facet、选区吸附、`atomicRanges`、键盘拦截）前，必须先编写可运行的最小探针断言真实序列。
+   - 严禁凭文档想象“某机制换成原生后手感完全一致”；必须实测边界场景（如边界跨行跳跃、边界退格、指针拖拽）。
+2. **代码考古优先，警惕“无知重构” (Respect Historical Compromises)**：
+   - 凡看到看似“低效或冗余”的实现（如全文档 `ensureSyntaxTree`、特殊的行高锁定、手写方向键拦截），必须先搜索注释与上下文。
+   - 很多设计是为解决特定平台历史顽疾（如 iOS 惯性滚动中断、中文 IME 候选截获、微拖拽抖动）留下的血泪护栏。在未能证明且复测该顽疾已彻底解决前，严禁盲目将其当作“性能缺陷”重构。
+3. **结构内聚高于形式行数 (Cohesion Over Line Count)**：
+   - 单文件行数大（如 1000+ 行）绝非拆分的充分理由。
+   - 若遍历状态高度共享（如 `tree.iterate` 期间修改 `activeLines`、`return false` 跳过子树），强行拆分只会引入隐蔽的静默渲染回归。没有独立的消费边界和专属单测护栏，严禁强行拆解。
+4. **运行期为唯一信源 (Runtime Truth Over Grep)**：
+   - 测试总数与通过率必须以 `bun run test`（Vitest 终端实际展开数）为准，严禁通过 grep 源码用例数统计（避免 `it.each` 表格展开偏差）。
+   - 包体积必须以 `dist/*.js` 整体拼接 gzip 的真实传输大小为准，明确区分未压缩体积（DCE/Minify -40%）与网络传输体积（gzip -10~20%），严禁使用模糊的估算口径。
+
 ## 文件约定
 
 - TypeScript 使用严格模式，不引入 `any`。

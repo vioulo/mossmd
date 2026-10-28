@@ -296,6 +296,87 @@ describe('Math (LaTeX) Feature', () => {
       expect(host.querySelector('.cm-moss-math-block')).not.toBeNull();
     });
 
+    it('selects formula content cleanly on click excluding delimiters', () => {
+      const formulaInner =
+        '\\frac{1}{1 + \\frac{e^{-2\\pi}}{1 + \\frac{e^{-4\\pi}}{1 + \\frac{e^{-6\\pi}}{\\ddots}}}} = \\left( \\sqrt{\\frac{5+\\sqrt{5}}{2}} - \\frac{\\sqrt{5}+1}{2} \\right) e^{2\\pi/5}';
+      const markdown = `$$\n${formulaInner}$$`;
+
+      const { host } = mount(
+        <MossMD
+          markdownSource={markdown}
+          customSyntax={[mossMathSyntax()]}
+        />,
+      );
+
+      const editor = host.querySelector<HTMLElement>('.cm-editor');
+      const view = editor ? EditorView.findFromDOM(editor) : null;
+      expect(view).not.toBeNull();
+
+      const blockWidget = host.querySelector<HTMLElement>(
+        '.cm-moss-math.cm-moss-math-block',
+      );
+      expect(blockWidget).not.toBeNull();
+
+      act(() => {
+        blockWidget!.dispatchEvent(
+          new MouseEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+          }),
+        );
+      });
+
+      const selFrom = view!.state.selection.main.from;
+      const selTo = view!.state.selection.main.to;
+      const selected = view!.state.sliceDoc(selFrom, selTo);
+      expect(selected).toBe(formulaInner);
+      expect(selected.includes('$$')).toBe(false);
+    });
+
+    it('re-resolves fresh math node range after earlier edits prevent stale offsets', () => {
+      const markdown = '# Header\n\n$$\nx = 1\n$$\n';
+
+      const { host } = mount(
+        <MossMD
+          markdownSource={markdown}
+          customSyntax={[mossMathSyntax()]}
+        />,
+      );
+
+      const editor = host.querySelector<HTMLElement>('.cm-editor');
+      const view = editor ? EditorView.findFromDOM(editor) : null;
+      expect(view).not.toBeNull();
+
+      // Insert new lines before the formula to shift document offsets
+      act(() => {
+        view!.dispatch({
+          changes: { from: 0, insert: 'Paragraph before\n\n' },
+        });
+      });
+
+      const blockWidget = host.querySelector<HTMLElement>(
+        '.cm-moss-math.cm-moss-math-block',
+      );
+      expect(blockWidget).not.toBeNull();
+
+      act(() => {
+        blockWidget!.dispatchEvent(
+          new MouseEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+          }),
+        );
+      });
+
+      const selFrom = view!.state.selection.main.from;
+      const selTo = view!.state.selection.main.to;
+      const selected = view!.state.sliceDoc(selFrom, selTo);
+      expect(selected).toBe('x = 1');
+      expect(selected.includes('$$')).toBe(false);
+    });
+
     it('never reveals source in read-only mode', () => {
       const markdown = 'Read $x = 1$ only';
 

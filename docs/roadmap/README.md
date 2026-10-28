@@ -21,12 +21,14 @@
 | --- | --- | :---: | --- |
 | **数学公式 (LaTeX)** | 行内 `$...$` 与块级 `$$...$$` 预览、排除定界符全选、块级预览卡片对照、可插拔渲染器适配 | ✅ **已落地 (v0.10.0)** | [math.md](./math.md) |
 | **架构调优与内核重构** | 图标/语言模块对齐、高亮收归 Core 内置、List 瘦身与 CM6 原生 atomicRanges 演进、Editor 装配解耦（`inline-preview.ts` 拆分已评估否决） | ⏳ **规划中** | [architecture-refactor.md](./architecture-refactor.md) |
+| **性能、渲染与移动端调优** | 触屏手势放行与 44px 热区对齐、移动端 Slash Commands 重塑、大文档窄失效与 KaTeX 缓存、展开水平跳动治理、中央装饰管线演进 | ⏳ **规划中** | [performance-rendering-mobile.md](./performance-rendering-mobile.md) |
 | **HTML 安全渲染** | 行内 `<mark>`, `<u>`, `<kbd>` 与块级 `<details>` 等 Obsidian 风格标签支持，严格 Allowlist 白名单 | ⏳ **规划中** | [html.md](./html.md) |
 
 ---
 
 ## 模块文档索引
 
+- [性能、渲染、架构统一与移动端体验调优规划](./performance-rendering-mobile.md)
 - [架构调优与内核重构规划](./architecture-refactor.md)
 - [数学公式（LaTeX）Roadmap 与架构规范](./math.md)
 - [HTML 安全渲染 Roadmap 与安全规范](./html.md)

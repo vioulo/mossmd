@@ -298,11 +298,8 @@ class FileBlockWidget extends WidgetType {
       const glyph = document.createElement('span');
       glyph.className = 'cm-moss-file-block-glyph';
       appendMossIcon(glyph, this.icons.file, { size: 40, strokeWidth: 2 });
-      const ext = document.createElement('span');
-      ext.className = 'cm-moss-file-block-ext';
-      ext.textContent = this.ext || 'FILE';
       preview.classList.add('cm-moss-file-block-preview-file');
-      preview.append(glyph, ext);
+      preview.appendChild(glyph);
     }
 
     const meta = document.createElement('div');

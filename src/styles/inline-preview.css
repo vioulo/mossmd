@@ -1037,10 +1037,8 @@
 }
 
 .cm-moss-file-block-preview.cm-moss-file-block-preview-file {
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.18em;
   color: var(--moss-fg-muted, #9a9da4);
 }
 
@@ -1048,25 +1046,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
 .cm-moss-file-block-glyph svg {
-  width: 2.6em;
-  height: 2.6em;
-}
-
-.cm-moss-file-block-ext {
-  font-size: 0.6em;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  line-height: 1;
-  padding: 0.2em 0.45em;
-  border-radius: 0.3em;
-  background: var(--moss-bg-surface, #2d2d2d);
-  color: var(--moss-fg, #dcddde);
-  text-transform: uppercase;
+  width: 2.2em;
+  height: 2.2em;
 }
 
 .cm-moss-file-block-meta {

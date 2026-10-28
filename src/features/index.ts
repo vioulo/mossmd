@@ -68,4 +68,6 @@ export type {
   KatexLike,
   KatexOptions,
 } from './math';
+export { mossMobileToolbar } from './mobile-toolbar';
+export type { MossMobileToolbarConfig } from './mobile-toolbar';
 

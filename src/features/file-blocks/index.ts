@@ -84,7 +84,7 @@ function linkIsAloneOnLine(
   return before.trim() === '' && after.trim() === '';
 }
 
-interface FileLink {
+export interface FileLink {
   label: string;
   url: string;
 }
@@ -549,3 +549,10 @@ export function mossFileBlocks(config: MossFileBlocksConfig = {}): Extension {
     treeProgressPlugin,
   ];
 }
+
+export {
+  downloadFile,
+  copyTextToClipboard,
+  parseFileLink,
+  fileRangeAtWidget,
+};

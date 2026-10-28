@@ -897,3 +897,12 @@ export function mossImages(config: MossImagesConfig = {}): Extension {
 
   return [imageBlocksField, imageSelectionPlugin, treeProgressPlugin];
 }
+
+export {
+  openImagePreview,
+  copyImageLink,
+  serializeImage,
+  parseImageMarkdown,
+  imageRangeAtWidget,
+  resolveImageIcons,
+};

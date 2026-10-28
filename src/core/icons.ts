@@ -65,7 +65,16 @@ export type MossIconKey =
   | 'task.up'
   | 'upload.cancel'
   | 'upload.file'
-  | 'upload.retry';
+  | 'upload.retry'
+  | 'mobile.undo'
+  | 'mobile.redo'
+  | 'mobile.done'
+  | 'mobile.block'
+  | 'mobile.preview'
+  | 'mobile.resize'
+  | 'mobile.copy'
+  | 'mobile.download'
+  | 'mobile.delete';
 
 export type MossIconMap = Partial<Record<MossIconKey, MossIconRenderer>>;
 
@@ -90,11 +99,23 @@ export const mossIconFacet = Facet.define<MossIconMap, MossIconMap>({
   combine: (values) => Object.assign({}, ...values),
 });
 
+const FALLBACK_KEYS: Partial<Record<MossIconKey, MossIconKey>> = {
+  'mobile.block': 'slash.side-button',
+  'mobile.preview': 'image.preview',
+  'mobile.resize': 'image.resize',
+  'mobile.copy': 'code.copy',
+  'mobile.download': 'file.download',
+  'mobile.delete': 'table.delete',
+};
+
 export function resolveMossIcon(
   key: MossIconKey,
   icons: MossIconMap = {},
 ): MossIconRenderer {
-  return icons[key] ?? EMPTY_MOSS_ICON;
+  if (icons[key]) return icons[key]!;
+  const fallbackKey = FALLBACK_KEYS[key];
+  if (fallbackKey && icons[fallbackKey]) return icons[fallbackKey]!;
+  return EMPTY_MOSS_ICON;
 }
 
 export function renderMossIcon(

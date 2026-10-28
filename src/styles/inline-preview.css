@@ -21,6 +21,7 @@
  */
 
 @import './tokens.css';
+@import './mobile.css';
 
 .cm-moss-icon {
   display: block;
@@ -782,17 +783,6 @@
   transform: rotate(90deg);
 }
 
-@media (hover: none), (pointer: coarse) {
-  .cm-moss-image-edit,
-  .cm-moss-image-preview,
-  .cm-moss-image-copy-link,
-  .cm-moss-image-resize {
-    padding: 10px;
-    margin: -10px;
-    opacity: 1;
-  }
-}
-
 .cm-moss-image-edit:focus-visible,
 .cm-moss-image-preview:focus-visible,
 .cm-moss-image-copy-link:focus-visible,
@@ -1145,22 +1135,6 @@
 .cm-moss-file-block-copy-link:hover,
 .cm-moss-file-block-copy-link.is-copied {
   background: var(--moss-bg-surface, #2d2d2d);
-}
-
-@media (hover: none), (pointer: coarse) {
-  .cm-moss-file-block {
-    padding-block: 0.8em;
-  }
-
-  .cm-moss-file-block-actions {
-    opacity: 1;
-  }
-
-  .cm-moss-file-block-download,
-  .cm-moss-file-block-copy-link {
-    padding: 10px;
-    margin: -10px;
-  }
 }
 
 .cm-moss-file-block-download:focus-visible,

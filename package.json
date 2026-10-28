@@ -83,8 +83,13 @@
       "types": "./dist/features/search/index.d.ts",
       "default": "./dist/features/search/index.js"
     },
+    "./features/mobile-toolbar": {
+      "types": "./dist/features/mobile-toolbar/index.d.ts",
+      "default": "./dist/features/mobile-toolbar/index.js"
+    },
     "./editor.css": "./dist/styles/inline-preview.css",
     "./styles.css": "./dist/styles/inline-preview.css",
+    "./mobile.css": "./dist/styles/mobile.css",
     "./content.css": "./dist/styles/content.css",
     "./tokens.css": "./dist/styles/tokens.css",
     "./collab": {

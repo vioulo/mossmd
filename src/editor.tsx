@@ -82,6 +82,7 @@ import {
   mossFileUpload,
   type MossFileUploadConfig,
 } from './features/upload';
+import { mossMobileToolbar } from './features/mobile-toolbar';
 
 // Stable references so consumers that don't pass `codeLanguages` or
 // `extensions` don't force-remount the editor on every render.
@@ -549,6 +550,7 @@ export function MossMD({
               ]
             : []),
           ...(resolvedFileUpload ? [mossFileUpload(resolvedFileUpload)] : []),
+          mossMobileToolbar({ imagesConfig: resolvedImagesConfig }),
           EditorView.updateListener.of((update) => {
             if (!update.docChanged) return;
             onMarkdownChangeRef.current?.(update.state.doc.toString());

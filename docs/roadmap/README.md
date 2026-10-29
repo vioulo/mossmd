@@ -23,6 +23,7 @@
 | **架构调优与内核重构** | 图标/语言模块对齐、高亮收归 Core 内置、List 瘦身与 CM6 原生 atomicRanges 演进、Editor 装配解耦（`inline-preview.ts` 拆分已评估否决） | ⏳ **规划中** | [architecture-refactor.md](./architecture-refactor.md) |
 | **性能、渲染与移动端调优** | 触屏手势放行与 44px 热区对齐、移动端 Slash Commands 重塑、大文档窄失效与 KaTeX 缓存、展开水平跳动治理、中央装饰管线演进 | ⏳ **规划中** | [performance-rendering-mobile.md](./performance-rendering-mobile.md) |
 | **HTML 安全渲染** | 行内 `<mark>`, `<u>`, `<kbd>` 与块级 `<details>` 等 Obsidian 风格标签支持，严格 Allowlist 白名单 | ⏳ **规划中** | [html.md](./html.md) |
+| **实时协同与分布式同步** | Changeset / Yjs CRDT 多人编辑、光标广播与离线合并技术储备 | 📦 **长期储备** | [collab.md](./collab.md) |
 
 ---
 
@@ -32,3 +33,4 @@
 - [架构调优与内核重构规划](./architecture-refactor.md)
 - [数学公式（LaTeX）Roadmap 与架构规范](./math.md)
 - [HTML 安全渲染 Roadmap 与安全规范](./html.md)
+- [实时协同与分布式数据同步架构演进](./collab.md)

@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.11.0 - 2026-10-29
+
+### 新增与移动端体验 (Mobile-First)
+
+- **移动端快捷操作栏 (`mossMobileToolbar`)**：
+  - 新增视口吸附的移动操作栏，支持行内加粗、倾斜、删除线、高亮、代码、公式、图片、表格、列表及常用块级结构快捷插入；
+  - 接入 `window.visualViewport` 动态感知软键盘弹起与收起，工具栏与浮层控件自适应动态避让；
+  - 侧边 `+` 悬浮按钮在触屏小屏下自动隐退并跳过几何测量，块级命令无缝移交至移动动作栏。
+- **触屏手势与人机工程学对齐**：
+  - 解除 `freezeMousePlugin` 对触摸事件的阻断，放行浏览器原生触控惯性滚动（Kinetic Touch Scrolling）；
+  - 移动端（`pointer: coarse`）链接与交互按钮热区全面扩充至 Apple HIG 标准 44×44px，彻底杜绝小屏误触脱靶。
+- **React 受控状态平滑接入**：
+  - 新增 `controlled` 属性，支持外部状态以最小 CodeMirror 事务就地同步，彻底消除打字时整机销毁重装（`view.destroy()`）的历史顽疾；
+  - 解耦内部稳定实例标识，未指定 `documentId` 时保持长生命周期，避免焦点丢失与 IME 输入法中断。
+
+### 性能与长文调优 (Performance)
+
+- **选区窄失效机制 (Narrow Invalidation)**：
+  - 重构 `inline-preview` 刷新触发机制，方向键跨行与局部编辑时仅针对进出激活行重绘装饰，彻底消除长文 $O(N)$ 全篇语法树遍历。
+- **HeightMap 预估高度注入 (Anti-Jitter Scrolling)**：
+  - 为表格（Table）、数学块公式（BlockMath）、图片（Image）、文件块（FileBlock）与上传块全量注入精准 `estimatedHeight`，彻底消除 1000 行大文档快速滚动时 14px 高度塌陷引起的视口重排抖动。
+- **LaTeX 渲染 LRU 缓存**：
+  - 内置内存级 `MathRenderLruCache`（默认 800 条），复用已编译的 HTML 结构，长文公式重绘与滚动挂载耗时由毫秒级降至微秒级。
+- **表格输入微任务合并**：
+  - 表格单字符输入实施 Microtask Batching 合并派发，并完整保护英文输入末尾空格，杜绝打字阻塞。
+
+### 内核重构 (Core Architecture)
+
+- **CodeMirror 原生 atomicRanges 落地**：
+  - 列表结构性缩进全面注册至 `EditorView.atomicRanges` Facet，由内核原生接管指针拖选、触控吸附与跨原子跳跃；
+  - 剔除手写全局方向键拦截（精简 67 行胶水代码），由极薄跨行守卫保证单次跨行手感。
+
 ## 0.10.0 - 2026-10-14
 
 ### 新增

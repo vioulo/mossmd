@@ -16,7 +16,10 @@ MossMD 是基于 CodeMirror 6 的 Obsidian 风格 Markdown 编辑器，面向 Re
 2. 装饰不拥有数据，复制、保存和协作同步都以原文为准。
 3. 行高由 CSS 类决定，不由语法令牌显隐决定，避免布局漂移。
 4. `pointerdown` 后短暂冻结装饰重建，避免点击过程中源码显露导致光标漂移。
-5. 装饰更新尽量做窄失效，普通文本编辑不应触发整篇重建。
+5. 装饰更新尽量做窄失效（Narrow Invalidation），普通文本编辑与方向键导航不应触发整篇重建。
+6. 自定义 Block Widget 必须提供语义预估高度（`estimatedHeight`），杜绝视口塌陷（14px 塌陷）与滚动中的 HeightMap 行高突变抖动。
+7. 移动端触控人机工效对齐：交互热区 ≥ 44px，触屏拖拽滑动绝不调用 `preventDefault()` 阻断浏览器原生触控惯性滚动。
+8. React 组件接入解耦：未传入 `documentId` 时采用内部稳定实例标识，打字与受控状态回流绝不触发整机卸载重装（`view.destroy()`）。
 
 ## 当前目录职责
 
@@ -26,30 +29,44 @@ src/
   editor.tsx               React 包装与 CodeMirror 扩展装配
   core/
     code-languages.ts      围栏代码语言注册表
-    edit-helpers.ts        Markdown 输入辅助
-    icons.ts               Lucide 图标转 SVG 工具
-    inline-preview.ts      主实时预览装饰引擎
-    read-only.ts           阅读模式 facet 与扩展
-    tree-progress.ts       Lezer 解析进度广播
+    decoration-utils.ts    装饰区间安全分割工具
+    edit-helpers.ts        Markdown 输入辅助与标点配对
+    highlight.ts           ==highlight== 核心分词扩展
+    icons.ts               图标协议与通用 SVG 转换
+    inline-preview.ts      主实时预览装饰引擎（窄失效更新）
+    list-model.ts          有序/无序列表文本模型分析
+    list-editing.ts        列表回车续行、缩进与重编号
+    list-navigation.ts     CM6 原生 atomicRanges 声明与极薄跨行导航
+    markdown-context.ts    Markdown 代码块/文本上下文检测
+    preview-activity.ts    光标激活范围管理、点击冻结与手势分流
+    preview-widgets.ts     复选框、复制按钮、列表 Bullet
+    read-only.ts           阅读模式 Compartment 与 Facet
+    tree-progress.ts       Lezer 解析进度广播与懒加载节流
+    visual-viewport.ts     移动端软键盘动态避让与视口感知
   features/
     index.ts               用户功能聚合入口
-    image/index.ts         图片块 widget
-    file-blocks/index.ts   文件链接卡片 widget
-    table/index.ts         所见即所得表格
-    wiki-links/index.ts    Wiki 链接、解析与自动补全
     callout/index.ts       Obsidian 风格 Callout 装饰
-    slash-commands/index.ts  行首 `/` 与 `+` 触发的命令面板
-    upload/index.ts        上传进度块 widget 与上传命令
+    file-blocks/index.ts   文件链接卡片 widget
+    image/index.ts         图片块 widget 与浮动尺寸控制
+    math/index.ts          数学公式行内与块级实时预览（带 LRU 缓存）
+    mobile-toolbar/index.ts  移动端底部动作栏与软键盘快捷插入
     search/index.ts        查找替换面板与精准定位
-    math/index.ts          数学公式行内与块级实时预览
+    slash-commands/index.ts  行首 `/` 与 `+` 触发的命令面板
+    table/index.ts         所见即所得表格（带微任务输入合并）
+    upload/index.ts        上传进度块 widget 与上传命令
+    wiki-links/index.ts    Wiki 链接、解析与自动补全
+  icons/
+    lucide.ts              可选 Lucide 图标适配器
   syntax/
     index.ts               `MossCustomSyntax`、`defineMossSyntax()`、`registerMossSyntax()`
-    highlight.ts           `==highlight==` Markdown 扩展
-  collab/index.ts          协作适配器接口
+    highlight.ts           `==highlight==` Markdown 扩展导出
+  collab/index.ts          协作适配器接口（本地优先轻量快照）
+  theme/index.ts           主题扩展与默认配色
   styles/
     tokens.css             主题令牌
-    inline-preview.css     编辑器样式
+    inline-preview.css     编辑器主样式
     content.css            编辑器外 Markdown 内容样式
+    mobile.css             移动端触控热区与响应式浮层样式
 ```
 
 ## 公开入口
@@ -73,7 +90,7 @@ src/
 
 ## 协作接口
 
-协作边界位于 `src/collab/index.ts`：
+MossMD 遵循本地优先（Local-First）原则，协作边界位于 `src/collab/index.ts`：
 
 ```ts
 interface CollabAdapter {
@@ -84,7 +101,7 @@ interface CollabAdapter {
 }
 ```
 
-编辑器通过 `collabAdapter?: CollabAdapter` 接收实现，默认使用 `noopCollabAdapter`。当前接口以整文档快照为边界，未来可在 `attach(view)` 中接入 yjs 等更细粒度扩展。
+编辑器通过 `collabAdapter?: CollabAdapter` 接收实现，默认使用 `noopCollabAdapter`。当前接口以整文档快照为边界，满足单人多端云盘同步和文件外部刷新需求。多人毫秒级实时协同（基于 CM6 Changeset 或 Yjs CRDT）的长期技术路线已独立归档至 `docs/roadmap/collab.md`，核心层暂不引入重型协同运行时。
 
 ## 开发命令
 
@@ -101,7 +118,7 @@ Demo 位于 `demo/App.tsx`，用于手工验证；Harness 位于 `demo/harness.t
 
 ## 测试策略
 
-1. `bun run test` 使用 Vitest 配置，覆盖逻辑、状态和 Happy DOM 下的 DOM 契约。不要使用 `bun test`：它会直接启动 Bun 原生测试运行器，不读取 `vitest.config.ts`，也不会加载 Happy DOM。
+1. `bun run test` 使用 Vitest 配置，覆盖逻辑、状态和 Happy DOM 下的 DOM 契约（当前实测 221 项测试全绿）。不要使用 `bun test`：它会直接启动 Bun 原生测试运行器，不读取 `vitest.config.ts`，也不会加载 Happy DOM。
 2. `bun run test:e2e` 覆盖真实浏览器行为。
 3. `bun run test:package` 覆盖打包、导出映射和干净消费方构建。
 4. 共享 Markdown 契约放在 `src/__tests__/fixtures/markdown-contracts.ts`。

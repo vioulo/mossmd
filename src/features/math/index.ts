@@ -8,6 +8,8 @@ import {
 import {
   defaultMathRenderer,
   type MossMathRenderer,
+  MathRenderLruCache,
+  defaultMathRenderCache,
 } from './widget';
 
 export interface KatexOptions {
@@ -52,5 +54,10 @@ export function mossMathSyntax(config: MossMathConfig = {}): MossCustomSyntax {
   });
 }
 
-export { mossMathMarkdown, defaultMathRenderer };
+export {
+  mossMathMarkdown,
+  defaultMathRenderer,
+  MathRenderLruCache,
+  defaultMathRenderCache,
+};
 export type { MossMathConfig, MossMathRenderer };

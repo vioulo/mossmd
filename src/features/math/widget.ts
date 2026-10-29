@@ -10,6 +10,67 @@ export interface MossMathRenderer {
   ): HTMLElement | Promise<HTMLElement> | string;
 }
 
+export class MathRenderLruCache {
+  private readonly map = new Map<string, string>();
+
+  constructor(readonly maxSize: number = 800) {}
+
+  get(key: string): string | undefined {
+    const val = this.map.get(key);
+    if (val !== undefined) {
+      // Refresh MRU order: delete and re-insert
+      this.map.delete(key);
+      this.map.set(key, val);
+    }
+    return val;
+  }
+
+  set(key: string, val: string): void {
+    if (this.map.has(key)) {
+      this.map.delete(key);
+    } else if (this.map.size >= this.maxSize) {
+      const oldestKey = this.map.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.map.delete(oldestKey);
+      }
+    }
+    this.map.set(key, val);
+  }
+
+  has(key: string): boolean {
+    return this.map.has(key);
+  }
+
+  clear(): void {
+    this.map.clear();
+  }
+
+  get size(): number {
+    return this.map.size;
+  }
+}
+
+export const defaultMathRenderCache = new MathRenderLruCache(800);
+
+export function renderMathWithCache(
+  renderer: MossMathRenderer,
+  source: string,
+  mode: 'inline' | 'block',
+  cache: MathRenderLruCache = defaultMathRenderCache,
+): HTMLElement | Promise<HTMLElement> | string {
+  const cacheKey = `${mode}:${source}`;
+  const cached = cache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const result = renderer.render(source, mode);
+  if (typeof result === 'string') {
+    cache.set(cacheKey, result);
+  }
+  return result;
+}
+
 export const defaultMathRenderer: MossMathRenderer = {
   render(source: string, mode: 'inline' | 'block') {
     const el = document.createElement(mode === 'block' ? 'div' : 'span');
@@ -176,7 +237,7 @@ export class InlineMathWidget extends WidgetType {
     container.dataset.mathSource = this.source;
 
     try {
-      const result = this.renderer.render(this.source, 'inline');
+      const result = renderMathWithCache(this.renderer, this.source, 'inline');
       mountRenderResult(container, this.source, result);
     } catch (err) {
       renderError(container, this.source, err);
@@ -239,7 +300,7 @@ export class BlockMathWidget extends WidgetType {
     container.dataset.mathSource = this.source;
 
     try {
-      const result = this.renderer.render(this.source, 'block');
+      const result = renderMathWithCache(this.renderer, this.source, 'block');
       mountRenderResult(container, this.source, result);
     } catch (err) {
       renderError(container, this.source, err);

@@ -61,7 +61,7 @@ import {
 import { highlightMarkdown } from './syntax/highlight';
 import { inlinePreview } from './core/inline-preview';
 import { readOnlyExtension } from './core/read-only';
-import { mossTables } from './features/table';
+import { mossTables, flushPendingTableDispatch } from './features/table';
 import {
   wikiLinks,
   type WikiLinksConfig,
@@ -606,6 +606,7 @@ export function MossMD({
       const activeAdapter = collabAdapterRef.current;
       collabAdapterRef.current = noopCollabAdapter;
       if (activeAdapter !== noopCollabAdapter) void activeAdapter.detach();
+      flushPendingTableDispatch();
       view.destroy();
       viewRef.current = null;
     };
@@ -658,10 +659,12 @@ export function MossMD({
     editorHandleRef.current = {
       focus: () => viewRef.current?.focus(),
       undo: () => {
+        flushPendingTableDispatch();
         const view = viewRef.current;
         if (view) undo(view);
       },
       redo: () => {
+        flushPendingTableDispatch();
         const view = viewRef.current;
         if (view) redo(view);
       },
@@ -688,7 +691,10 @@ export function MossMD({
         const view = viewRef.current;
         return view ? searchPanelOpen(view.state) : false;
       },
-      getMarkdown: () => viewRef.current?.state.doc.toString() ?? '',
+      getMarkdown: () => {
+        flushPendingTableDispatch();
+        return viewRef.current?.state.doc.toString() ?? '';
+      },
       getContentDOM: () => viewRef.current?.contentDOM ?? null,
       setReadOnly: (next) => {
         const view = viewRef.current;

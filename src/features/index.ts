@@ -9,7 +9,7 @@ export type {
   MossFileBlocksConfig,
   MossFileBlockIcons,
 } from './file-blocks';
-export { mossTables } from './table';
+export { mossTables, flushPendingTableDispatch } from './table';
 export type { MossTablesConfig } from './table';
 export { mossWikiLinks } from './wiki-links';
 export type {

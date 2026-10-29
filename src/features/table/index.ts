@@ -659,7 +659,12 @@ function findCurrentTableRange(
   view: EditorView,
   dom: HTMLElement,
 ): { from: number; to: number } | null {
-  const pos = view.posAtDOM(dom);
+  let pos = -1;
+  try {
+    pos = view.posAtDOM(dom);
+  } catch {
+    return null;
+  }
   if (pos < 0) return null;
   const tree = syntaxTree(view.state);
   let node: SyntaxNode | null = tree.resolveInner(pos, 1);
@@ -900,14 +905,17 @@ function attachCellEditing(
     // textContent (not innerText) so `display: none` delimiters inside
     // mark wraps are still captured — otherwise a cell containing
     // `**bold**` would serialize to just `bold` on every keystroke.
-    const raw = (source.textContent ?? '').replace(/\s+/g, ' ').trim();
+    // Preserve trailing space while typing so multi-word typing works smoothly.
+    const raw = (source.textContent ?? '')
+      .replace(/[\r\n\t]+/g, ' ')
+      .replace(/^\s+/, '');
     cell.dataset.raw = raw;
     const offset = getCaretCharOffset(source);
     renderCellSourceDecorated(source);
     if (offset != null) setCaretCharOffset(source, offset);
     updateActiveMarkForSource(source);
     refreshCellPreview(cell);
-    dispatchModelFromDom(view, cell);
+    scheduleModelDispatch(view, cell);
   };
 
   // IME / dead-key composition. `commit` rebuilds the contenteditable
@@ -947,6 +955,7 @@ function attachCellEditing(
     sel.removeAllRanges();
     sel.addRange(range);
     commit();
+    flushPendingTableDispatch();
   });
 
   // Caret-position listeners. `focus` / `mouseup` / `keyup` cover the
@@ -962,9 +971,16 @@ function attachCellEditing(
   source.addEventListener('keyup', () => updateActiveMarkForSource(source));
 
   // Blur: collapse every active wrap so the reader-resting state
-  // hides all delimiters.
+  // hides all delimiters, and trim trailing whitespace from cell.
   source.addEventListener('blur', () => {
     source.classList.remove('is-focused');
+    const raw = (source.textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (cell.dataset.raw !== raw) {
+      cell.dataset.raw = raw;
+      renderCellSourceDecorated(source);
+      refreshCellPreview(cell);
+    }
+    flushPendingTableDispatch();
     clearActiveMarksInSource(source);
   });
 
@@ -975,6 +991,7 @@ function attachCellEditing(
     ) {
       event.preventDefault();
       event.stopPropagation();
+      flushPendingTableDispatch();
       const target = captureTableFocus(view, cell, source);
       if (event.shiftKey) {
         redo(view);
@@ -1044,6 +1061,7 @@ function dispatchModel(
   wrap: HTMLElement,
   nextModel: TableModel,
 ): void {
+  flushPendingTableDispatch();
   // A menu can outlive the editable widget that created it when the
   // host toggles reading mode. Guard before touching its now-detached
   // DOM so a stale menu action cannot mutate a read-only document (or
@@ -1245,6 +1263,38 @@ function openCellMenu(
   }, 0);
 }
 
+interface PendingTableDispatch {
+  view: EditorView;
+  cell: HTMLElement;
+}
+
+let pendingTableDispatch: PendingTableDispatch | null = null;
+let microtaskScheduled = false;
+
+export function flushPendingTableDispatch(): void {
+  microtaskScheduled = false;
+  if (!pendingTableDispatch) return;
+  const { view, cell } = pendingTableDispatch;
+  pendingTableDispatch = null;
+  dispatchModelFromDom(view, cell);
+}
+
+function scheduleModelDispatch(view: EditorView, cell: HTMLElement): void {
+  if (
+    pendingTableDispatch &&
+    (pendingTableDispatch.view !== view || pendingTableDispatch.cell !== cell)
+  ) {
+    flushPendingTableDispatch();
+  }
+  pendingTableDispatch = { view, cell };
+  if (!microtaskScheduled) {
+    microtaskScheduled = true;
+    queueMicrotask(() => {
+      flushPendingTableDispatch();
+    });
+  }
+}
+
 function dispatchModelFromDom(view: EditorView, cell: HTMLElement): void {
   if (view.state.facet(readOnlyFacet)) return;
   const wrap = cell.closest<HTMLElement>('.cm-moss-table');
@@ -1267,6 +1317,7 @@ function dispatchModelFromDom(view: EditorView, cell: HTMLElement): void {
 }
 
 function moveCellFocus(view: EditorView, cell: HTMLElement, dir: 1 | -1): void {
+  flushPendingTableDispatch();
   const wrap = cell.closest<HTMLElement>('.cm-moss-table');
   if (!wrap) return;
   const cells = getAllCells(wrap);
@@ -1296,6 +1347,7 @@ function moveCellFocus(view: EditorView, cell: HTMLElement, dir: 1 | -1): void {
 }
 
 function appendRow(view: EditorView, wrap: HTMLElement): void {
+  flushPendingTableDispatch();
   if (view.state.facet(readOnlyFacet)) return;
   const range = findCurrentTableRange(view, wrap);
   if (!range) return;

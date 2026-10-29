@@ -1,7 +1,8 @@
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
-import type { SyntaxNode } from '@lezer/common';
+import type { SyntaxNode, Tree } from '@lezer/common';
 import {
   type Extension,
+  type Line,
   type Range,
   type Text,
 } from '@codemirror/state';
@@ -41,7 +42,7 @@ import {
 import { listEditingExtension } from './list-editing';
 import { listNavigationExtension } from './list-navigation';
 import { isLineInsideMarkdownCode } from './markdown-context';
-import { mossIconFacet } from './icons';
+import { mossIconFacet, type MossIconMap } from './icons';
 
 // Inline preview — the Obsidian "Live Preview" model.
 //
@@ -279,37 +280,33 @@ function sameListItem(a: SyntaxNode | null, b: SyntaxNode): boolean {
   return a?.name === 'ListItem' && a.from === b.from && a.to === b.to;
 }
 
-function buildInlineDecorations(view: EditorView): DecorationSet {
+function getExpandedActiveLines(view: EditorView, tree: Tree): Set<number> {
+  const { activeLines: initial } = getPreviewActivity(view);
+  const activeLines = new Set(initial);
+  if (activeLines.size === 0) return activeLines;
+  const doc = view.state.doc;
+  for (const lineNum of initial) {
+    if (lineNum < 1 || lineNum > doc.lines) continue;
+    const line = doc.line(lineNum);
+    let node: SyntaxNode | null = tree.resolveInner(line.from, 1);
+    while (node && node.name !== 'FencedCode') node = node.parent;
+    if (node) {
+      const first = doc.lineAt(node.from).number;
+      const last = doc.lineAt(node.to).number;
+      for (let n = first; n <= last; n++) activeLines.add(n);
+    }
+  }
+  return activeLines;
+}
+
+export function buildInlineDecorations(view: EditorView): DecorationSet {
   const { state } = view;
   const { doc } = state;
   const ranges: Range<Decoration>[] = [];
 
-  // In read-only mode no line is ever "active" — the whole doc stays
-  // rendered (no reveal). We skip the selection walk entirely rather
-  // than relying on `hasFocus` staying false, so a programmatic
-  // `.focus()` can't accidentally reveal source under reading mode.
-  const { activeLines: initialActiveLines } = getPreviewActivity(view);
-  const activeLines = new Set(initialActiveLines);
-
-  // Decorate the whole parsed tree — not the current viewport — so
-  // that scrolling never needs to rebuild the decoration set. Prior
-  // design walked viewport-only and rebuilt on every scroll, which
-  // on iOS caused scroll-up momentum halts whenever new decorations
-  // were applied to lines at the top of the viewport (anchor
-  // conflict with the scroll animation). Cost: a one-shot whole-doc
-  // walk on every doc / selection / focus change instead of a
-  // smaller walk on every scroll.
-  //
-  // `ensureSyntaxTree(..., doc.length, ...)` guarantees the tree
-  // actually covers the whole doc before we walk it. Without this,
-  // for moderately long atoms the incremental parser's initial
-  // pass falls short of the end, we'd walk only a prefix, and
-  // content past that point renders as raw `##`/`**` forever —
-  // decorations don't rebuild on scroll anymore. Subsequent calls
-  // are near-free because ensureSyntaxTree short-circuits once the
-  // tree reaches the target.
   const tree =
     ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
+  const activeLines = getExpandedActiveLines(view, tree);
   const taskConfig = state.facet(taskCheckboxConfigFacet);
   const iconMap = state.facet(mossIconFacet);
   const extendedHorizontalRuleLines = new Map<
@@ -429,17 +426,6 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       }
       if (node.name === 'FencedCode') {
         const firstLine = doc.lineAt(node.from).number;
-        const lastLine = doc.lineAt(node.to).number;
-        let anyActive = false;
-        for (let n = firstLine; n <= lastLine; n++) {
-          if (activeLines.has(n)) {
-            anyActive = true;
-            break;
-          }
-        }
-        if (anyActive) {
-          for (let n = firstLine; n <= lastLine; n++) activeLines.add(n);
-        }
         ranges.push(
           Decoration.widget({
             widget: new CodeCopyWidget(fencedCodeSource(doc, node.from, node.to)),
@@ -960,12 +946,412 @@ function indexOfUnconsumed(
   return -1;
 }
 
+function buildDecorationsForLine(
+  view: EditorView,
+  tree: Tree,
+  line: Line,
+  activeLines: Set<number>,
+  taskConfig: Partial<Record<string, MossTaskCheckboxStatus>>,
+  iconMap: MossIconMap,
+  ranges: Range<Decoration>[],
+): void {
+  const { state } = view;
+  const { doc } = state;
+  const lineNum = line.number;
+  const isInsideCode = isLineInsideMarkdownCode(state, lineNum);
+
+  if (line.length === 0) {
+    if (!isInsideCode) {
+      ranges.push(
+        Decoration.line({ class: 'cm-moss-empty-line' }).range(line.from),
+      );
+    }
+    return;
+  }
+
+  const extendedHorizontalRule = parseExtendedHorizontalRule(line.text);
+  if (extendedHorizontalRule) {
+    if (activeLines.has(lineNum)) {
+      if (line.from < line.to) {
+        ranges.push(
+          Decoration.mark({ class: 'cm-moss-hr-source' }).range(
+            line.from,
+            line.to,
+          ),
+        );
+      }
+    } else {
+      ranges.push(
+        Decoration.line({
+          class: horizontalRuleClassNames(
+            extendedHorizontalRule.marker,
+            extendedHorizontalRule.glyph,
+          ),
+        }).range(line.from),
+      );
+      pushHorizontalRuleWidget(
+        ranges,
+        doc,
+        line,
+        extendedHorizontalRule.marker,
+        extendedHorizontalRule.glyph,
+      );
+    }
+    return;
+  }
+
+  if (isPlainHorizontalRule(line.text)) {
+    if (activeLines.has(lineNum)) {
+      if (line.from < line.to) {
+        ranges.push(
+          Decoration.mark({ class: 'cm-moss-hr-source' }).range(
+            line.from,
+            line.to,
+          ),
+        );
+      }
+    } else {
+      const marker = line.text.trimStart().slice(0, 1);
+      const hrMarker = marker === '*' || marker === '_' ? marker : '-';
+      ranges.push(
+        Decoration.line({
+          class: horizontalRuleClassNames(hrMarker, null),
+        }).range(line.from),
+      );
+      pushHorizontalRuleWidget(ranges, doc, line, hrMarker);
+    }
+    return;
+  }
+
+  // Hanging indent for list items
+  const contentOffset = line.text.search(/\S/);
+  if (contentOffset >= 0) {
+    const contentFrom = line.from + contentOffset;
+    const owner = nearestListItem(tree.resolve(contentFrom, 1));
+    if (owner) {
+      const firstLine = doc.lineAt(owner.from);
+      const markerLine = firstLine.number === lineNum;
+      if (markerLine || contentFrom > line.from) {
+        const listDepth = listItemDepth(owner);
+        const padding =
+          LIST_BASE_EM + LIST_ALCOVE_EM + listDepth * LIST_LEVEL_EM;
+        ranges.push(
+          Decoration.line({
+            attributes: {
+              style: `padding-left: ${padding}em; text-indent: ${
+                markerLine ? `-${LIST_ALCOVE_EM}` : '0'
+              }em`,
+            },
+          }).range(line.from),
+        );
+        if (contentFrom > line.from) {
+          pushReplace(ranges, doc, line.from, contentFrom);
+        }
+      }
+    }
+  }
+
+  const activeLinkStarts = new Set<number>();
+
+  tree.iterate({
+    from: line.from,
+    to: line.to,
+    enter: (node) => {
+      if (node.name === 'Link') {
+        if (isWikiLinkNode(node, doc) || isCalloutMarkerNode(node, doc)) {
+          return false;
+        }
+        const taskInfo = parseListTaskMarker(line.text, taskConfig, iconMap);
+        if (
+          taskInfo &&
+          !isInsideCode &&
+          node.from === line.from + taskInfo.markerFrom &&
+          node.to === line.from + taskInfo.markerTo
+        ) {
+          return false;
+        }
+        if (isPreviewRangeActive(state, node, view.hasFocus)) {
+          activeLinkStarts.add(node.from);
+        }
+      }
+
+      if (node.name === 'FencedCode') {
+        const firstLine = doc.lineAt(node.from).number;
+        const lastLine = doc.lineAt(node.to).number;
+        const classes = ['cm-moss-fenced-code'];
+        if (lineNum === firstLine) classes.push('cm-moss-fenced-code-start');
+        if (lineNum === lastLine) classes.push('cm-moss-fenced-code-end');
+        ranges.push(
+          Decoration.line({ class: classes.join(' ') }).range(line.from),
+        );
+        if (lineNum === firstLine) {
+          ranges.push(
+            Decoration.widget({
+              widget: new CodeCopyWidget(fencedCodeSource(doc, node.from, node.to)),
+            }).range(line.from),
+          );
+        }
+      } else {
+        const lineClass = LINE_CLASS_BY_BLOCK[node.name];
+        if (lineClass) {
+          ranges.push(Decoration.line({ class: lineClass }).range(line.from));
+        }
+      }
+
+      const markClass = INLINE_MARK_CLASS[node.name];
+      if (markClass && node.from < node.to) {
+        if (node.from >= line.from && node.to <= line.to) {
+          ranges.push(
+            Decoration.mark({ class: markClass }).range(node.from, node.to),
+          );
+        }
+      }
+
+      if (HIDEABLE_SYNTAX.has(node.name) && node.from < node.to) {
+        let shouldHide: boolean;
+        if (LINK_CHILD_SYNTAX.has(node.name)) {
+          let parent = node.node.parent;
+          while (parent && parent.name !== 'Link' && parent.name !== 'Image') {
+            parent = parent.parent;
+          }
+          if (parent && parent.name === 'Link') {
+            shouldHide = !activeLinkStarts.has(parent.from);
+          } else {
+            shouldHide = !activeLines.has(lineNum);
+          }
+        } else {
+          shouldHide = !activeLines.has(lineNum);
+        }
+
+        if (shouldHide) {
+          let hideTo = node.to;
+          if (node.name === 'HeaderMark' || node.name === 'QuoteMark') {
+            while (
+              hideTo < doc.length &&
+              doc.sliceString(hideTo, hideTo + 1) === ' '
+            ) {
+              hideTo++;
+            }
+          }
+          pushReplace(ranges, doc, node.from, hideTo);
+        }
+      }
+
+      if (node.name === 'URL' && node.from < node.to) {
+        const parent = node.node.parent;
+        if (parent?.name === 'Link') {
+          const destination = linkDestinationUrl(parent, doc);
+          if (
+            destination?.from === node.from &&
+            !activeLinkStarts.has(parent.from)
+          ) {
+            pushReplace(ranges, doc, node.from, node.to);
+          }
+        } else {
+          ranges.push(
+            Decoration.mark({ class: 'cm-moss-link' }).range(
+              node.from,
+              node.to,
+            ),
+          );
+        }
+      }
+
+      if (node.name === 'Escape' && node.to - node.from >= 2) {
+        if (!activeLines.has(lineNum)) {
+          pushReplace(ranges, doc, node.from, node.from + 1);
+        }
+      }
+
+      if (node.name === 'ListMark' && node.from < node.to) {
+        const listItem = nearestListItem(node.node);
+        const lineActive = activeLines.has(lineNum);
+        const markText = doc.sliceString(node.from, node.to);
+        const orderedMarker = /^\d{1,9}[.)]$/.test(markText);
+        const markEndInLine = node.to - line.from;
+        const hasListSeparator =
+          markEndInLine < line.text.length &&
+          /\s/.test(line.text[markEndInLine] ?? '');
+
+        if (orderedMarker && !hasListSeparator) return;
+
+        const taskInfo = parseListTaskMarker(line.text, taskConfig, iconMap);
+        const standardTask =
+          taskInfo != null && (taskInfo.key === ' ' || taskInfo.key === 'x');
+        const revealTaskSource =
+          taskInfo != null && shouldRevealTaskSource(view, line.from, taskInfo);
+
+        if (
+          lineActive &&
+          (markText === '-' ||
+            markText === '*' ||
+            markText === '+' ||
+            orderedMarker) &&
+          (taskInfo == null || revealTaskSource)
+        ) {
+          ranges.push(
+            Decoration.mark({
+              class: `cm-moss-list-marker ${
+                lineActive ? 'cm-moss-list-marker-active ' : ''
+              }${
+                orderedMarker
+                  ? 'cm-moss-ordered-marker'
+                  : 'cm-moss-unordered-marker'
+              }`,
+            }).range(node.from, node.to),
+          );
+          return;
+        }
+
+        const hasTrailingSpace =
+          doc.sliceString(node.to, node.to + 1) === ' ';
+        const markEnd = hasTrailingSpace ? node.to + 1 : node.to;
+
+        if (taskInfo != null && !standardTask) {
+          pushReplace(ranges, doc, node.from, line.from + taskInfo.markerTo, {
+            widget: new TaskCheckboxWidget(
+              taskInfo.key,
+              taskInfo.raw,
+              taskInfo.status,
+              line.from + taskInfo.markerFrom,
+              false,
+            ),
+          });
+          if (taskInfo.separator.length > 0) {
+            pushReplace(
+              ranges,
+              doc,
+              line.from + taskInfo.markerTo,
+              line.from + taskInfo.markerTo + taskInfo.separator.length,
+            );
+          }
+          if (taskInfo.status.completed) {
+            ranges.push(
+              Decoration.line({ class: 'cm-moss-task-done' }).range(line.from),
+            );
+          }
+        } else if (taskInfo != null) {
+          pushReplace(ranges, doc, node.from, line.from + taskInfo.markerFrom);
+        } else {
+          if (markText === '-' || markText === '*' || markText === '+') {
+            pushReplace(ranges, doc, node.from, markEnd, {
+              widget: new BulletWidget(listItem ? listItemDepth(listItem) : 0),
+            });
+          } else {
+            ranges.push(
+              Decoration.mark({
+                class: `cm-moss-list-marker ${
+                  lineActive ? 'cm-moss-list-marker-active ' : ''
+                }${
+                  orderedMarker
+                    ? 'cm-moss-ordered-marker'
+                    : 'cm-moss-unordered-marker'
+                }`,
+              }).range(node.from, node.to),
+            );
+          }
+        }
+      }
+
+      if (node.name === 'Image' && node.from < node.to) {
+        pushReplace(ranges, doc, node.from, node.to);
+      }
+
+      if (node.name === 'TaskMarker' && node.from < node.to) {
+        const taskInfo = parseListTaskMarker(line.text, taskConfig, iconMap);
+        if (!taskInfo) return;
+        if (shouldRevealTaskSource(view, line.from, taskInfo)) return;
+        const hasTrailingSpace =
+          node.to < doc.length &&
+          doc.sliceString(node.to, node.to + 1) === ' ';
+        pushReplace(ranges, doc, node.from, node.to, {
+          widget: new TaskCheckboxWidget(
+            taskInfo.key,
+            taskInfo.raw,
+            taskInfo.status,
+            node.from,
+            shouldUseNativeTaskCheckbox(taskInfo.key, taskConfig),
+          ),
+        });
+        if (hasTrailingSpace) {
+          pushReplace(ranges, doc, node.to, node.to + 1);
+        }
+        if (taskInfo.status.completed) {
+          ranges.push(
+            Decoration.line({ class: 'cm-moss-task-done' }).range(line.from),
+          );
+        }
+      }
+    },
+  });
+
+  if (view.hasFocus) {
+    const head = state.selection.main.head;
+    if (doc.lineAt(head).number === lineNum) {
+      supplementMidTypingEmphasis(
+        line.text,
+        line.from,
+        head - line.from,
+        ranges,
+      );
+    }
+  }
+}
+
+function updateLinesDecorations(
+  view: EditorView,
+  tree: Tree,
+  current: DecorationSet,
+  affectedLines: Set<number>,
+  activeLines: Set<number>,
+): DecorationSet {
+  const { state } = view;
+  const { doc } = state;
+  const taskConfig = state.facet(taskCheckboxConfigFacet);
+  const iconMap = state.facet(mossIconFacet);
+
+  let updated = current;
+
+  for (const lineNum of affectedLines) {
+    if (lineNum < 1 || lineNum > doc.lines) continue;
+    const line = doc.line(lineNum);
+    const lineRanges: Range<Decoration>[] = [];
+
+    buildDecorationsForLine(
+      view,
+      tree,
+      line,
+      activeLines,
+      taskConfig,
+      iconMap,
+      lineRanges,
+    );
+
+    updated = updated.update({
+      filterFrom: line.from,
+      filterTo: line.to,
+      filter: (from, to) => from < line.from || to > line.to,
+      add: lineRanges,
+      sort: true,
+    });
+  }
+
+  return updated;
+}
+
 const inlinePreviewPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
+    lastActiveLines = new Set<number>();
+    lastHead: number | null = null;
 
     constructor(view: EditorView) {
       this.decorations = buildInlineDecorations(view);
+      const tree =
+        ensureSyntaxTree(view.state, view.state.doc.length, 200) ??
+        syntaxTree(view.state);
+      this.lastActiveLines = getExpandedActiveLines(view, tree);
+      this.lastHead = view.state.selection.main.head;
     }
 
     update(update: ViewUpdate) {
@@ -1036,12 +1422,61 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
         forceRefresh ||
         justUnfroze ||
         update.docChanged ||
-        update.selectionSet ||
-        update.focusChanged ||
         treeGrew ||
         readOnlyChanged
       ) {
         this.decorations = buildInlineDecorations(update.view);
+        const tree =
+          ensureSyntaxTree(update.state, update.state.doc.length, 200) ??
+          syntaxTree(update.state);
+        this.lastActiveLines = getExpandedActiveLines(update.view, tree);
+        this.lastHead = update.state.selection.main.head;
+        return;
+      }
+
+      if (update.selectionSet || update.focusChanged) {
+        const tree =
+          ensureSyntaxTree(update.state, update.state.doc.length, 200) ??
+          syntaxTree(update.state);
+        const nextActive = getExpandedActiveLines(update.view, tree);
+        const nextHead = update.state.selection.main.head;
+        const prevActive = this.lastActiveLines;
+        const prevHead = this.lastHead;
+        const doc = update.state.doc;
+
+        const affectedLines = new Set<number>();
+        for (const n of prevActive) {
+          if (!nextActive.has(n)) affectedLines.add(n);
+        }
+        for (const n of nextActive) {
+          if (!prevActive.has(n)) affectedLines.add(n);
+        }
+        if (prevHead != null && prevHead >= 0 && prevHead <= doc.length) {
+          affectedLines.add(doc.lineAt(prevHead).number);
+        }
+        if (nextHead != null && nextHead >= 0 && nextHead <= doc.length) {
+          affectedLines.add(doc.lineAt(nextHead).number);
+        }
+
+        if (affectedLines.size === 0) {
+          this.lastHead = nextHead;
+          return;
+        }
+
+        if (affectedLines.size > 50) {
+          this.decorations = buildInlineDecorations(update.view);
+        } else {
+          this.decorations = updateLinesDecorations(
+            update.view,
+            tree,
+            this.decorations,
+            affectedLines,
+            nextActive,
+          );
+        }
+
+        this.lastActiveLines = nextActive;
+        this.lastHead = nextHead;
       }
     }
   },

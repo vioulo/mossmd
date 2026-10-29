@@ -6,7 +6,7 @@ import {
   type EditorView,
   type ViewUpdate,
 } from '@codemirror/view';
-import { type Extension, type Range } from '@codemirror/state';
+import { type Extension, type Range, type EditorState } from '@codemirror/state';
 import { readOnlyFacet } from '../../core/read-only';
 import { previewFrozenField } from '../../core/preview-activity';
 import { defineMossSyntax, type MossCustomSyntax } from '../../syntax';
@@ -112,9 +112,14 @@ export function mossCallouts(config: MossCalloutsConfig = {}): Extension {
   return ViewPlugin.fromClass(
     class {
       decorations: DecorationSet;
+      calloutStartLines = new Set<number>();
 
       constructor(readonly view: EditorView) {
-        this.decorations = buildCalloutDecorations(view, aliases);
+        this.decorations = buildCalloutDecorations(
+          view,
+          aliases,
+          this.calloutStartLines,
+        );
       }
 
       update(update: ViewUpdate): void {
@@ -132,11 +137,41 @@ export function mossCallouts(config: MossCalloutsConfig = {}): Extension {
         if (
           justUnfroze ||
           update.docChanged ||
-          update.selectionSet ||
           update.focusChanged ||
           readOnlyChanged
         ) {
-          this.decorations = buildCalloutDecorations(update.view, aliases);
+          this.decorations = buildCalloutDecorations(
+            update.view,
+            aliases,
+            this.calloutStartLines,
+          );
+          return;
+        }
+
+        if (update.selectionSet) {
+          if (this.calloutStartLines.size === 0) return;
+          const prevActive = findActiveLinesFromState(
+            update.startState,
+            update.view.hasFocus,
+          );
+          const nextActive = findActiveLinesFromState(
+            update.state,
+            update.view.hasFocus,
+          );
+          let calloutActiveChanged = false;
+          for (const line of this.calloutStartLines) {
+            if (prevActive.has(line) !== nextActive.has(line)) {
+              calloutActiveChanged = true;
+              break;
+            }
+          }
+          if (calloutActiveChanged) {
+            this.decorations = buildCalloutDecorations(
+              update.view,
+              aliases,
+              this.calloutStartLines,
+            );
+          }
         }
       }
     },
@@ -159,7 +194,9 @@ export function mossCalloutSyntax(
 function buildCalloutDecorations(
   view: EditorView,
   aliases: Record<string, string>,
+  calloutStartLines?: Set<number>,
 ): DecorationSet {
+  calloutStartLines?.clear();
   const ranges: Range<Decoration>[] = [];
   const doc = view.state.doc;
   const activeLines = findActiveLines(view);
@@ -169,6 +206,7 @@ function buildCalloutDecorations(
     const start = parseCalloutStart(line.text, line.from, aliases);
     if (!start) continue;
     start.number = line.number;
+    calloutStartLines?.add(line.number);
 
     const lines: CalloutLine[] = [start];
     let nextNumber = lineNumber + 1;
@@ -234,6 +272,24 @@ function findActiveLines(view: EditorView): Set<number> {
   for (const range of view.state.selection.ranges) {
     const first = view.state.doc.lineAt(range.from).number;
     const last = view.state.doc.lineAt(range.to).number;
+    for (let number = first; number <= last; number++) {
+      activeLines.add(number);
+    }
+  }
+
+  return activeLines;
+}
+
+function findActiveLinesFromState(
+  state: EditorState,
+  hasFocus: boolean,
+): Set<number> {
+  const activeLines = new Set<number>();
+  if (state.facet(readOnlyFacet) || !hasFocus) return activeLines;
+
+  for (const range of state.selection.ranges) {
+    const first = state.doc.lineAt(range.from).number;
+    const last = state.doc.lineAt(range.to).number;
     for (let number = first; number <= last; number++) {
       activeLines.add(number);
     }

@@ -283,6 +283,11 @@ export class BlockMathWidget extends WidgetType {
     super();
   }
 
+  override get estimatedHeight(): number {
+    const lineCount = (this.source.match(/\n/g)?.length ?? 0) + 1;
+    return Math.max(68, lineCount * 26 + 24);
+  }
+
   override eq(other: BlockMathWidget): boolean {
     return (
       this.source === other.source &&

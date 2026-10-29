@@ -404,13 +404,22 @@ export function App() {
     [sampleSize],
   );
 
-  const measurePerf = useCallback(() => {
+  const handleSampleSizeChange = useCallback((size: SampleSize) => {
+    setSampleSize(size);
+    setLiveMarkdown('');
+  }, []);
+
+  const docStats = useMemo(() => {
     const markdown = liveMarkdown || initialMarkdown;
     const total = markdown ? markdown.split('\n').length : 0;
     const size = formatBytes(markdown.length);
+    return { total, size };
+  }, [initialMarkdown, liveMarkdown]);
+
+  const measurePerf = useCallback(() => {
     const view = editorRef.current?.getContentDOM();
     if (!view) {
-      setPerf({ rendered: 0, total, size });
+      setPerf({ rendered: 0, total: docStats.total, size: docStats.size });
       return;
     }
 
@@ -427,8 +436,8 @@ export function App() {
         rendered++;
       }
     });
-    setPerf({ rendered, total: lines.length || total, size });
-  }, [initialMarkdown, liveMarkdown]);
+    setPerf({ rendered, total: docStats.total, size: docStats.size });
+  }, [docStats]);
 
   const measurePerfRef = useRef(measurePerf);
   useEffect(() => {
@@ -523,21 +532,19 @@ export function App() {
     let scroller: HTMLElement | null = null;
     let firstFrame = 0;
     let secondFrame = 0;
-    let measureFrame = 0;
+    let measureTimer = 0;
 
-    const scheduleMeasure = () => {
-      if (measureFrame) return;
-      measureFrame = window.requestAnimationFrame(() => {
-        measureFrame = 0;
-        measurePerfRef.current();
-      });
+    const measure = () => {
+      measurePerfRef.current();
     };
 
     const handleScroll = () => {
       if (scroller) {
-        setShowTopButton(scroller.scrollTop > 200);
+        const top = scroller.scrollTop > 200;
+        setShowTopButton((prev) => (prev !== top ? top : prev));
       }
-      scheduleMeasure();
+      if (measureTimer) window.clearTimeout(measureTimer);
+      measureTimer = window.setTimeout(measure, 150);
     };
 
     firstFrame = window.requestAnimationFrame(() => {
@@ -546,7 +553,7 @@ export function App() {
         scroller = content?.closest('.cm-scroller') as HTMLElement | null;
         if (!scroller) return;
         scroller.addEventListener('scroll', handleScroll, { passive: true });
-        handleScroll();
+        measure();
       });
     });
 
@@ -555,7 +562,7 @@ export function App() {
     return () => {
       window.cancelAnimationFrame(firstFrame);
       window.cancelAnimationFrame(secondFrame);
-      window.cancelAnimationFrame(measureFrame);
+      if (measureTimer) window.clearTimeout(measureTimer);
       if (scroller) scroller.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleScroll);
     };
@@ -602,7 +609,7 @@ export function App() {
                     key={size}
                     type="button"
                     className={`demo-pill ${sampleSize === size ? 'is-active' : ''}`}
-                    onClick={() => setSampleSize(size)}
+                    onClick={() => handleSampleSizeChange(size)}
                     aria-pressed={sampleSize === size}
                     title={size}
                   >

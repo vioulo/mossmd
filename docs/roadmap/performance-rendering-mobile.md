@@ -265,11 +265,11 @@ State Update (Doc / Selection / Viewport)
 - [x] **E2E 移动端基线**：在 `playwright.config.ts` 中加入 Mobile WebKit 与 Mobile Chrome 测试环境，建立首批移动端保护用例。
 
 ### 阶段二：长文性能调优与渲染防抖 (P1)
-- [ ] **选区窄失效机制**：重构 `inline-preview.ts` 更新触发逻辑，选区移动时仅针对受影响的前后激活行重绘装饰，消除全篇 $O(N)$ 遍历。
+- [x] **选区窄失效机制**：重构 `inline-preview.ts` 更新触发逻辑，选区移动时仅针对受影响的前后激活行重绘装饰，消除全篇 $O(N)$ 遍历。
 - [x] **LaTeX 公式 LRU 缓存**：在 `features/math/` 中引入内存级 `MathRenderLruCache`（默认 800 条），复用已编译 HTML 字符串，长文滚动与公式挂载开销由毫秒级降至微秒级。
 - [x] **表格单字符输入合并**：对表格单元格输入实施微任务合并与末尾空白保护。
 - [ ] **CodeMirror 原生 atomicRanges 落地**：废弃 `list-navigation.ts` 手写跳跃拦截，全量切换至 CM6 标准 atomicRanges。
-- [ ] **图片占位与 Heightmap 保护**：实现异步图片的宽高比预占位与 onload 重新测量。
+- [x] **图片与块级组件 Heightmap 预估保护**：为 Table、BlockMath、Image、FileBlock 全量补充 `estimatedHeight`，避免进入视口时高度突变（从 14px 突变为 200px+）引发视口重构与滚动补偿抖动。
 
 ### 阶段三：架构统一与协作能力升级 (P2)
 - [ ] **统一装饰调度层**：整合独立 Feature 的 StateField/ViewPlugin，消除并发多重语法树遍历。

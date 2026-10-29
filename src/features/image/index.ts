@@ -464,6 +464,16 @@ class ImageWidget extends WidgetType {
     super();
   }
 
+  override get estimatedHeight(): number {
+    if (this.width) {
+      const match = this.width.match(/x(\d+)/);
+      if (match) return Number(match[1]);
+    }
+    const cached = dimensionCache.get(this.src);
+    if (cached?.h) return cached.h;
+    return 240;
+  }
+
   eq(other: ImageWidget): boolean {
     return (
       other.src === this.src &&

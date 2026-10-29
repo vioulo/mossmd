@@ -159,6 +159,41 @@ function changeAffectsMath(tr: Transaction, existing: DecorationSet): boolean {
   return affected;
 }
 
+function selectionAffectsMath(tr: Transaction, existing: DecorationSet): boolean {
+  if (existing.size === 0) {
+    for (const sel of tr.state.selection.ranges) {
+      const line = tr.state.doc.lineAt(sel.from);
+      if (line.text.includes('$')) return true;
+    }
+    return false;
+  }
+  for (const sel of tr.startState.selection.ranges) {
+    let hit = false;
+    existing.between(
+      Math.max(0, sel.from - 1),
+      Math.min(tr.startState.doc.length, sel.to + 1),
+      () => {
+        hit = true;
+        return false;
+      },
+    );
+    if (hit) return true;
+  }
+  for (const sel of tr.state.selection.ranges) {
+    let hit = false;
+    existing.between(
+      Math.max(0, sel.from - 1),
+      Math.min(tr.state.doc.length, sel.to + 1),
+      () => {
+        hit = true;
+        return false;
+      },
+    );
+    if (hit) return true;
+  }
+  return false;
+}
+
 export function mathDecorationsExtension(
   config: MossMathConfig = {},
 ): Extension {
@@ -193,7 +228,10 @@ export function mathDecorationsExtension(
       }
 
       if (tr.selection) {
-        return buildMathDecorations(tr.state, config);
+        if (selectionAffectsMath(tr, deco)) {
+          return buildMathDecorations(tr.state, config);
+        }
+        return deco;
       }
 
       return deco;

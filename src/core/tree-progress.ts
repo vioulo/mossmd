@@ -21,33 +21,32 @@ import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 export const treeGrowthEffect = StateEffect.define<null>();
 
 // How much must the parsed range grow before we dispatch a rebuild
-// effect. A too-small threshold means a storm of tiny rebuilds while
-// the parser chews through the doc; too large means the user might
-// scroll past an unparsed region before it catches up. 8KB is roughly
-// two viewport-heights of text and reliably contains several table/
-// image blocks in our sample content.
-const GROWTH_THRESHOLD = 8192;
+// effect. For small documents (<128KB), 16KB (~2 viewport-heights)
+// reliably catches new blocks without spamming. For large documents
+// (up to 1000 pages / 1.7MB+), scaling with document length caps total
+// rebuild passes to ~8-12 rather than hundreds of blocking tree walks.
+export function getGrowthThreshold(docLen: number): number {
+  return Math.max(16384, Math.min(262144, Math.floor(docLen / 8)));
+}
 
-// Budget per idle tick — short enough to keep the main thread
-// responsive, long enough to make real progress. rIC/rAF fire at
-// 16ms+, so 30ms is "push a bit past one frame" rather than "steal a
-// whole frame."
-const TICK_BUDGET_MS = 30;
+// Budget per idle tick — kept under a single frame (16.6ms at 60fps)
+// so background parsing does not cause frame drops.
+const TICK_BUDGET_MS = 15;
 
-type IdleHandle = { kind: 'idle'; id: number } | { kind: 'raf'; id: number };
+type IdleHandle = { kind: 'idle'; id: number } | { kind: 'timeout'; id: number };
 
 function scheduleIdle(cb: () => void): IdleHandle {
   if (typeof window.requestIdleCallback === 'function') {
     return { kind: 'idle', id: window.requestIdleCallback(() => cb()) };
   }
-  return { kind: 'raf', id: window.requestAnimationFrame(() => cb()) };
+  return { kind: 'timeout', id: window.setTimeout(() => cb(), 100) };
 }
 
 function cancelIdle(handle: IdleHandle): void {
   if (handle.kind === 'idle' && typeof window.cancelIdleCallback === 'function') {
     window.cancelIdleCallback(handle.id);
-  } else if (handle.kind === 'raf') {
-    window.cancelAnimationFrame(handle.id);
+  } else if (handle.kind === 'timeout') {
+    window.clearTimeout(handle.id);
   }
 }
 
@@ -115,7 +114,8 @@ export const treeProgressPlugin = ViewPlugin.fromClass(
       const ensured = ensureSyntaxTree(state, docLen, TICK_BUDGET_MS);
       const newLen = (ensured ?? syntaxTree(state)).length;
 
-      if (newLen >= this._lastTreeLen + GROWTH_THRESHOLD || newLen >= docLen) {
+      const threshold = getGrowthThreshold(docLen);
+      if (newLen >= this._lastTreeLen + threshold || newLen >= docLen) {
         const previous = this._lastTreeLen;
         this._lastTreeLen = newLen;
         try {

@@ -731,6 +731,11 @@ class TableWidget extends WidgetType {
     super();
   }
 
+  override get estimatedHeight(): number {
+    // Header row (~38px) + data rows (~36px each) + table padding/border (~16px)
+    return Math.max(74, Math.round((this.model.rows.length + 1) * 36 + 16));
+  }
+
   // Structure-only equality. Typing in a cell produces a new
   // TableWidget with the same dimensions but different cell contents.
   // Returning true here means CM6 keeps the existing DOM instead of

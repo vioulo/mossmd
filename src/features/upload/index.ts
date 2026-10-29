@@ -261,6 +261,10 @@ class UploadWidget extends WidgetType {
     super();
   }
 
+  override get estimatedHeight(): number {
+    return 64;
+  }
+
   eq(other: UploadWidget): boolean {
     const a = this.entry;
     const b = other.entry;

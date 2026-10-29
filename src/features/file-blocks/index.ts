@@ -239,6 +239,10 @@ class FileBlockWidget extends WidgetType {
     super();
   }
 
+  override get estimatedHeight(): number {
+    return 56;
+  }
+
   eq(other: FileBlockWidget): boolean {
     return (
       other.label === this.label &&

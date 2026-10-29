@@ -131,18 +131,29 @@ export interface MossMDProps {
   /**
    * Opaque identity for the document. Swapping `documentId` tears down
    * and re-mounts the view so cursor / undo state from a previous
-   * document doesn't leak. If omitted, the initial `markdownSource`
-   * value is used as the identity — which means mounting a different
-   * string produces a fresh editor.
+   * document doesn't leak. If omitted, a stable internal identity is
+   * maintained across renders, avoiding accidental teardown when
+   * `markdownSource` updates.
    */
   documentId?: string;
 
   /**
-   * The markdown document to open the editor on. Used only at mount
-   * time — the editor is the source of truth for the doc after that.
-   * To swap documents, change `documentId`.
+   * The markdown document to open the editor on. Used at mount time
+   * to seed the initial editor content.
+   *
+   * In controlled mode (when `controlled` is true), external updates to
+   * `markdownSource` that differ from the editor's current content are
+   * dispatched in-place via minimal transactions rather than remounting.
    */
   markdownSource: string;
+
+  /**
+   * Enable controlled mode. When true, external changes to `markdownSource`
+   * (e.g. from parent state or external resets) will update the editor document
+   * in-place via minimal transactions without remounting the view.
+   * Defaults to false.
+   */
+  controlled?: boolean;
 
   /**
    * If set, opens the search panel on mount with this query pre-filled.
@@ -310,6 +321,7 @@ export function MossMD({
   markdownSource,
   contentWidth,
   documentId,
+  controlled = false,
   initialSearchText,
   searchPanelPosition = 'top',
   initialRevealText,
@@ -388,9 +400,33 @@ export function MossMD({
     onLinkClickRef.current = onLinkClick;
   }, [onLinkClick]);
 
-  // Mount once per document identity; swapping documents tears down the
-  // view so cursor/undo state from the previous doc doesn't leak.
-  const editorIdentity = documentId ?? markdownSource;
+  // Mount once per document identity. When documentId is supplied, swapping
+  // it tears down the view so cursor/undo state doesn't leak. When omitted,
+  // use a stable instance identity so updates to markdownSource never cause
+  // accidental editor teardown.
+  const defaultIdentityRef = useRef({});
+  const editorIdentity = documentId ?? defaultIdentityRef.current;
+
+  // In controlled mode, sync external changes to markdownSource into the
+  // live editor in-place without tearing down the view. Changes originating
+  // from inside the editor match view.state.doc.toString() and are ignored.
+  const lastMarkdownSourceRef = useRef(markdownSource);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !controlled) return;
+    if (markdownSource === lastMarkdownSourceRef.current) return;
+    lastMarkdownSourceRef.current = markdownSource;
+
+    if (markdownSource === view.state.doc.toString()) return;
+
+    view.dispatch({
+      changes: {
+        from: 0,
+        to: view.state.doc.length,
+        insert: markdownSource,
+      },
+    });
+  }, [controlled, markdownSource]);
 
   const attachCollabAdapter = async (
     adapter: CollabAdapter,

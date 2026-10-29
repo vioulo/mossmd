@@ -274,5 +274,5 @@ State Update (Doc / Selection / Viewport)
 ### 阶段三：架构统一与协作能力升级 (P2)
 - [ ] **统一装饰调度层**：整合独立 Feature 的 StateField/ViewPlugin，消除并发多重语法树遍历。
 - [ ] **增量协同接口升级**：重构 `collab/`，提供基于 Changeset 的非破坏性实时协同适配支持。
-- [ ] **React 受控状态平滑接入**：解决 `markdownSource` 未传 `documentId` 时的编辑器误重载问题。
+- [x] **React 受控状态平滑接入**：解决 `markdownSource` 未传 `documentId` 时的编辑器误重载问题，解耦内部实例标识，支持 `controlled` 属性最小事务就地同步。
 

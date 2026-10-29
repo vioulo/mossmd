@@ -78,3 +78,18 @@ CodeMirror 6 采用视口虚拟化技术，屏幕之外的内容并不挂载 DOM
    - 彻底废除 `moveListHorizontally`（37 行）与手写 `skipListStructure`（30 行）。
    - 引入超轻量的跨行边界守卫 `moveListBoundaryHorizontal`（仅在光标处于行首隐藏缩进边界时介入单次跨行，普通行内所有打字与左右导航 100% 保持 CM6 原生性能与零开销）。
    - 补充专属测试套件 `src/__tests__/list-atomic-ranges.test.ts`，全量 217 个测试全绿。
+
+
+---
+
+### **四、React 受控模式下的身份标识解耦与就地平滑同步**
+
+1. **核心痛点与风险**：
+   原 `src/editor.tsx` 中定义 `const editorIdentity = documentId ?? markdownSource;`。当外部使用者按标准 React 受控模式编写 `<MossMD markdownSource={text} onMarkdownChange={setText} />` 时，每次用户打字触发 `setText`，都会导致父组件重新渲染并传入新的 `markdownSource`，进而导致 `editorIdentity` 漂移，在每一帧输入时强制触发 `view.destroy()` 和整机重装。造成严重的焦点丢失、输入法（IME）中断和 DOM 抖动。
+
+2. **改造方案与架构落脚点**：
+   - **解耦内部稳定标识**：未传入 `documentId` 时，采用内部稳定的实例标识 `defaultIdentityRef.current`，不再因 `markdownSource` 文本变化而触发整机卸载。
+   - **平滑支持受控与非受控双模态**：
+     - **非受控模式（默认）**：仅在 mount 时消费 `markdownSource`，父组件因外部状态重渲染时，绝不破坏或覆盖编辑器内部正在输入的内容；通过 `documentId` 切换文档时依然享有干净的整机重置。
+     - **受控模式（`controlled = true`）**：引入轻量同步 Effect，对比 `view.state.doc.toString()`；凡由编辑器内部输入产生的回显直接忽略，凡来自父组件的外部更新（如外部 Reset、远程加载），均通过 `view.dispatch` 最小事务就地同步更新文档，实现零销毁、零白屏、保光标的平滑体验。
+   - **专属测试套件**：编写 `src/__tests__/editor-controlled.test.tsx`，覆盖受控输入循环、`controlled=true` 就地更新、非受控状态防护以及 `documentId` 切文档全流程。

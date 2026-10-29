@@ -299,7 +299,7 @@ describe('Math (LaTeX) Feature', () => {
     it('selects formula content cleanly on click excluding delimiters', () => {
       const formulaInner =
         '\\frac{1}{1 + \\frac{e^{-2\\pi}}{1 + \\frac{e^{-4\\pi}}{1 + \\frac{e^{-6\\pi}}{\\ddots}}}} = \\left( \\sqrt{\\frac{5+\\sqrt{5}}{2}} - \\frac{\\sqrt{5}+1}{2} \\right) e^{2\\pi/5}';
-      const markdown = `$$\n${formulaInner}$$`;
+      const markdown = `Formula:\n\n$$\n${formulaInner}$$`;
 
       const { host } = mount(
         <MossMD
@@ -375,6 +375,66 @@ describe('Math (LaTeX) Feature', () => {
       const selected = view!.state.sliceDoc(selFrom, selTo);
       expect(selected).toBe('x = 1');
       expect(selected.includes('$$')).toBe(false);
+    });
+
+    it('does not hijack selection when preview card is clicked while active and allows caret placement on last line', () => {
+      const formulaInner =
+        '\\frac{1}{1 + \\frac{e^{-2\\pi}}{1 + \\frac{e^{-4\\pi}}{1 + \\frac{e^{-6\\pi}}{\\ddots}}}} = \\left( \\sqrt{\\frac{5+\\sqrt{5}}{2}} - \\frac{\\sqrt{5}+1}{2} \\right) e^{2\\pi/5}';
+      const markdown = `Formula:\n\n$$\n${formulaInner}$$`;
+
+      const { host } = mount(
+        <MossMD
+          markdownSource={markdown}
+          customSyntax={[mossMathSyntax()]}
+        />,
+      );
+
+      const editor = host.querySelector<HTMLElement>('.cm-editor');
+      const view = editor ? EditorView.findFromDOM(editor) : null;
+      expect(view).not.toBeNull();
+
+      const blockWidget = host.querySelector<HTMLElement>(
+        '.cm-moss-math.cm-moss-math-block',
+      );
+      expect(blockWidget).not.toBeNull();
+
+      // Click folded card to activate
+      act(() => {
+        blockWidget!.dispatchEvent(
+          new MouseEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+          }),
+        );
+      });
+
+      // Preview card is rendered below active source
+      const previewCard = host.querySelector<HTMLElement>(
+        '.cm-moss-math-block-preview',
+      );
+      expect(previewCard).not.toBeNull();
+
+      // Place caret on the last line of formula content
+      const lastLinePos = markdown.indexOf('e^{2\\pi/5}');
+      act(() => {
+        view!.dispatch({ selection: { anchor: lastLinePos } });
+      });
+      expect(view!.state.selection.main.anchor).toBe(lastLinePos);
+      expect(view!.state.selection.main.empty).toBe(true);
+
+      // Clicking preview card should NOT reset selection or hijack caret
+      act(() => {
+        previewCard!.dispatchEvent(
+          new MouseEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+          }),
+        );
+      });
+      expect(view!.state.selection.main.anchor).toBe(lastLinePos);
+      expect(view!.state.selection.main.empty).toBe(true);
     });
 
     it('never reveals source in read-only mode', () => {

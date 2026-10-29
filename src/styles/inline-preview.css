@@ -2230,20 +2230,25 @@ input.cm-moss-task-checkbox:focus-visible {
   justify-content: center;
   align-items: center;
   width: 100%;
-  margin: 0.85em 0;
-  padding: 0.6em 1em;
+  /* CM6 block-widget height measurement excludes margins.
+   * Keeping margins on block widgets causes the DOM to sit lower
+   * than CM6's heightmap, inducing cursor drift on following lines.
+   * Spacing is therefore provided via padding on the measured box. */
+  margin: 0;
+  padding: 0.85em 1em;
   overflow-x: auto;
   overflow-y: hidden;
   box-sizing: border-box;
 }
 
 .cm-moss-math-block.cm-moss-math-block-preview {
-  margin-top: 0.4em;
-  padding: 0.5em 1em;
+  margin: 0;
+  padding: 0.85em 1em 0.5em 1em;
   border-top: 1px dashed var(--moss-border, rgba(255, 255, 255, 0.15));
   opacity: 0.95;
   background: var(--moss-bg-subtle, rgba(255, 255, 255, 0.02));
   border-radius: 0 0 var(--moss-control-radius, 4px) var(--moss-control-radius, 4px);
+  cursor: default;
 }
 
 .cm-moss-math-fallback {

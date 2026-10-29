@@ -82,6 +82,7 @@ export const mossTheme: Extension = EditorView.theme(
       {
         backgroundColor:
           'var(--moss-selection-bg, color-mix(in srgb, #7c3aed 28%, #1e1e1e 72%))',
+        borderRadius: '2px',
       },
     '.cm-activeLine': {
       backgroundColor: 'transparent',

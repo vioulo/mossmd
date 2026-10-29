@@ -245,26 +245,30 @@ export class BlockMathWidget extends WidgetType {
       renderError(container, this.source, err);
     }
 
-    container.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0 || view.state.facet(readOnlyFacet)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      view.focus();
-      // Click on block math: dynamically resolve current node range and select formula inside '$$'
-      const { from, to } = resolveFreshMathRange(
-        view,
-        container,
-        'BlockMath',
-        this.from,
-        this.to,
-      );
-      const raw = view.state.doc.sliceString(from, to);
-      const sel = getMathContentSelection(raw, from, to, 'block');
-      view.dispatch({
-        selection: sel,
-        userEvent: 'select.pointer',
+    // Only folded math cards attach pointerdown click-to-edit. Active preview cards
+    // below the source are read-only and must never hijack selection or clicks.
+    if (!this.isActivePreview) {
+      container.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0 || view.state.facet(readOnlyFacet)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        view.focus();
+        // Click on block math: dynamically resolve current node range and select formula inside '$$'
+        const { from, to } = resolveFreshMathRange(
+          view,
+          container,
+          'BlockMath',
+          this.from,
+          this.to,
+        );
+        const raw = view.state.doc.sliceString(from, to);
+        const sel = getMathContentSelection(raw, from, to, 'block');
+        view.dispatch({
+          selection: sel,
+          userEvent: 'select.pointer',
+        });
       });
-    });
+    }
 
     return container;
   }

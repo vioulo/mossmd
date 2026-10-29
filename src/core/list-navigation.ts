@@ -91,35 +91,67 @@ const listStructurePlugin = ViewPlugin.fromClass(
   },
 );
 
-function skipListStructure(
+function moveListBoundaryHorizontal(
   view: EditorView,
-  position: number,
-  forward: boolean,
-): number {
+  right: boolean,
+  extend: boolean,
+): boolean {
   const plugin = view.plugin(listStructurePlugin);
-  if (!plugin) return position;
+  if (!plugin) return false;
 
-  let result = position;
-  plugin.ranges.between(
-    Math.max(0, position - 1),
-    Math.min(view.state.doc.length, position + 1),
-    (from, to) => {
-      // A replace decoration collapses the entire structural indent to one
-      // visual point. Treat entering it from the preceding line as entering
-      // the atom, otherwise rightward movement still visits invisible indent
-      // positions one keypress at a time.
+  let handled = false;
+  const nextRanges = view.state.selection.ranges.map((range) => {
+    if (!extend && !range.empty) return range;
+
+    const forward =
+      right === (view.textDirectionAt(range.head) === Direction.LTR);
+    const line = view.state.doc.lineAt(range.head);
+    let target: number | null = null;
+
+    if (forward) {
+      plugin.ranges.between(line.from, line.from + 1, (from, to) => {
+        if (from === line.from && range.head === from) {
+          target = to;
+        }
+      });
+
       if (
-        (forward && result >= from && result < to) ||
-        (!forward && result > from && result < to)
+        target === null &&
+        range.head === line.to &&
+        line.number < view.state.doc.lines
       ) {
-        // Keep the marker's left boundary editable. When moving left from
-        // that boundary, cross the hidden indent and its line break so the
-        // caret lands on the previous line rather than over the marker.
-        result = forward ? to : Math.max(0, from - 1);
+        const nextLine = view.state.doc.line(line.number + 1);
+        plugin.ranges.between(nextLine.from, nextLine.from + 1, (from, to) => {
+          if (from === nextLine.from) {
+            target = to;
+          }
+        });
       }
-    },
+    } else {
+      plugin.ranges.between(line.from, line.from + 1, (from, to) => {
+        if (from === line.from && range.head === to) {
+          target = Math.max(0, line.from - 1);
+        }
+      });
+    }
+
+    if (target !== null) {
+      handled = true;
+      return extend
+        ? EditorSelection.range(range.anchor, target)
+        : EditorSelection.cursor(target, forward ? 1 : -1);
+    }
+    return range;
+  });
+
+  if (!handled) return false;
+  const nextSel = EditorSelection.create(
+    nextRanges,
+    view.state.selection.mainIndex,
   );
-  return result;
+  if (nextSel.eq(view.state.selection)) return false;
+  view.dispatch({ selection: nextSel, userEvent: 'select' });
+  return true;
 }
 
 function moveListLineBoundary(
@@ -156,44 +188,6 @@ function moveListLineBoundary(
   if (!selection.eq(state.selection)) {
     view.dispatch({ selection, userEvent: 'select' });
   }
-  return true;
-}
-
-function moveListHorizontally(
-  view: EditorView,
-  right: boolean,
-  extend: boolean,
-): boolean {
-  const { state } = view;
-  let needsCustomMovement = false;
-  const nextRanges = state.selection.ranges.map((range) => {
-    const forward =
-      right === (view.textDirectionAt(range.head) === Direction.LTR);
-
-    if (!extend && !range.empty) {
-      return EditorSelection.cursor(forward ? range.to : range.from);
-    }
-
-    const moved = view.moveByChar(
-      EditorSelection.cursor(range.head, range.assoc),
-      forward,
-    );
-    const head = skipListStructure(view, moved.head, forward);
-    if (head !== moved.head) needsCustomMovement = true;
-    const movedRange = EditorSelection.cursor(
-      head,
-      head < range.head ? 1 : -1,
-    );
-    return extend
-      ? EditorSelection.range(range.anchor, movedRange.head)
-      : movedRange;
-  });
-  if (!needsCustomMovement) return false;
-
-  const next = EditorSelection.create(nextRanges, state.selection.mainIndex);
-  if (next.eq(state.selection)) return false;
-
-  view.dispatch({ selection: next, userEvent: 'select' });
   return true;
 }
 
@@ -265,6 +259,9 @@ function listMarkerMouseDown(event: MouseEvent, view: EditorView): boolean {
 export function listNavigationExtension(): Extension {
   return [
     listStructurePlugin,
+    EditorView.atomicRanges.of(
+      (view) => view.plugin(listStructurePlugin)?.ranges ?? RangeSet.empty,
+    ),
     EditorView.domEventHandlers({ mousedown: listMarkerMouseDown }),
     Prec.highest(
       keymap.of([
@@ -282,13 +279,13 @@ export function listNavigationExtension(): Extension {
         },
         {
           key: 'ArrowLeft',
-          run: (view) => moveListHorizontally(view, false, false),
-          shift: (view) => moveListHorizontally(view, false, true),
+          run: (view) => moveListBoundaryHorizontal(view, false, false),
+          shift: (view) => moveListBoundaryHorizontal(view, false, true),
         },
         {
           key: 'ArrowRight',
-          run: (view) => moveListHorizontally(view, true, false),
-          shift: (view) => moveListHorizontally(view, true, true),
+          run: (view) => moveListBoundaryHorizontal(view, true, false),
+          shift: (view) => moveListBoundaryHorizontal(view, true, true),
         },
       ]),
     ),

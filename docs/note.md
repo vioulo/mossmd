@@ -60,3 +60,21 @@ CodeMirror 6 采用视口虚拟化技术，屏幕之外的内容并不挂载 DOM
     ```
     
 4. **文件卡片 FileBlockWidget 与 上传进度块 UploadWidget**： 分别预留 `56px` 与 `64px`，确保所有进入视口的 Block Widget 均为零突变平滑衔接。
+
+
+---
+
+### **三、CodeMirror 原生 atomicRanges 落地与列表导航手感对齐**
+
+1. **核心痛点与风险**：
+   原 `list-navigation.ts` 手写了 296 行逻辑，不仅拦截每一处左右方向键（`moveListHorizontally`，在每次按键上全量调用 `moveByChar`），且缺少 CM6 原生 `atomicRanges` 声明。导致指针拖选和触屏选择依然可能探入隐藏的 `[line.from, contentFrom)` 结构性缩进区域，产生空走或选中隐形空格。
+
+2. **实测探针发现的边界特例 (Probe-First)**：
+   - CM6 原生的 `skipAtomicRanges` 仅在 `from < pos < to` 时跳跃；当从上一行末尾按 `ArrowRight` 越过 `\n` 时，原生会先停在 `line.from`（隐藏缩进起点，在屏幕上与 `contentFrom` 视觉坐标完全重合，造成“按右键视觉不移动”的假死感，且在此打字会破坏 4 空格缩进）。
+   - 从嵌套列表 marker 起点按 `ArrowLeft` 时，若无薄守卫，原生会先吸附到 `line.from`，需要按两次左方向键才能退到上一行末尾。
+
+3. **落地架构（方案 b）**：
+   - 正式将列表结构性缩进注册至 **`EditorView.atomicRanges`** Facet，由 CM6 内核接管鼠标拖选、触控吸附和字符跳跃。
+   - 彻底废除 `moveListHorizontally`（37 行）与手写 `skipListStructure`（30 行）。
+   - 引入超轻量的跨行边界守卫 `moveListBoundaryHorizontal`（仅在光标处于行首隐藏缩进边界时介入单次跨行，普通行内所有打字与左右导航 100% 保持 CM6 原生性能与零开销）。
+   - 补充专属测试套件 `src/__tests__/list-atomic-ranges.test.ts`，全量 217 个测试全绿。

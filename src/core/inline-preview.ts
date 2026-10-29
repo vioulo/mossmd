@@ -27,6 +27,7 @@ import {
   refreshInlinePreview,
   shouldRevealTaskSource,
 } from './preview-activity';
+import { visualViewportExtension } from './visual-viewport';
 import {
   BulletWidget,
   CodeCopyWidget,
@@ -1168,6 +1169,7 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
   return [
     taskCheckboxConfigFacet.of(config.taskCheckboxes ?? {}),
     previewActivityExtension(),
+    visualViewportExtension(),
     inlinePreviewPlugin,
     fencedCodeSelectionPlugin,
     listEditingExtension(),
@@ -1188,3 +1190,4 @@ export {
 } from './list-editing';
 export type { MossTaskCheckboxStatus } from './preview-widgets';
 export { defaultOnLinkClick, setFrozen } from './preview-activity';
+export { visualViewportExtension } from './visual-viewport';

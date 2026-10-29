@@ -479,6 +479,24 @@
   -webkit-user-select: none;
 }
 
+@media (pointer: coarse) {
+  .cm-moss-link-icon {
+    position: relative;
+  }
+
+  .cm-moss-link-icon::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+  }
+}
+
 /* In cells the icon is a real element — suppress the pseudo so the icon
  * doesn't render twice. */
 .cm-moss-table-cell-source .cm-moss-link::after {
@@ -1972,7 +1990,8 @@ input.cm-moss-task-checkbox:focus-visible {
 }
 
 .moss-cm-editor .cm-panels-bottom:has(.moss-search-panel) {
-  bottom: 0.5rem;
+  bottom: calc(var(--moss-keyboard-offset, 0px) + 0.5rem);
+  transition: bottom 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .cm-panel.moss-search-panel {

@@ -258,10 +258,11 @@ State Update (Doc / Selection / Viewport)
 ## 六、 实施路线图与落地阶段 (Phased Roadmap)
 
 ### 阶段一：移动端阻断级与严重交互缺陷修复 (P0)
-- [ ] **触屏滚动放行**：改造 `preview-activity.ts`，解除 `pointerType === 'touch'` 时对 Scroller 的 `preventDefault` 阻断。
-- [ ] **触控热区达标**：将移动端环境下的链接交互热区扩展至 44×44px。
-- [ ] **移动端块插入支持**：重构 `slash-commands` 的触发与展示逻辑，修复小屏移动端侧边 `+` 按钮永久隐藏的问题，适配触控唤起。
-- [ ] **E2E 移动端基线**：在 `playwright.config.ts` 中加入 Mobile WebKit 与 Mobile Chrome 测试环境，建立首批移动端保护用例。
+- [x] **触屏滚动放行**：改造 `preview-activity.ts`，解除 `pointerType === 'touch'` 时对 Scroller 的 `preventDefault` 阻断，支持滑动与轻触分流判定。
+- [x] **触控热区达标**：将移动端环境下的链接交互热区扩展至 44×44px（涵盖行内链接与表格链接）。
+- [ ] **移动端块插入支持**：重构 `slash-commands` 的触发与展示逻辑，修复小屏移动端侧边 `+` 按钮永久隐藏的问题，适配触控唤起。（已由底部移动操作栏先行支持，侧边按钮适配稍后推进）
+- [x] **虚拟视口与软键盘避让机制**：接入 `window.visualViewport` 动态感知软键盘高度，浮动工具栏与底部面板自适应避让，焦点行自动对齐。
+- [x] **E2E 移动端基线**：在 `playwright.config.ts` 中加入 Mobile WebKit 与 Mobile Chrome 测试环境，建立首批移动端保护用例。
 
 ### 阶段二：长文性能调优与渲染防抖 (P1)
 - [ ] **选区窄失效机制**：重构 `inline-preview.ts` 更新触发逻辑，选区移动时仅针对受影响的前后激活行重绘装饰，消除全篇 $O(N)$ 遍历。

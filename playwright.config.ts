@@ -40,5 +40,13 @@ export default defineConfig({
       grep: /@smoke/,
       use: { ...devices['Desktop Safari'] },
     },
+    {
+      name: 'mobile-chrome',
+      use: { ...devices['Pixel 7'] },
+    },
+    {
+      name: 'mobile-webkit',
+      use: { ...devices['iPhone 14'] },
+    },
   ],
 });

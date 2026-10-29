@@ -109,13 +109,41 @@ export function linkIconHitTarget(
   const rects = Array.from(linkEl.getClientRects());
   if (rects.length === 0) return null;
   const lastRect = rects[rects.length - 1];
-  const emSize = parseFloat(window.getComputedStyle(linkEl).fontSize);
-  const iconZone = emSize * 1.25;
+  const emSize = parseFloat(window.getComputedStyle(linkEl).fontSize) || 16;
+  const isCoarse =
+    (event instanceof PointerEvent && event.pointerType === 'touch') ||
+    (typeof window !== 'undefined' &&
+      window.matchMedia?.('(pointer: coarse)').matches);
+
+  const iconWidth = emSize * 1.25;
+  const iconHeight = lastRect.bottom - lastRect.top;
+
+  let hitLeft: number;
+  let hitRight: number;
+  let hitTop: number;
+  let hitBottom: number;
+
+  if (isCoarse) {
+    // Apple iOS HIG & Android Material: minimum 44px touch target
+    const minTouchSize = 44;
+    const padX = Math.max(0, (minTouchSize - iconWidth) / 2);
+    const padY = Math.max(0, (minTouchSize - iconHeight) / 2);
+    hitLeft = lastRect.right - iconWidth - padX;
+    hitRight = lastRect.right + padX;
+    hitTop = lastRect.top - padY;
+    hitBottom = lastRect.bottom + padY;
+  } else {
+    hitLeft = lastRect.right - iconWidth;
+    hitRight = lastRect.right;
+    hitTop = lastRect.top;
+    hitBottom = lastRect.bottom;
+  }
+
   const onIcon =
-    event.clientX >= lastRect.right - iconZone &&
-    event.clientX <= lastRect.right &&
-    event.clientY >= lastRect.top &&
-    event.clientY <= lastRect.bottom;
+    event.clientX >= hitLeft &&
+    event.clientX <= hitRight &&
+    event.clientY >= hitTop &&
+    event.clientY <= hitBottom;
 
   return onIcon ? linkEl : null;
 }
@@ -135,6 +163,14 @@ const freezeMousePlugin = ViewPlugin.fromClass(
   class {
     private down = false;
     private releaseTimer: number | null = null;
+    private pendingTouch: {
+      startX: number;
+      startY: number;
+      clientX: number;
+      clientY: number;
+      startTime: number;
+    } | null = null;
+
     private freezeDuringPointer() {
       this.down = true;
       if (this.releaseTimer != null) {
@@ -146,24 +182,46 @@ const freezeMousePlugin = ViewPlugin.fromClass(
       }
     }
 
-    private selectFromScrollerSpace(event: PointerEvent) {
+    private applyScrollerSelection(clientX: number, clientY: number) {
       const contentRect = this.view.contentDOM.getBoundingClientRect();
       if (contentRect.width <= 0 || contentRect.height <= 0) return;
 
       const x = Math.min(
-        Math.max(event.clientX, contentRect.left + 1),
+        Math.max(clientX, contentRect.left + 1),
         contentRect.right - 1,
       );
-      const pos = this.view.posAtCoords({ x, y: event.clientY });
+      const pos = this.view.posAtCoords({ x, y: clientY });
       if (pos == null) return;
 
-      event.preventDefault();
       this.freezeDuringPointer();
       this.view.focus();
       this.view.dispatch({
         selection: { anchor: pos },
         userEvent: 'select.pointer',
       });
+    }
+
+    private selectFromScrollerSpace(event: PointerEvent) {
+      event.preventDefault();
+      this.applyScrollerSelection(event.clientX, event.clientY);
+    }
+
+    private readonly onPointerMove = (event: PointerEvent) => {
+      if (!this.pendingTouch) return;
+      const dx = event.clientX - this.pendingTouch.startX;
+      const dy = event.clientY - this.pendingTouch.startY;
+      if (Math.hypot(dx, dy) > 10) {
+        // Exceeded touch slop -> user is scrolling, cancel tap selection
+        this.clearPendingTouch();
+      } else {
+        this.pendingTouch.clientX = event.clientX;
+        this.pendingTouch.clientY = event.clientY;
+      }
+    };
+
+    private clearPendingTouch() {
+      this.pendingTouch = null;
+      window.removeEventListener('pointermove', this.onPointerMove);
     }
 
     private readonly onDown = (event: PointerEvent) => {
@@ -176,7 +234,20 @@ const freezeMousePlugin = ViewPlugin.fromClass(
       }
       if (!this.view.contentDOM.contains(target)) {
         if (this.view.scrollDOM.contains(target)) {
-          this.selectFromScrollerSpace(event);
+          if (event.pointerType === 'touch') {
+            // Touch device: do NOT call preventDefault(), allowing native kinetic scrolling.
+            // Record initial touch coordinates to distinguish a tap from a scroll/pan.
+            this.pendingTouch = {
+              startX: event.clientX,
+              startY: event.clientY,
+              clientX: event.clientX,
+              clientY: event.clientY,
+              startTime: Date.now(),
+            };
+            window.addEventListener('pointermove', this.onPointerMove, { passive: true });
+          } else {
+            this.selectFromScrollerSpace(event);
+          }
         }
         return;
       }
@@ -188,7 +259,20 @@ const freezeMousePlugin = ViewPlugin.fromClass(
       }
       this.freezeDuringPointer();
     };
-    private readonly onUp = () => {
+
+    private readonly onUp = (event?: PointerEvent) => {
+      if (this.pendingTouch) {
+        const touch = this.pendingTouch;
+        this.clearPendingTouch();
+        const duration = Date.now() - touch.startTime;
+        // Confirmed tap on empty scroller space (short duration, within slop)
+        if (duration < 400) {
+          const clientX = event?.clientX ?? touch.clientX;
+          const clientY = event?.clientY ?? touch.clientY;
+          this.applyScrollerSelection(clientX, clientY);
+        }
+      }
+
       if (!this.down) return;
       this.down = false;
       if (this.releaseTimer != null) window.clearTimeout(this.releaseTimer);
@@ -203,16 +287,22 @@ const freezeMousePlugin = ViewPlugin.fromClass(
       }, FREEZE_TAIL_MS);
     };
 
+    private readonly onCancel = () => {
+      this.clearPendingTouch();
+      this.onUp();
+    };
+
     constructor(readonly view: EditorView) {
       view.dom.addEventListener('pointerdown', this.onDown, true);
       window.addEventListener('pointerup', this.onUp);
-      window.addEventListener('pointercancel', this.onUp);
+      window.addEventListener('pointercancel', this.onCancel);
     }
 
     destroy() {
       this.view.dom.removeEventListener('pointerdown', this.onDown, true);
       window.removeEventListener('pointerup', this.onUp);
-      window.removeEventListener('pointercancel', this.onUp);
+      window.removeEventListener('pointercancel', this.onCancel);
+      this.clearPendingTouch();
       if (this.releaseTimer != null) window.clearTimeout(this.releaseTimer);
     }
   },

@@ -431,6 +431,15 @@ const sidePlusButtonPlugin = ViewPlugin.fromClass(
     }
 
     private refresh(): void {
+      const isMobile =
+        typeof window !== 'undefined' &&
+        window.matchMedia?.('(pointer: coarse), (max-width: 640px)').matches;
+      if (isMobile) {
+        this.button?.remove();
+        this.button = null;
+        return;
+      }
+
       const { state } = this.view;
       const selection = state.selection.main;
       const line = state.doc.lineAt(selection.head);

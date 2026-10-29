@@ -375,6 +375,7 @@ export function App() {
   const [resetNonce, setResetNonce] = useState(0);
   const [, setOpenedWikiTarget] = useState<string | null>(null);
   const [showTopButton, setShowTopButton] = useState(false);
+  const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const [perf, setPerf] = useState<{ rendered: number; total: number; size: string }>({
     rendered: 0,
     total: 0,
@@ -571,139 +572,178 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  useEffect(() => {
+    if (!showSource) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowSource(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSource]);
+
   return (
     <div className="demo-shell" data-theme={theme}>
       <main className="demo-main">
-        {/* Left floating cluster: pages capsule */}
-        <div className="demo-pill-cluster demo-pill-cluster-left">
-          <div className="demo-pill-card" role="group" aria-label="Sample page size">
-            <span className="demo-pill-label">Pages:</span>
-            {SAMPLE_SIZES.map((size) => {
-              const num = size.match(/\d+/)?.[0] ?? size;
-              return (
-                <button
-                  key={size}
-                  type="button"
-                  className={`demo-pill ${sampleSize === size ? 'is-active' : ''}`}
-                  onClick={() => setSampleSize(size)}
-                  aria-pressed={sampleSize === size}
-                  title={size}
-                >
-                  {num}
-                </button>
-              );
-            })}
+        {/* Top floating bar holding both pill clusters */}
+        <header
+          className={`demo-top-bar ${controlsCollapsed ? 'is-collapsed' : ''}`}
+          aria-label="Demo controls"
+        >
+          {/* Left floating cluster: pages capsule */}
+          <div className="demo-pill-cluster demo-pill-cluster-left">
+            <div className="demo-pill-card" role="group" aria-label="Sample page size">
+              <span className="demo-pill-label">Pages:</span>
+              {SAMPLE_SIZES.map((size) => {
+                const num = size.match(/\d+/)?.[0] ?? size;
+                return (
+                  <button
+                    key={size}
+                    type="button"
+                    className={`demo-pill ${sampleSize === size ? 'is-active' : ''}`}
+                    onClick={() => setSampleSize(size)}
+                    aria-pressed={sampleSize === size}
+                    title={size}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Right floating cluster: live/ro | actions | palette | appearance */}
-        <div className="demo-pill-cluster demo-pill-cluster-right">
-          <div className="demo-pill-card" role="group" aria-label="Edit mode">
-            <button
-              type="button"
-              className={`demo-pill ${!readOnly ? 'is-active' : ''}`}
-              onClick={() => setReadOnly(false)}
-              aria-pressed={!readOnly}
-            >
-              Live
-            </button>
-            <button
-              type="button"
-              className={`demo-pill ${readOnly ? 'is-active' : ''}`}
-              onClick={() => setReadOnly(true)}
-              aria-pressed={readOnly}
-            >
-              RO
-            </button>
+          {/* Right floating cluster: live/ro | actions | palette | appearance */}
+          <div className="demo-pill-cluster demo-pill-cluster-right">
+            <div className="demo-pill-card" role="group" aria-label="Edit mode">
+              <button
+                type="button"
+                className={`demo-pill ${!readOnly ? 'is-active' : ''}`}
+                onClick={() => setReadOnly(false)}
+                aria-pressed={!readOnly}
+              >
+                Live
+              </button>
+              <button
+                type="button"
+                className={`demo-pill ${readOnly ? 'is-active' : ''}`}
+                onClick={() => setReadOnly(true)}
+                aria-pressed={readOnly}
+              >
+                RO
+              </button>
+            </div>
+            <div className="demo-pill-card">
+              <button
+                type="button"
+                className="demo-pill demo-icon-pill"
+                onClick={resetEditor}
+                aria-label="Reset"
+                title="Reset"
+              >
+                <RotateCcw size={14} />
+              </button>
+              <button
+                type="button"
+                className="demo-pill demo-icon-pill"
+                onClick={copyMarkdown}
+                aria-label="Copy markdown"
+                title="Copy markdown"
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+              <button
+                type="button"
+                className="demo-pill demo-icon-pill"
+                onClick={downloadMarkdown}
+                aria-label="Download"
+                title="Download"
+              >
+                <Download size={14} />
+              </button>
+              <button
+                type="button"
+                className={`demo-pill demo-icon-pill ${showSource ? 'is-active' : ''}`}
+                onClick={() => setShowSource((open) => !open)}
+                aria-pressed={showSource}
+                aria-label="Raw markdown"
+                title="Raw markdown"
+              >
+                <Code2 size={14} />
+              </button>
+            </div>
+            <div className="demo-pill-card">
+              <button
+                type="button"
+                className={`demo-pill demo-icon-pill ${
+                  themePalette === 'blue' ? 'is-active' : ''
+                }`}
+                onClick={toggleThemePalette}
+                aria-pressed={themePalette === 'blue'}
+                aria-label={
+                  themePalette === 'default'
+                    ? 'Switch to blue palette'
+                    : 'Switch to default palette'
+                }
+                title={
+                  themePalette === 'default'
+                    ? 'Blue palette'
+                    : 'Default palette'
+                }
+              >
+                <Palette size={14} />
+              </button>
+              <button
+                type="button"
+                className={`demo-pill demo-icon-pill ${
+                  themeAppearance === 'light' ? 'is-active' : ''
+                }`}
+                onClick={toggleThemeAppearance}
+                aria-pressed={themeAppearance === 'light'}
+                aria-label={
+                  themeAppearance === 'dark'
+                    ? 'Switch to light appearance'
+                    : 'Switch to dark appearance'
+                }
+                title={
+                  themeAppearance === 'dark'
+                    ? 'Light appearance'
+                    : 'Dark appearance'
+                }
+              >
+                {themeAppearance === 'dark' ? (
+                  <Sun size={14} />
+                ) : (
+                  <Moon size={14} />
+                )}
+              </button>
+            </div>
           </div>
-          <div className="demo-pill-card">
+
+          {/* Collapse button at the end of the controls stack */}
+          <div className="demo-collapse-card demo-pill-card">
             <button
               type="button"
               className="demo-pill demo-icon-pill"
-              onClick={resetEditor}
-              aria-label="Reset"
-              title="Reset"
+              onClick={() => setControlsCollapsed(true)}
+              aria-label="收起操作栏"
+              title="收起操作栏"
             >
-              <RotateCcw size={14} />
-            </button>
-            <button
-              type="button"
-              className="demo-pill demo-icon-pill"
-              onClick={copyMarkdown}
-              aria-label="Copy markdown"
-              title="Copy markdown"
-            >
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-            </button>
-            <button
-              type="button"
-              className="demo-pill demo-icon-pill"
-              onClick={downloadMarkdown}
-              aria-label="Download"
-              title="Download"
-            >
-              <Download size={14} />
-            </button>
-            <button
-              type="button"
-              className={`demo-pill demo-icon-pill ${showSource ? 'is-active' : ''}`}
-              onClick={() => setShowSource((open) => !open)}
-              aria-pressed={showSource}
-              aria-label="Raw markdown"
-              title="Raw markdown"
-            >
-              <Code2 size={14} />
+              <ChevronRight size={15} />
             </button>
           </div>
-          <div className="demo-pill-card">
-            <button
-              type="button"
-              className={`demo-pill demo-icon-pill ${
-                themePalette === 'blue' ? 'is-active' : ''
-              }`}
-              onClick={toggleThemePalette}
-              aria-pressed={themePalette === 'blue'}
-              aria-label={
-                themePalette === 'default'
-                  ? 'Switch to blue palette'
-                  : 'Switch to default palette'
-              }
-              title={
-                themePalette === 'default'
-                  ? 'Blue palette'
-                  : 'Default palette'
-              }
-            >
-              <Palette size={14} />
-            </button>
-          </div>
-          <div className="demo-pill-card">
-            <button
-              type="button"
-              className={`demo-pill demo-icon-pill ${
-                themeAppearance === 'light' ? 'is-active' : ''
-              }`}
-              onClick={toggleThemeAppearance}
-              aria-pressed={themeAppearance === 'light'}
-              aria-label={
-                themeAppearance === 'dark'
-                  ? 'Switch to light appearance'
-                  : 'Switch to dark appearance'
-              }
-              title={
-                themeAppearance === 'dark'
-                  ? 'Light appearance'
-                  : 'Dark appearance'
-              }
-            >
-              {themeAppearance === 'dark' ? (
-                <Sun size={14} />
-              ) : (
-                <Moon size={14} />
-              )}
-            </button>
-          </div>
-        </div>
+        </header>
+
+        {/* Floating trigger to expand controls on mobile when collapsed */}
+        <button
+          type="button"
+          className={`demo-expand-trigger ${controlsCollapsed ? 'is-visible' : ''}`}
+          onClick={() => setControlsCollapsed(false)}
+          aria-label="展开操作栏"
+          title="展开操作栏"
+        >
+          <ChevronLeft size={16} />
+        </button>
 
         <div className="demo-editor-pane">
           <div className="demo-editor-wrapper">
@@ -734,8 +774,30 @@ export function App() {
           </div>
         </div>
 
-        <aside className={`demo-float demo-raw-panel demo-raw-float ${showSource ? 'is-open' : ''}`} aria-hidden={!showSource}>
-          <div className="demo-panel-title">Raw markdown</div>
+        {showSource && (
+          <div
+            className="demo-raw-backdrop"
+            onClick={() => setShowSource(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        <aside
+          className={`demo-float demo-raw-panel demo-raw-float ${showSource ? 'is-open' : ''}`}
+          aria-hidden={!showSource}
+        >
+          <div className="demo-panel-header">
+            <span className="demo-panel-title">Raw markdown</span>
+            <button
+              type="button"
+              className="demo-panel-close-btn"
+              onClick={() => setShowSource(false)}
+              aria-label="关闭源码"
+              title="关闭源码"
+            >
+              <X size={16} />
+            </button>
+          </div>
           <div className="demo-output-content">
             {showSource ? liveMarkdown || initialMarkdown : liveMarkdown || '(start typing…)'}
           </div>

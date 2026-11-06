@@ -472,6 +472,73 @@ describe('active list-line preview', () => {
     expect(view.state.selection.main.head).toBe(1);
   });
 
+  it('deletes an empty task marker one character at a time from the keyboard and reveals syntax', () => {
+    const view = makeView('- [ ] item', 10, [inlinePreview()]);
+    view.focus();
+
+    const pressBackspace = (): void => {
+      view.contentDOM.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Backspace',
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    };
+
+    // Delete 'item' (4 characters)
+    pressBackspace(); // - [ ] ite
+    pressBackspace(); // - [ ] it
+    pressBackspace(); // - [ ] i
+    pressBackspace(); // - [ ] 
+    expect(view.state.doc.toString()).toBe('- [ ] ');
+    expect(view.state.selection.main.head).toBe(6);
+
+    // With a space after ']', it renders the preview checkbox widget
+    expect(view.contentDOM.querySelector('.cm-moss-task-checkbox')).not.toBeNull();
+
+    // Deleting the space moves cursor adjacent to ']' (pos 5), revealing source syntax
+    pressBackspace();
+    expect(view.state.doc.toString()).toBe('- [ ]');
+    expect(view.state.selection.main.head).toBe(5);
+    expect(view.contentDOM.textContent).toContain('- [ ]');
+    expect(view.contentDOM.querySelector('.cm-moss-task-checkbox')).toBeNull();
+
+    // Now delete marker one character at a time
+    pressBackspace();
+    expect(view.state.doc.toString()).toBe('- [ ');
+    expect(view.state.selection.main.head).toBe(4);
+
+    pressBackspace();
+    expect(view.state.doc.toString()).toBe('- [');
+    expect(view.state.selection.main.head).toBe(3);
+
+    pressBackspace();
+    expect(view.state.doc.toString()).toBe('- ');
+    expect(view.state.selection.main.head).toBe(2);
+
+    // Final backspace clears the empty bullet marker
+    pressBackspace();
+    expect(view.state.doc.toString()).toBe('');
+    expect(view.state.selection.main.head).toBe(0);
+  });
+
+  it('keeps 7. without space aligned at line head without hanging indent jitter', () => {
+    const doc = '6. item\n7.';
+    const view = makeView(doc, doc.length, [inlinePreview()]);
+    view.focus();
+
+    const secondLine = () => view.contentDOM.querySelectorAll<HTMLElement>('.cm-line')[1];
+
+    // Pos 10 (line 2 end)
+    view.dispatch({ selection: { anchor: 10 } });
+    expect(secondLine()?.getAttribute('style') ?? '').not.toContain('padding-left');
+
+    // Pos 8 (line 2 start)
+    view.dispatch({ selection: { anchor: 8 } });
+    expect(secondLine()?.getAttribute('style') ?? '').not.toContain('padding-left');
+  });
+
   it('does not indent a top-level plain line after a list item', () => {
     const view = makeView('1. item\nplain', 0, [inlinePreview()]);
     const lines = Array.from(view.contentDOM.querySelectorAll<HTMLElement>('.cm-line'));

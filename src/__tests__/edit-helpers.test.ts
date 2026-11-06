@@ -4,6 +4,7 @@ import { EditorView } from '@codemirror/view';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import {
   autoCloseCodeFenceInput,
+  deleteEmptyListMarkerBackward,
   deleteEmptyOrderedListMarkerBackward,
   normalizeDigitPunctuationInput,
   separateHorizontalRuleInput,
@@ -178,6 +179,35 @@ describe('deleteEmptyOrderedListMarkerBackward', () => {
     const view = makeView('1. item', 7);
 
     expect(deleteEmptyOrderedListMarkerBackward(view)).toBe(false);
+  });
+
+  it('deletes an empty task marker one character at a time', () => {
+    const view = makeView('- [ ] ', 6);
+
+    expect(deleteEmptyListMarkerBackward(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe('- [ ]');
+    expect(view.state.selection.main.head).toBe(5);
+
+    expect(deleteEmptyListMarkerBackward(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe('- [ ');
+    expect(view.state.selection.main.head).toBe(4);
+
+    expect(deleteEmptyListMarkerBackward(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe('- [');
+    expect(view.state.selection.main.head).toBe(3);
+
+    expect(deleteEmptyListMarkerBackward(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe('- ');
+    expect(view.state.selection.main.head).toBe(2);
+
+    // Regular bullet list item '- ' is not intercepted so markdown deleteMarkupBackward can clear it
+    expect(deleteEmptyListMarkerBackward(view)).toBe(false);
+  });
+
+  it('does not intercept Backspace when task list item has content', () => {
+    const view = makeView('- [ ] item', 10);
+
+    expect(deleteEmptyListMarkerBackward(view)).toBe(false);
   });
 });
 

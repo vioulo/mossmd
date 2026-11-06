@@ -368,16 +368,19 @@ export function normalizeDigitPunctuationInput(
 }
 
 // Markdown's deleteMarkupBackward intentionally treats an empty list marker
-// as one structural unit. For a just-typed numeric marker that makes the
-// first Backspace erase `1. ` at once, so let the user remove its characters
-// one at a time and naturally leave list syntax when any character is gone.
-export function deleteEmptyOrderedListMarkerBackward(view: EditorView): boolean {
+// as one structural unit. For a just-typed numeric marker or task checkbox,
+// that makes Backspace erase `1. ` or `- [ ] ` at once, so let the user remove
+// its characters one at a time and naturally leave list syntax when any character is gone.
+export function deleteEmptyListMarkerBackward(view: EditorView): boolean {
   const { state } = view;
   const selection = state.selection.main;
   if (!selection.empty) return false;
 
   const line = state.doc.lineAt(selection.head);
-  if (!/^\s*\d{1,9}[.)]\s*$/.test(line.text)) return false;
+  const isOrdered = /^\s*\d{1,9}[.)]\s*$/.test(line.text);
+  const isTask = /^\s*([-*+]|\d{1,9}[.)])\s+\[[^\]]*\]?\s*$/.test(line.text);
+  if (!isOrdered && !isTask) return false;
+
   const markerStart = line.from + (line.text.match(/^\s*/)?.[0].length ?? 0);
   if (selection.head <= markerStart) return false;
 
@@ -388,4 +391,8 @@ export function deleteEmptyOrderedListMarkerBackward(view: EditorView): boolean 
     scrollIntoView: true,
   });
   return true;
+}
+
+export function deleteEmptyOrderedListMarkerBackward(view: EditorView): boolean {
+  return deleteEmptyListMarkerBackward(view);
 }

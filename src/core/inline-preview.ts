@@ -1030,22 +1030,27 @@ function buildDecorationsForLine(
     const owner = nearestListItem(tree.resolve(contentFrom, 1));
     if (owner) {
       const firstLine = doc.lineAt(owner.from);
-      const markerLine = firstLine.number === lineNum;
-      if (markerLine || contentFrom > line.from) {
-        const listDepth = listItemDepth(owner);
-        const padding =
-          LIST_BASE_EM + LIST_ALCOVE_EM + listDepth * LIST_LEVEL_EM;
-        ranges.push(
-          Decoration.line({
-            attributes: {
-              style: `padding-left: ${padding}em; text-indent: ${
-                markerLine ? `-${LIST_ALCOVE_EM}` : '0'
-              }em`,
-            },
-          }).range(line.from),
-        );
-        if (contentFrom > line.from) {
-          pushReplace(ranges, doc, line.from, contentFrom);
+      const firstLineMark = firstLine.text.match(/^(\s*)(\d{1,9}[.)])(\s*)/);
+      const isOrderedWithoutSeparator =
+        firstLineMark != null && firstLineMark[3].length === 0;
+      if (!isOrderedWithoutSeparator) {
+        const markerLine = firstLine.number === lineNum;
+        if (markerLine || contentFrom > line.from) {
+          const listDepth = listItemDepth(owner);
+          const padding =
+            LIST_BASE_EM + LIST_ALCOVE_EM + listDepth * LIST_LEVEL_EM;
+          ranges.push(
+            Decoration.line({
+              attributes: {
+                style: `padding-left: ${padding}em; text-indent: ${
+                  markerLine ? `-${LIST_ALCOVE_EM}` : '0'
+                }em`,
+              },
+            }).range(line.from),
+          );
+          if (contentFrom > line.from) {
+            pushReplace(ranges, doc, line.from, contentFrom);
+          }
         }
       }
     }

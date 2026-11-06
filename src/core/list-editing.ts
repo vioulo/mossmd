@@ -7,7 +7,7 @@ import {
 } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { EditorView, keymap, ViewPlugin, type ViewUpdate } from '@codemirror/view';
-import { deleteEmptyOrderedListMarkerBackward } from './edit-helpers';
+import { deleteEmptyListMarkerBackward } from './edit-helpers';
 import { isLineInsideMarkdownCode } from './markdown-context';
 import {
   continuationFor,
@@ -299,7 +299,7 @@ export function listEditingExtension(): Extension {
     Prec.highest(
       keymap.of([
         { key: 'Enter', run: insertTightListItem },
-        { key: 'Backspace', run: deleteEmptyOrderedListMarkerBackward },
+        { key: 'Backspace', run: deleteEmptyListMarkerBackward },
         { key: 'Tab', run: indentListItem },
         { key: 'Shift-Tab', run: dedentListItem },
       ]),

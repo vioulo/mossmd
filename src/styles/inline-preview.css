@@ -1528,13 +1528,13 @@
 /* GFM task-list checkbox widget — replaces `[ ]` / `[x]` in a task
  * item. Styled as a small custom circle rather than the platform's
  * native checkbox so it reads consistently across browsers.
- * Width+margin still total 1.2em to match ALCOVE_EM in
- * inline-preview.ts. The trailing space after `[ ]` in the source is
- * swallowed by the replace decoration. */
+ * The real source separator space after `[ ]` is preserved in the DOM
+ * so the caret and IME anchor naturally to it, with margin-right: 0
+ * letting the real space provide the separation without layout jitter. */
 input.cm-moss-task-checkbox {
   width: 1.05em;
   height: 1.05em;
-  margin: 0 0.31em 0 -0.16em;
+  margin: 0 0 0 -0.15em;
   font-size: inherit;
   vertical-align: 0.1em;
   appearance: none;
@@ -1597,7 +1597,7 @@ input.cm-moss-task-checkbox:focus-visible {
 .cm-moss-task-status {
   width: 1.05em;
   height: 1.05em;
-  margin: 0 0.31em 0 -0.16em;
+  margin: 0 0 0 -0.15em;
   padding: 0;
   border: 0;
   background: transparent;

@@ -675,16 +675,6 @@ export function buildInlineDecorations(view: EditorView): DecorationSet {
               false,
             ),
           });
-          const hasBodyAfterSeparator =
-            line.text.slice(taskInfo.markerTo + taskInfo.separator.length).trim().length > 0;
-          if (taskInfo.separator.length > 0 && hasBodyAfterSeparator) {
-            pushReplace(
-              ranges,
-              doc,
-              line.from + taskInfo.markerTo,
-              line.from + taskInfo.markerTo + taskInfo.separator.length,
-            );
-          }
           if (taskInfo.status.completed) {
             ranges.push(
               Decoration.line({ class: 'cm-moss-task-done' }).range(line.from),
@@ -768,16 +758,10 @@ export function buildInlineDecorations(view: EditorView): DecorationSet {
         const taskInfo = parseListTaskMarker(line.text, taskConfig, iconMap);
         if (!taskInfo) return;
         if (shouldRevealTaskSource(view, line.from, taskInfo)) return;
-        // Keep the marker and its separator as separate atomic ranges. If
-        // they are combined, ArrowLeft from the first body character skips
-        // to the start of the whole widget; after the source is revealed the
-        // caret then appears before `[x]` instead of after it. A separate
-        // hidden separator lets the caret stop at markerTo, which is the
-        // `- [x]| text` editing position, while preserving the fixed alcove
-        // width in preview mode.
-        const hasTrailingSpace =
-          node.to < doc.length &&
-          doc.sliceString(node.to, node.to + 1) === ' ';
+        // Keep the marker replaced with the checkbox widget while preserving the
+        // real source separator space in the DOM. This provides an active text-node
+        // anchor for IME and caret measurement, matching ordered markers with margin-right: 0
+        // and eliminating text jump on typing.
         pushReplace(ranges, doc, node.from, node.to, {
           widget: new TaskCheckboxWidget(
             taskInfo.key,
@@ -787,11 +771,6 @@ export function buildInlineDecorations(view: EditorView): DecorationSet {
             shouldUseNativeTaskCheckbox(taskInfo.key, taskConfig),
           ),
         });
-        const hasBodyAfterSeparator =
-          line.text.slice(taskInfo.markerTo + 1).trim().length > 0;
-        if (hasTrailingSpace && hasBodyAfterSeparator) {
-          pushReplace(ranges, doc, node.to, node.to + 1);
-        }
         if (taskInfo.status.completed) {
           ranges.push(
             Decoration.line({ class: 'cm-moss-task-done' }).range(line.from),
@@ -1226,16 +1205,6 @@ function buildDecorationsForLine(
               false,
             ),
           });
-          const hasBodyAfterSeparator =
-            line.text.slice(taskInfo.markerTo + taskInfo.separator.length).trim().length > 0;
-          if (taskInfo.separator.length > 0 && hasBodyAfterSeparator) {
-            pushReplace(
-              ranges,
-              doc,
-              line.from + taskInfo.markerTo,
-              line.from + taskInfo.markerTo + taskInfo.separator.length,
-            );
-          }
           if (taskInfo.status.completed) {
             ranges.push(
               Decoration.line({ class: 'cm-moss-task-done' }).range(line.from),
@@ -1272,9 +1241,6 @@ function buildDecorationsForLine(
         const taskInfo = parseListTaskMarker(line.text, taskConfig, iconMap);
         if (!taskInfo) return;
         if (shouldRevealTaskSource(view, line.from, taskInfo)) return;
-        const hasTrailingSpace =
-          node.to < doc.length &&
-          doc.sliceString(node.to, node.to + 1) === ' ';
         pushReplace(ranges, doc, node.from, node.to, {
           widget: new TaskCheckboxWidget(
             taskInfo.key,
@@ -1284,11 +1250,6 @@ function buildDecorationsForLine(
             shouldUseNativeTaskCheckbox(taskInfo.key, taskConfig),
           ),
         });
-        const hasBodyAfterSeparator =
-          line.text.slice(taskInfo.markerTo + 1).trim().length > 0;
-        if (hasTrailingSpace && hasBodyAfterSeparator) {
-          pushReplace(ranges, doc, node.to, node.to + 1);
-        }
         if (taskInfo.status.completed) {
           ranges.push(
             Decoration.line({ class: 'cm-moss-task-done' }).range(line.from),

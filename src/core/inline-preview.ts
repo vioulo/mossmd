@@ -675,7 +675,9 @@ export function buildInlineDecorations(view: EditorView): DecorationSet {
               false,
             ),
           });
-          if (taskInfo.separator.length > 0) {
+          const hasBodyAfterSeparator =
+            line.text.slice(taskInfo.markerTo + taskInfo.separator.length).trim().length > 0;
+          if (taskInfo.separator.length > 0 && hasBodyAfterSeparator) {
             pushReplace(
               ranges,
               doc,
@@ -785,7 +787,9 @@ export function buildInlineDecorations(view: EditorView): DecorationSet {
             shouldUseNativeTaskCheckbox(taskInfo.key, taskConfig),
           ),
         });
-        if (hasTrailingSpace) {
+        const hasBodyAfterSeparator =
+          line.text.slice(taskInfo.markerTo + 1).trim().length > 0;
+        if (hasTrailingSpace && hasBodyAfterSeparator) {
           pushReplace(ranges, doc, node.to, node.to + 1);
         }
         if (taskInfo.status.completed) {
@@ -1222,7 +1226,9 @@ function buildDecorationsForLine(
               false,
             ),
           });
-          if (taskInfo.separator.length > 0) {
+          const hasBodyAfterSeparator =
+            line.text.slice(taskInfo.markerTo + taskInfo.separator.length).trim().length > 0;
+          if (taskInfo.separator.length > 0 && hasBodyAfterSeparator) {
             pushReplace(
               ranges,
               doc,
@@ -1278,7 +1284,9 @@ function buildDecorationsForLine(
             shouldUseNativeTaskCheckbox(taskInfo.key, taskConfig),
           ),
         });
-        if (hasTrailingSpace) {
+        const hasBodyAfterSeparator =
+          line.text.slice(taskInfo.markerTo + 1).trim().length > 0;
+        if (hasTrailingSpace && hasBodyAfterSeparator) {
           pushReplace(ranges, doc, node.to, node.to + 1);
         }
         if (taskInfo.status.completed) {

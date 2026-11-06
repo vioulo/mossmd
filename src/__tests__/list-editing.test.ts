@@ -546,4 +546,21 @@ describe('active list-line preview', () => {
     expect(lines[0]?.getAttribute('style')).toContain('padding-left');
     expect(lines[1]?.getAttribute('style') ?? '').not.toContain('padding-left');
   });
+
+  it('preserves separator space on empty task list items as a text node for IME anchoring', () => {
+    const view = makeView('- [ ] item\n- [ ] ', 17, [inlinePreview()]);
+    view.focus();
+
+    const lines = view.contentDOM.querySelectorAll<HTMLElement>('.cm-line');
+    expect(lines).toHaveLength(2);
+
+    // Line 1 has body text "item", so trailing separator space is hidden to align text to alcove
+    expect(lines[0]?.textContent).toBe('item');
+    expect(lines[0]?.querySelector('.cm-moss-task-checkbox')).not.toBeNull();
+
+    // Line 2 has no body text, so separator space remains an unreplaced text node
+    // preventing DOM layout collapse and providing a valid caret bounding rect for IME windows
+    expect(lines[1]?.textContent).toBe(' ');
+    expect(lines[1]?.querySelector('.cm-moss-task-checkbox')).not.toBeNull();
+  });
 });

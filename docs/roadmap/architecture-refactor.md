@@ -1,11 +1,11 @@
 # MossMD 架构调优与内核重构计划
 
 > [!NOTE] 落地与演进状态归档 (v0.11.0)
-> 本计划中的核心架构与底层机制改造已在 **v0.11.0** 完成落地并沉淀为主干资产：
+> 本计划中的核心架构与底层机制改造已在 **v0.11.0** 全量落地并沉淀为主干资产：
 > 1. **高亮语法内置化**：分词解析收归 `src/core/highlight.ts`，并通过 `package.json` 导出映射保持平滑向下兼容。
 > 2. **CM6 原生 atomicRanges（方案 b）全面落地**：废除手写模拟跳跃代码，保留单次跨行极薄守卫与退格保护，Phase 2 验收清单中的 A1~A5、B1~B4 所有测试护栏已全部实测通过。
 > 3. **ADR 否决拆分 `inline-preview.ts`**：作为项目核心原则正式写入 `AGENTS.md`。
-> 4. **模块目录演变决策**：遵循 `AGENTS.md`“结构内聚高于形式行数”，列表三文件（`list-model.ts`、`list-editing.ts`、`list-navigation.ts`）与核心协议目录维持清晰独立职责，避免无收益的形式主义合并或拍平；`editor.tsx` 装配解耦留作后续架构 Backlog。
+> 4. **模块目录演变决策**：遵循 `AGENTS.md`“结构内聚高于形式行数”，列表三文件（`list-model.ts`、`list-editing.ts`、`list-navigation.ts`）与核心协议目录维持清晰独立职责，`editor.tsx` 保持内聚装配架构，否决无收益的形式化拆解。
 
 本文档记录 MossMD 针对代码组织、目录对称性、核心引擎瘦身及 CM6 原生架构演进的技术调优方案。该方案旨在消除历史包袱、理顺模块职责、精简手写适配逻辑，使代码库更加内聚且易于长期维护。
 
@@ -91,19 +91,15 @@
 
 ---
 
-### 4. `editor.tsx` 架构解耦（引擎装配 vs React 外壳）
+### 4. 架构决策记录 (ADR)：`editor.tsx` 保持内聚装配，否决形式化拆分
 
-#### (1) 现状
-`src/editor.tsx` 目前为 885 行（约 30KB），混杂了纯 CM6 扩展编排、状态 Compartment 管理、URL 初始查找高亮（Reveal）与 React 挂载逻辑。
+针对此前将 `editor.tsx` 拆分提取 `src/core/setup.ts`（扩展装配工厂）与 `src/core/reveal.ts`（初始高亮定位）的设想，依据 `AGENTS.md`“结构内聚高于形式行数”准则，**正式否决拆分**：
 
-#### (2) 改造实施
-* **提取 CM6 扩展编排工厂**：将扩展装配逻辑迁至 **`src/core/setup.ts`**（`createMossExtensions(options)`，约 −250 行）。
-* **提取初始高亮与滚动定位**：将纯 CM6 StateField 与动画逻辑（735-885 行）迁至 **`src/core/reveal.ts`**（约 −150 行）。
-* **React 外壳纯净化**：`editor.tsx` 仅保留 DOM 挂载、`useRef` 句柄转发、props 归一化与微量 Compartment 重配置，体量降至 **< 500 行 / 17KB**。
-* **验收**：`editor.test.tsx` 52 个测试全量零改动通过。
-
-#### (3) 演进状态与 Backlog 标记
-目前 `editor.tsx` 逻辑内聚完备，全量测试覆盖健全（52 个测试全绿），运行期稳定。将 CM6 扩展装配与初始查找高亮（`setup.ts` / `reveal.ts`）拆分的计划已完成方案设计，保留作为后续性能或扩展性演进时的技术 Backlog。
+* **决策**：维持现有 `src/editor.tsx` 整体结构，不作代码迁出。
+* **核心依据**：
+  1. **零运行期与体积收益**：提取文件仅仅是代码文本位置转移，打包产物与运行时调用链完全等价，甚至可能因多层参数传递与闭包穿透微增体积。
+  2. **装配与生命周期强内聚**：`editor.tsx` 核心职责是统一承载 React Props 到 CodeMirror 扩展、Compartment 重配置及受控状态（Controlled Mode）的事务桥接；逻辑高度线性清晰，56 项单元测试全覆盖。
+  3. **避免过度抽象**：在未出现独立的“非 React 原生环境消费”需求前，过早提取 `setup.ts` 会增加不必要的胶水层与心智负担。
 
 ---
 
@@ -127,43 +123,46 @@ src/
 │
 ├── core/                       # 纯粹的编辑器核心运行时与排版引擎
 │   ├── inline-preview.ts       # 实时预览装配协调层 + 装饰构建（保持内聚不拆分）
-│   ├── preview-activity.ts     # 焦点状态、激活范围计算、鼠标防抖
+│   ├── preview-activity.ts     # 焦点状态、激活范围计算、鼠标防抖与触控分流
 │   ├── preview-widgets.ts      # 任务复选框、复制按钮、列表 Bullet
 │   ├── markdown-context.ts     # isLineInsideMarkdownCode 代码区判定
 │   ├── decoration-utils.ts     # 装饰构建安全切分工具
 │   ├── edit-helpers.ts         # 标点归一化、加粗配对、符号二义性消除
 │   ├── highlight.ts            # 👈 (收归) ==highlight== 核心内联语法扩展
-│   ├── list.ts                 # 👈 (合并) 列表模型、智能编辑、atomicRanges 原生导航
+│   ├── list-model.ts           # 纯文本 Markdown 列表模型与缩进分析
+│   ├── list-editing.ts         # 智能回车、缩进增减、有序编号重排与退格保护
+│   ├── list-navigation.ts      # 👈 (落地) CM6 原生 atomicRanges 声明与极薄跨行导航
+│   ├── visual-viewport.ts      # 移动端软键盘动态避让与视口感知
 │   ├── read-only.ts            # 阅读模式 Compartment 与 Facet
 │   ├── tree-progress.ts        # Lezer 异步语法树增长广播
-│   ├── reveal.ts               # 👈 (迁出) 初始定位高亮：StateEffect + StateField + 滚动
-│   └── setup.ts                # 👈 (提炼) 纯 CM6 扩展编排工厂函数
+│   ├── code-languages.ts       # 围栏代码语言注册表
+│   └── icons.ts                # 图标协议与通用 SVG 转换
 │
 ├── features/                   # 用户功能特性 (由多个内部组件协同构成的子系统)
-│   ├── image/                  # 图片块 Widget
+│   ├── image/                  # 图片块 Widget 与浮动尺寸控制
 │   ├── file-blocks/            # 文件链接卡片
-│   ├── table/                  # 所见即所得交互表格
+│   ├── table/                  # 所见即所得交互表格 (带微任务输入合并)
 │   ├── wiki-links/             # Wiki 双链解析、补全与 Resolve
 │   ├── callout/                # Obsidian 风格提示块
 │   ├── slash-commands/         # 斜杠与加号快捷菜单
 │   ├── upload/                 # 上传进度临时 Widget
 │   ├── search/                 # 紧凑查找与精准定位
-│   └── math/                   # LaTeX 数学公式行内与块级实时预览
+│   ├── mobile-toolbar/         # 移动端底部动作栏与快捷插入
+│   └── math/                   # LaTeX 数学公式实时预览 (带 LRU 缓存)
 │
 ├── icons/                      # 图标生态（协议层 + 可选外置适配器）
-│   ├── index.ts                # 👈 (迁入) 语义 key 协议与 MossIconRenderer
 │   └── lucide.ts               # 可选 Lucide 适配器
 │
-├── code-languages.ts           # 👈 (扁平单文件) 动态代码语言注册表 (mossmd/code-languages)
-├── syntax.ts                   # 👈 (扁平单文件) 纯粹自定义语法注册协议 (mossmd/syntax)
-├── theme.ts                    # 👈 (扁平单文件) 通用主题与高亮样式基底 (mossmd/theme)
-├── collab.ts                   # 👈 (扁平单文件) 协同抽象接口 (mossmd/collab)
+├── syntax/                     # 自定义语法注册协议与 highlight 兼容导出
+├── collab/                     # 协同抽象接口（本地优先轻量快照）
+├── theme/                      # 通用主题与高亮样式基底
 │
 ├── styles/                     # CSS 样式产物（保持一体化不分包）
 │   ├── tokens.css
 │   ├── inline-preview.css
-│   └── content.css
-├── editor.tsx                  # 轻薄 React 外壳组件
+│   ├── content.css
+│   └── mobile.css
+├── editor.tsx                  # React 包装与 CodeMirror 扩展装配
 └── index.ts                    # 根导出入口
 ```
 
@@ -198,8 +197,7 @@ Phase 1 动工前，以 `package.json` 的 17 个非 CSS 子路径为基准，�
 |:---:|---|:---:|---|
 | **Phase 1** | **单文件扁平化与高亮收归 Core**<br>• `syntax/highlight.ts` 迁入 `src/core/highlight.ts`（保留 `exports["./syntax/highlight"]` 别名）<br>• 扁平化 `syntax.ts`、`code-languages.ts`、`collab.ts`、`theme.ts`<br>• `src/core/icons.ts` 迁入 `src/icons/index.ts` | ✅ **核心已落地**<br>（目录结构对齐） | • `src/core/highlight.ts` 已内置收归，向下兼容别名保持有效；<br>• `syntax`、`collab`、`theme` 等模块对齐 `AGENTS.md` 规范，维持清晰子路径映射目录，不作散落扁平化。 |
 | **Phase 2** | **List 瘦身合并与 atomicRanges 替代**<br>• 合并三文件为 `src/core/list.ts`<br>• 采用方案 b 引入 `atomicRanges` + 保留 ArrowLeft 跨行薄守卫<br>• 强化 `deleteEmptyOrderedListMarkerBackward` 覆盖正文起点退格<br>• 统一 `nearestListItem` 等 helper 消除重复 | ✅ **核心已落地**<br>（内聚结构保留） | • 原生 `atomicRanges`（方案 b）全量落地于 `list-navigation.ts`；<br>• 下方 A1~A5、B1~B4 所有测试护栏全部实测通过；<br>• 维持 `list-model.ts`、`list-editing.ts`、`list-navigation.ts` 三文件独立内聚结构。 |
-| **Phase 3** | **`editor.tsx` 装配工厂函数提炼**<br>• 提炼 `src/core/setup.ts`（`createMossExtensions`）<br>• 迁出初始高亮定位至 `src/core/reveal.ts`<br>• Compartment 实例内聚收敛 | ⏳ **架构待办**<br>（技术 Backlog） | 方案设计已完备，当前 `editor.tsx` 52 个测试全量通过且运行稳定，保留为后续架构解耦演进任务。 |
-| **Phase 4** | **构建工具链与 IME 防抖优化**<br>• 评估轻量打包工具变量压缩与 DCE<br>• 中文 IME 合成期性能守卫验证 | ✅ **已落地** | • 中文 IME 合成期方向键与输入守卫全量生效；<br>• PeerDependencies 与打包导出映射验证全绿。 |
+| **Phase 3** | **构建工具链与 IME 防抖优化**<br>• 评估轻量打包工具变量压缩与 DCE<br>• 中文 IME 合成期性能守卫验证 | ✅ **已落地** | • 中文 IME 合成期方向键与输入守卫全量生效；<br>• PeerDependencies 与打包导出映射验证全绿。 |
 
 ### 3. Phase 2 专项验收清单（atomicRanges 迁移）
 

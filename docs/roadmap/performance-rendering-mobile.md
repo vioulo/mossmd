@@ -1,8 +1,8 @@
 # MossMD 性能、渲染、架构统一与移动端体验调优规划
 
 > [!NOTE] 落地状态归档 (v0.11.0)
-> 本规划中的**阶段一（P0 移动端阻断级体验）**与**阶段二（P1 长文性能与渲染防抖）**已在 **v0.11.0** 全量落地，通过单元测试（225+ 项全绿）与 Playwright 移动端基线验证，作为长期架构资产保留沉淀。
-> **阶段三**中，React 受控状态与增量协同储备已完成；“统一装饰调度层”作为长期架构演进储备保留。
+> 本规划中的**阶段一（P0 移动端阻断级体验）**、**阶段二（P1 长文性能与渲染防抖）**与**阶段三（P2 架构协作与受控状态）**已在 **v0.11.0** 全量落地，通过单元测试（225+ 项全绿）与 Playwright 移动端基线验证。
+> 原构想中的“中央装饰调度层”经实际探针评估后正式否决（见 ADR），维持 Feature 插件化独立自治架构。
 
 本文档系统性梳理 MossMD 在**性能伸缩性**、**渲染稳定性**、**架构与生命周期统一**以及 **PC 与移动端交互差异**四大维度的运行期风险，并制定可落地的架构演进路线与防御方案。
 
@@ -22,7 +22,6 @@
 | **性能** | KaTeX 缺乏公式渲染缓存；表格单个字符输入触发整表 DOM 重构与全量 Markdown 生成 | **P1 (核心体验)** | 频繁编辑公式、大表格打字 | `math/widget.ts`、`table/index.ts` |
 | **渲染** | 光标移入标题/加粗行时标记展开，导致文本水平跳动 (Horizontal Shift) | **P1 (核心体验)** | 键盘连续跨行上下导航 | `inline-preview.ts`、`preview-activity.ts` |
 | **渲染** | 异步图片加载缺乏宽高比占位，导致 CodeMirror Heightmap 测量突变与视口跳动 | **P1 (核心体验)** | 含网图文档首屏渲染与滚动 | `src/features/image/` |
-| **架构统一** | ViewPlugin 与多个独立 StateField 调度分散，缺乏中央装饰分发机制 | **P2 (架构治理)** | 多 Feature 并发装配与维护 | `src/editor.tsx`、`features/` |
 | **架构统一** | 协作适配器（`CollabAdapter`）全量替换文档，重置光标与解析状态，无法支持真实协作 | **P2 (架构治理)** | 多人协同与云端同步 | `src/collab/`、`src/editor.tsx` |
 
 ---
@@ -216,27 +215,14 @@ const editorIdentity = documentId ?? markdownSource;
 
 ## 五、 统一结构与架构演进 (Architecture) 改造规范
 
-### 1. 中央装饰分发管线 (Decoration Pipeline) (P2)
+### 1. 架构决策记录 (ADR)：否决中央装饰管线，维持 Feature 独立自治
 
-#### 现状分析
-`inline-preview`、`math`、`image`、`table`、`callout` 分别持有自己的 Plugin 或 StateField，多套体系并发运行，状态更新时机不一，生命周期难以追踪。
+针对此前设想将 `inline-preview`、`math`、`image`、`table`、`callout` 等整合进单一中央 Decoration Manager 的方案，经运行期探针与模块边界实测，**正式否决该项改造**：
 
-#### 改造方案
-建立统一的装饰管线架构：
-```text
-State Update (Doc / Selection / Viewport)
-                   │
-                   ▼
-       [Moss Decoration Manager]
-                   │
-        ┌──────────┴──────────┐
-        ▼                     ▼
- [Block Pipeline]      [Inline Pipeline]
-   - Tables (StateField)  - Syntax Marks (ViewPlugin)
-   - Images (StateField)  - Math (ViewPlugin/StateField)
-   - Uploads (StateField) - Callout (ViewPlugin)
-```
-- 一次事务统一获取语法树，根据节点范围分发给各个功能模块做装饰收集，最终一次性组装为 `RangeSet`，杜绝重复遍历。
+* **核心依据**：
+  1. **零性能收益**：Lezer 语法树在内存中只读不可变，遍历 AST 仅需 1~3ms；加之阶段二的“选区窄失效机制”已彻底消除了常规光标移动的全篇遍历，AST 遍历从不是性能瓶颈。
+  2. **严重破坏模块隔离**：MossMD 采用清晰的 ESM 子路径按需分包，各 Feature 高度自治。强行建立中央 Manager 会导致所有 Feature 与中央调度器强耦合，丧失按需引入能力。
+  3. **层叠覆盖与回归风险**：异构语法节点存在动态状态改写与子树剪枝（`return false`），混在一个遍历器中组装 RangeSet 极易引发覆盖错乱与静默渲染 Bug。
 
 ---
 
@@ -276,7 +262,6 @@ State Update (Doc / Selection / Viewport)
 - [x] **图片与块级组件 Heightmap 预估保护**：为 Table、BlockMath、Image、FileBlock 全量补充 `estimatedHeight`，避免进入视口时高度突变（从 14px 突变为 200px+）引发视口重构与滚动补偿抖动。
 
 ### 阶段三：架构统一与协作能力升级 (P2)
-- [ ] **统一装饰调度层**：整合独立 Feature 的 StateField/ViewPlugin，消除并发多重语法树遍历。（待办/长期架构演进储备：当前各 Feature 独立插件体系运行稳定，待未来装饰复杂度进一步提升或发现跨 Feature 协同瓶颈时再行推进）
 - [x] **增量协同接口储备**：已独立归档至 [collab.md](./collab.md) 作为长期技术演进储备，维持个人本地优先（Local-First）轻量定位，核心层暂不引入重型协同运行时。
 - [x] **React 受控状态平滑接入**：解决 `markdownSource` 未传 `documentId` 时的编辑器误重载问题，解耦内部实例标识，支持 `controlled` 属性最小事务就地同步。
 

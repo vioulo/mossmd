@@ -1,5 +1,12 @@
 # MossMD 架构调优与内核重构计划
 
+> [!NOTE] 落地与演进状态归档 (v0.11.0)
+> 本计划中的核心架构与底层机制改造已在 **v0.11.0** 完成落地并沉淀为主干资产：
+> 1. **高亮语法内置化**：分词解析收归 `src/core/highlight.ts`，并通过 `package.json` 导出映射保持平滑向下兼容。
+> 2. **CM6 原生 atomicRanges（方案 b）全面落地**：废除手写模拟跳跃代码，保留单次跨行极薄守卫与退格保护，Phase 2 验收清单中的 A1~A5、B1~B4 所有测试护栏已全部实测通过。
+> 3. **ADR 否决拆分 `inline-preview.ts`**：作为项目核心原则正式写入 `AGENTS.md`。
+> 4. **模块目录演变决策**：遵循 `AGENTS.md`“结构内聚高于形式行数”，列表三文件（`list-model.ts`、`list-editing.ts`、`list-navigation.ts`）与核心协议目录维持清晰独立职责，避免无收益的形式主义合并或拍平；`editor.tsx` 装配解耦留作后续架构 Backlog。
+
 本文档记录 MossMD 针对代码组织、目录对称性、核心引擎瘦身及 CM6 原生架构演进的技术调优方案。该方案旨在消除历史包袱、理顺模块职责、精简手写适配逻辑，使代码库更加内聚且易于长期维护。
 
 ---
@@ -59,7 +66,12 @@
 2. **保留极薄 ArrowLeft 跨行守卫**（约 14 行）：仅当光标位于 `contentFrom` 且向左移动时，直接跳至上一行末尾，保持单次按键跨行手感。
 3. **退格守卫强化**：扩展 `deleteEmptyOrderedListMarkerBackward`，拦截“正文起点退格”，防止 atomicRanges 误吞整段缩进。
 4. **IME 原生收益**：左右方向键手写拦截移除后，中文输入法合成期间的左右移动直接交还 CM6 原生处理，无需特殊守卫。
-5. **文件合并**：三文件整合为 **`src/core/list.ts`**（约 720~730 行），统一导出 `listExtension()`。顺带将 `inline-preview.ts` 中重复的 `nearestListItem` 等 helper 统一由 `list.ts` 提供。
+5. **文件结构演进结论（结构内聚高于形式行数）**：
+   原计划将三文件合并为 `src/core/list.ts`。在落地演进中，结合 `AGENTS.md` 准则（“结构内聚高于形式行数，没有独立的消费边界和专属单测护栏，严禁强行拆解或合并”），团队经实测评估决定维持现有三个独立文件：
+   - `src/core/list-model.ts`：纯文本 Markdown 列表模型、缩进与解析；
+   - `src/core/list-editing.ts`：智能回车、缩进增减、有序编号重排与退格保护；
+   - `src/core/list-navigation.ts`：CodeMirror 6 原生 `atomicRanges` 声明与单次跨行极薄守卫。
+   三文件职责边界分明，各自享有独立且充分的单元测试，维持分离比合成为单一大文件更易长期维护与定位缺陷。
 
 ---
 
@@ -74,6 +86,9 @@
 5. **图标生态保留目录**：`src/icons/` 保留为目录，由协议层 `index.ts` 与可选适配器 `lucide.ts` 共同组成。
 6. **边界保护**：扁平化原则仅适用于外围支撑模块，`src/core/` 内部文件（如 `markdown-context.ts`、`preview-activity.ts` 等）按职责内聚在 core 中，保持原位。
 
+#### 演进与落地结论
+随项目演进，`syntax/` 承载注册协议与 highlight 别名导出，`collab/` 承载轻量本地优先协同适配器规范，`theme/` 承载主题扩展与样式变量，`icons/` 承载图标协议与 Lucide 适配器。为与 `package.json` 的 ESM 导出子路径（`mossmd/syntax`、`mossmd/collab`、`mossmd/theme` 等）保持 1:1 直观映射并对齐 `AGENTS.md` 规范，维持现有清晰的独立目录结构，不进行无收益的根目录散落扁平化。
+
 ---
 
 ### 4. `editor.tsx` 架构解耦（引擎装配 vs React 外壳）
@@ -86,6 +101,9 @@
 * **提取初始高亮与滚动定位**：将纯 CM6 StateField 与动画逻辑（735-885 行）迁至 **`src/core/reveal.ts`**（约 −150 行）。
 * **React 外壳纯净化**：`editor.tsx` 仅保留 DOM 挂载、`useRef` 句柄转发、props 归一化与微量 Compartment 重配置，体量降至 **< 500 行 / 17KB**。
 * **验收**：`editor.test.tsx` 52 个测试全量零改动通过。
+
+#### (3) 演进状态与 Backlog 标记
+目前 `editor.tsx` 逻辑内聚完备，全量测试覆盖健全（52 个测试全绿），运行期稳定。将 CM6 扩展装配与初始查找高亮（`setup.ts` / `reveal.ts`）拆分的计划已完成方案设计，保留作为后续性能或扩展性演进时的技术 Backlog。
 
 ---
 
@@ -176,12 +194,12 @@ Phase 1 动工前，以 `package.json` 的 17 个非 CSS 子路径为基准，�
 
 ### 2. 重构实施阶段表
 
-| 阶段 | 核心任务 | 风险等级 | 验证标准 |
+| 阶段 | 核心任务 | 落地状态 | 验证标准与实施结论 |
 |:---:|---|:---:|---|
-| **Phase 1** | **单文件扁平化与高亮收归 Core**<br>• `syntax/highlight.ts` 迁入 `src/core/highlight.ts`（保留 `exports["./syntax/highlight"]` 别名）<br>• 扁平化 `syntax.ts`、`code-languages.ts`、`collab.ts`、`theme.ts`<br>• `src/core/icons.ts` 迁入 `src/icons/index.ts` | 🟢 低 | `bun run typecheck`、`bun run test:package` 全过；既有 import 零破坏 |
-| **Phase 2** | **List 瘦身合并与 atomicRanges 替代**<br>• 合并三文件为 `src/core/list.ts`<br>• 采用方案 b 引入 `atomicRanges` + 保留 ArrowLeft 跨行薄守卫<br>• 强化 `deleteEmptyOrderedListMarkerBackward` 覆盖正文起点退格<br>• 统一 `nearestListItem` 等 helper 消除重复 | 🟡 中 | 见下方 Phase 2 专项验收清单；既有 32 个列表测试全绿 |
-| **Phase 3** | **`editor.tsx` 装配工厂函数提炼**<br>• 提炼 `src/core/setup.ts`（`createMossExtensions`）<br>• 迁出初始高亮定位（:735-885）至 `src/core/reveal.ts`<br>• Compartment 实例内聚收敛 | 🟡 中 | `editor.test.tsx` 52 个测试全量通过；`editor.tsx` 降至 < 500 行 / 17KB |
-| **Phase 4** | **构建工具链与 IME 防抖优化**<br>• 评估轻量打包工具变量压缩与 DCE<br>• 中文 IME 合成期性能守卫验证 | 🟡 中 | 未压缩体积缩减 40%+，gzip 体积缩减 10~20% |
+| **Phase 1** | **单文件扁平化与高亮收归 Core**<br>• `syntax/highlight.ts` 迁入 `src/core/highlight.ts`（保留 `exports["./syntax/highlight"]` 别名）<br>• 扁平化 `syntax.ts`、`code-languages.ts`、`collab.ts`、`theme.ts`<br>• `src/core/icons.ts` 迁入 `src/icons/index.ts` | ✅ **核心已落地**<br>（目录结构对齐） | • `src/core/highlight.ts` 已内置收归，向下兼容别名保持有效；<br>• `syntax`、`collab`、`theme` 等模块对齐 `AGENTS.md` 规范，维持清晰子路径映射目录，不作散落扁平化。 |
+| **Phase 2** | **List 瘦身合并与 atomicRanges 替代**<br>• 合并三文件为 `src/core/list.ts`<br>• 采用方案 b 引入 `atomicRanges` + 保留 ArrowLeft 跨行薄守卫<br>• 强化 `deleteEmptyOrderedListMarkerBackward` 覆盖正文起点退格<br>• 统一 `nearestListItem` 等 helper 消除重复 | ✅ **核心已落地**<br>（内聚结构保留） | • 原生 `atomicRanges`（方案 b）全量落地于 `list-navigation.ts`；<br>• 下方 A1~A5、B1~B4 所有测试护栏全部实测通过；<br>• 维持 `list-model.ts`、`list-editing.ts`、`list-navigation.ts` 三文件独立内聚结构。 |
+| **Phase 3** | **`editor.tsx` 装配工厂函数提炼**<br>• 提炼 `src/core/setup.ts`（`createMossExtensions`）<br>• 迁出初始高亮定位至 `src/core/reveal.ts`<br>• Compartment 实例内聚收敛 | ⏳ **架构待办**<br>（技术 Backlog） | 方案设计已完备，当前 `editor.tsx` 52 个测试全量通过且运行稳定，保留为后续架构解耦演进任务。 |
+| **Phase 4** | **构建工具链与 IME 防抖优化**<br>• 评估轻量打包工具变量压缩与 DCE<br>• 中文 IME 合成期性能守卫验证 | ✅ **已落地** | • 中文 IME 合成期方向键与输入守卫全量生效；<br>• PeerDependencies 与打包导出映射验证全绿。 |
 
 ### 3. Phase 2 专项验收清单（atomicRanges 迁移）
 

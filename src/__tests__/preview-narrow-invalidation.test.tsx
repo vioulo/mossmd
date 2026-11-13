@@ -167,4 +167,56 @@ describe('preview narrow invalidation on selection navigation', () => {
     const codeStartLine = host.querySelectorAll<HTMLElement>('.cm-line')[2];
     expect(codeStartLine?.textContent).toContain('ts');
   });
+
+  it('renders --- directly below text as hr and navigates without turning text into h2', () => {
+    const markdown = 'Paragraph title\n---\n\nTail';
+    const { host } = mount(<MossMD markdownSource={markdown} />);
+    const view = EditorView.findFromDOM(host.querySelector('.cm-editor')!);
+    expect(view).not.toBeNull();
+
+    let lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines[0]?.classList.contains('cm-moss-h2')).toBe(false);
+    expect(lines[0]?.textContent).toBe('Paragraph title');
+    expect(lines[1]?.classList.contains('cm-moss-hr')).toBe(true);
+    expect(lines[1]?.querySelector('.cm-moss-hr-widget')).not.toBeNull();
+
+    // Move cursor onto the --- line (line 2)
+    act(() => {
+      view!.focus();
+      view!.dispatch({ selection: { anchor: markdown.indexOf('---') + 1 } });
+    });
+    lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines[0]?.classList.contains('cm-moss-h2')).toBe(false);
+    expect(lines[1]?.classList.contains('cm-moss-hr')).toBe(false);
+    expect(lines[1]?.querySelector('.cm-moss-hr-source')).not.toBeNull();
+    expect(lines[1]?.textContent).toBe('---');
+
+    // Move away to Tail (line 4)
+    act(() => {
+      view!.dispatch({ selection: { anchor: markdown.indexOf('Tail') } });
+    });
+    lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines[0]?.classList.contains('cm-moss-h2')).toBe(false);
+    expect(lines[1]?.classList.contains('cm-moss-hr')).toBe(true);
+    expect(lines[1]?.querySelector('.cm-moss-hr-widget')).not.toBeNull();
+  });
+
+  it('does not turn --- inside fenced code into hr on navigation', () => {
+    const markdown = '```md\n---\n```\n\nTail';
+    const { host } = mount(<MossMD markdownSource={markdown} />);
+    const view = EditorView.findFromDOM(host.querySelector('.cm-editor')!);
+    expect(view).not.toBeNull();
+
+    act(() => {
+      view!.focus();
+      view!.dispatch({ selection: { anchor: markdown.indexOf('---') } });
+    });
+    act(() => {
+      view!.dispatch({ selection: { anchor: markdown.indexOf('Tail') } });
+    });
+
+    const lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines[1]?.classList.contains('cm-moss-hr')).toBe(false);
+    expect(lines[1]?.classList.contains('cm-moss-fenced-code')).toBe(true);
+  });
 });

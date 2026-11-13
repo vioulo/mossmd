@@ -103,6 +103,20 @@ function isPlainHorizontalRule(text: string): boolean {
   return /^\s*(\*|_|-)(?:[ \t]*\1){2,}[ \t]*$/.test(text);
 }
 
+function isSetextUnderlineLine(tree: Tree, line: Line): boolean {
+  const offset = line.text.search(/\S/);
+  if (offset < 0) return false;
+  let node: SyntaxNode | null = tree.resolveInner(line.from + offset, 1);
+  while (node) {
+    if (node.name === 'HeaderMark') {
+      const parentName = node.parent?.name;
+      return parentName === 'SetextHeading1' || parentName === 'SetextHeading2';
+    }
+    node = node.parent;
+  }
+  return false;
+}
+
 class HorizontalRuleWidget extends WidgetType {
   constructor(
     private readonly marker: '-' | '*' | '_',
@@ -327,7 +341,12 @@ export function buildInlineDecorations(view: EditorView): DecorationSet {
 
     const extendedHorizontalRule = parseExtendedHorizontalRule(line.text);
     if (!extendedHorizontalRule) {
-      if (!isPlainHorizontalRule(line.text)) continue;
+      if (
+        !isPlainHorizontalRule(line.text) ||
+        isSetextUnderlineLine(tree, line)
+      ) {
+        continue;
+      }
       horizontalRuleSourceLines.add(number);
       if (activeLines.has(number) && line.from < line.to) {
         ranges.push(
@@ -952,58 +971,63 @@ function buildDecorationsForLine(
     return;
   }
 
-  const extendedHorizontalRule = parseExtendedHorizontalRule(line.text);
-  if (extendedHorizontalRule) {
-    if (activeLines.has(lineNum)) {
-      if (line.from < line.to) {
+  if (!isInsideCode) {
+    const extendedHorizontalRule = parseExtendedHorizontalRule(line.text);
+    if (extendedHorizontalRule) {
+      if (activeLines.has(lineNum)) {
+        if (line.from < line.to) {
+          ranges.push(
+            Decoration.mark({ class: 'cm-moss-hr-source' }).range(
+              line.from,
+              line.to,
+            ),
+          );
+        }
+      } else {
         ranges.push(
-          Decoration.mark({ class: 'cm-moss-hr-source' }).range(
-            line.from,
-            line.to,
-          ),
+          Decoration.line({
+            class: horizontalRuleClassNames(
+              extendedHorizontalRule.marker,
+              extendedHorizontalRule.glyph,
+            ),
+          }).range(line.from),
+        );
+        pushHorizontalRuleWidget(
+          ranges,
+          doc,
+          line,
+          extendedHorizontalRule.marker,
+          extendedHorizontalRule.glyph,
         );
       }
-    } else {
-      ranges.push(
-        Decoration.line({
-          class: horizontalRuleClassNames(
-            extendedHorizontalRule.marker,
-            extendedHorizontalRule.glyph,
-          ),
-        }).range(line.from),
-      );
-      pushHorizontalRuleWidget(
-        ranges,
-        doc,
-        line,
-        extendedHorizontalRule.marker,
-        extendedHorizontalRule.glyph,
-      );
+      return;
     }
-    return;
-  }
 
-  if (isPlainHorizontalRule(line.text)) {
-    if (activeLines.has(lineNum)) {
-      if (line.from < line.to) {
+    if (
+      isPlainHorizontalRule(line.text) &&
+      !isSetextUnderlineLine(tree, line)
+    ) {
+      if (activeLines.has(lineNum)) {
+        if (line.from < line.to) {
+          ranges.push(
+            Decoration.mark({ class: 'cm-moss-hr-source' }).range(
+              line.from,
+              line.to,
+            ),
+          );
+        }
+      } else {
+        const marker = line.text.trimStart().slice(0, 1);
+        const hrMarker = marker === '*' || marker === '_' ? marker : '-';
         ranges.push(
-          Decoration.mark({ class: 'cm-moss-hr-source' }).range(
-            line.from,
-            line.to,
-          ),
+          Decoration.line({
+            class: horizontalRuleClassNames(hrMarker, null),
+          }).range(line.from),
         );
+        pushHorizontalRuleWidget(ranges, doc, line, hrMarker);
       }
-    } else {
-      const marker = line.text.trimStart().slice(0, 1);
-      const hrMarker = marker === '*' || marker === '_' ? marker : '-';
-      ranges.push(
-        Decoration.line({
-          class: horizontalRuleClassNames(hrMarker, null),
-        }).range(line.from),
-      );
-      pushHorizontalRuleWidget(ranges, doc, line, hrMarker);
+      return;
     }
-    return;
   }
 
   // Hanging indent for list items

@@ -181,7 +181,7 @@ export function separateHorizontalRuleInput(
   to: number,
   text: string,
 ): boolean {
-  if (text !== '-' || from !== to) return false;
+  if (text !== '-' || from !== to || view.composing) return false;
 
   const { state } = view;
   if (state.selection.ranges.length !== 1 || !state.selection.main.empty) {

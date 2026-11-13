@@ -535,10 +535,14 @@ export function MossMD({
           // GFM via base: markdownLanguage — tables, strikethrough,
           // task lists, autolinks. Without this, the parser is pure
           // CommonMark and inline-preview never sees Task / Table.
+          // Setext headings (e.g. `text\n---`) are removed so `---`
+          // directly below text renders as a horizontal rule without
+          // forcing empty line insertion or turning text into H2.
           markdown({
             base: markdownLanguage,
             codeLanguages: [...codeLanguages],
             extensions: [
+              { remove: ['SetextHeading'] },
               highlightMarkdown,
               ...registeredSyntax.markdownExtensions,
             ],

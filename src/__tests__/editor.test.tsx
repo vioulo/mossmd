@@ -308,6 +308,48 @@ describe('MossMD', () => {
     expect(host.querySelector('.cm-moss-fenced-code')).not.toBeNull();
   });
 
+  it('renders --- directly below prose as hr without requiring a blank line', () => {
+    const doc = '正文\n---';
+    const { host } = mount(<MossMD markdownSource={doc} />);
+    const editor = host.querySelector<HTMLElement>('.cm-editor');
+    const view = editor ? EditorView.findFromDOM(editor) : null;
+    expect(view).not.toBeNull();
+
+    // Line 1 should remain normal prose (not H2)
+    // Line 2 should render as horizontal rule widget
+    let lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines).toHaveLength(2);
+    expect(lines[0]?.classList.contains('cm-moss-h2')).toBe(false);
+    expect(lines[0]?.textContent).toBe('正文');
+    expect(lines[1]?.classList.contains('cm-moss-hr')).toBe(true);
+    expect(lines[1]?.querySelector('.cm-moss-hr-widget')).not.toBeNull();
+
+    // Focus cursor onto the --- line: reveals source without hr widget
+    act(() => {
+      view!.focus();
+      view!.dispatch({ selection: { anchor: doc.indexOf('---') + 1 } });
+    });
+
+    lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines[0]?.classList.contains('cm-moss-h2')).toBe(false);
+    expect(lines[1]?.classList.contains('cm-moss-hr')).toBe(false);
+    expect(lines[1]?.querySelector('.cm-moss-hr-source')).not.toBeNull();
+    expect(lines[1]?.textContent).toBe('---');
+
+    // Move cursor back to line 1: line 2 restores hr widget
+    act(() => {
+      view!.dispatch({ selection: { anchor: 0 } });
+    });
+
+    lines = Array.from(host.querySelectorAll<HTMLElement>('.cm-line'));
+    expect(lines[0]?.classList.contains('cm-moss-h2')).toBe(false);
+    expect(lines[1]?.classList.contains('cm-moss-hr')).toBe(true);
+    expect(lines[1]?.querySelector('.cm-moss-hr-widget')).not.toBeNull();
+
+    // Raw markdown doc remains untouched with NO blank line inserted
+    expect(view!.state.doc.toString()).toBe('正文\n---');
+  });
+
   it('renders custom task statuses as icons and toggles configured pairs', () => {
     const markdown = [
       '- [ ] To Do',

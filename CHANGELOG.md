@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### 修复与优化 (Fixes & Improvements)
+
+- **分割线实时预览与 Setext 标题隔离**：
+  - 在 Markdown 解析配置中移除 `SetextHeading`（`{ remove: ['SetextHeading'] }`），解决紧随正文下方的 `---` 会将前行正文误识别为 H2 标题的问题，无需手动插入空行即可直接渲染为分割线；
+  - 完善行内预览中分割线在围栏代码块内的隔离（`!isInsideCode`），杜绝代码块内部的 `---` 被误渲染为 hr widget；
+  - 在 `separateHorizontalRuleInput` 中补充输入法组合状态判断（`view.composing`），避免中文输入法输入 `-` 候选词时误触发规则分割。
+- **任务列表与输入体验 (Task List & IME)**：
+  - 统一任务复选框间距：保留源码中的真实空格作为文本节点锚点，消除右边距（`margin-right: 0`），解决空任务项输入时的文本抖动与 IME 选词框定位问题；
+  - 优化空任务标记退格逐级删除（Step-delete），消除有序列表序号缩进抖动。
+
 ## 0.11.0 - 2026-10-29
 
 ### 新增与移动端体验 (Mobile-First)
